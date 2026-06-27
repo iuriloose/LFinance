@@ -4,7 +4,8 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import QDate
 
-from banco.banco import inserir_despesa
+from modelos.despesa import Despesa
+from servicos.financeiro import Financeiro
 
 
 class NovaDespesa(QDialog):
@@ -142,6 +143,7 @@ class NovaDespesa(QDialog):
             QMessageBox.warning(self, "Atenção", "O valor precisa ser maior que zero.")
             return
 
-        inserir_despesa(descricao, valor, vencimento, categoria, tipo)
+        despesa = Despesa(descricao, valor, vencimento, categoria, tipo)
+        Financeiro.adicionar_despesa(despesa)
 
         self.accept()

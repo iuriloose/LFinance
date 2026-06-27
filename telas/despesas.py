@@ -19,7 +19,7 @@ class TelaDespesas(QWidget):
         titulo = QLabel("Despesas")
         titulo.setObjectName("titulo")
 
-        subtitulo = QLabel("Gerencie suas despesas cadastradas")
+        subtitulo = QLabel("Veja, pague ou exclua suas despesas cadastradas")
         subtitulo.setObjectName("subtitulo")
 
         layout.addWidget(titulo)
@@ -28,7 +28,7 @@ class TelaDespesas(QWidget):
         despesas = listar_despesas()
 
         if not despesas:
-            vazio = QLabel("Nenhuma despesa cadastrada ainda.")
+            vazio = QLabel("Nenhuma despesa cadastrada.")
             vazio.setObjectName("cardInfo")
             layout.addWidget(vazio)
             return
@@ -41,21 +41,22 @@ class TelaDespesas(QWidget):
 
             card_layout = QHBoxLayout(card)
             card_layout.setContentsMargins(18, 14, 18, 14)
-            card_layout.setSpacing(14)
+            card_layout.setSpacing(12)
 
             info = QLabel(
-                f"{vencimento}  •  {descricao}  •  R$ {valor:.2f}  •  {categoria}  •  {tipo}  •  {status}"
-                .replace(".", ",")
+                f"{descricao}\n"
+                f"Vencimento: {vencimento} • Categoria: {categoria} • Tipo: {tipo} • Status: {status}\n"
+                f"R$ {valor:.2f}".replace(".", ",")
             )
             info.setObjectName("linhaDespesa")
 
             btn_pago = QPushButton("Marcar paga")
             btn_pago.setObjectName("btnReceita")
-            btn_pago.clicked.connect(lambda checked=False, id=id_despesa: self.marcar_paga(id))
+            btn_pago.clicked.connect(lambda _, id=id_despesa: self.marcar_paga(id))
 
             btn_excluir = QPushButton("Excluir")
             btn_excluir.setObjectName("btnDespesa")
-            btn_excluir.clicked.connect(lambda checked=False, id=id_despesa: self.excluir(id))
+            btn_excluir.clicked.connect(lambda _, id=id_despesa: self.excluir(id))
 
             card_layout.addWidget(info)
             card_layout.addStretch()
@@ -73,8 +74,8 @@ class TelaDespesas(QWidget):
     def excluir(self, id_despesa):
         resposta = QMessageBox.question(
             self,
-            "Confirmar exclusão",
-            "Deseja excluir esta despesa?"
+            "Excluir despesa",
+            "Tem certeza que deseja excluir esta despesa?"
         )
 
         if resposta == QMessageBox.Yes:
@@ -82,5 +83,10 @@ class TelaDespesas(QWidget):
             self.recarregar()
 
     def recarregar(self):
-        novo = TelaDespesas()
-        self.setLayout(novo.layout())
+        while self.layout().count():
+            item = self.layout().takeAt(0)
+            widget = item.widget()
+            if widget:
+                widget.deleteLater()
+
+        self.montar_tela()
