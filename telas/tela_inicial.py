@@ -1,154 +1,23 @@
 from datetime import date
 
 from PySide6.QtWidgets import (
-    QMainWindow, QWidget, QHBoxLayout, QVBoxLayout,
+    QWidget, QHBoxLayout, QVBoxLayout,
     QLabel, QPushButton, QFrame
 )
 
-from componentes.menu_lateral import MenuLateral
 from componentes.cards import CardResumo
 from telas.nova_despesa import NovaDespesa
 from banco.banco import listar_despesas, somar_despesas_abertas, contar_despesas_atrasadas
 
 
-class TelaInicial(QMainWindow):
-    def __init__(self):
+class TelaInicial(QWidget):
+    def __init__(self, ao_salvar_despesa=None):
         super().__init__()
-
-        self.setWindowTitle("LFinance")
-        self.resize(1200, 720)
-        self.setMinimumSize(1000, 620)
-
-        self.aplicar_estilo()
+        self.ao_salvar_despesa = ao_salvar_despesa
         self.montar_tela()
 
-    def aplicar_estilo(self):
-        self.setStyleSheet("""
-            QMainWindow { background-color: #0f1117; }
-
-            QLabel {
-                color: #f5f5f5;
-                font-family: Segoe UI;
-            }
-
-            QFrame#sidebar {
-                background-color: #151922;
-                border-right: 1px solid #242938;
-            }
-
-            QLabel#logo {
-                font-size: 28px;
-                font-weight: bold;
-                color: #ffffff;
-            }
-
-            QLabel#subtitle {
-                font-size: 13px;
-                color: #8d93a6;
-            }
-
-            QPushButton#menuButton {
-                background-color: transparent;
-                color: #c8cee2;
-                text-align: left;
-                padding: 14px 18px;
-                border-radius: 10px;
-                font-size: 15px;
-            }
-
-            QPushButton#menuButton:hover {
-                background-color: #222838;
-                color: #ffffff;
-            }
-
-            QPushButton#menuButton:checked {
-                background-color: #2d6cdf;
-                color: #ffffff;
-                font-weight: bold;
-            }
-
-            QFrame#content { background-color: #0f1117; }
-
-            QLabel#titulo {
-                font-size: 32px;
-                font-weight: bold;
-            }
-
-            QLabel#subtitulo {
-                font-size: 15px;
-                color: #9aa2b8;
-            }
-
-            QFrame#card {
-                background-color: #181d29;
-                border: 1px solid #252b3a;
-                border-radius: 18px;
-            }
-
-            QLabel#cardTitulo {
-                font-size: 14px;
-                color: #9aa2b8;
-            }
-
-            QLabel#cardValor {
-                font-size: 28px;
-                font-weight: bold;
-                color: #ffffff;
-            }
-
-            QLabel#cardInfo {
-                font-size: 13px;
-                color: #7f879d;
-            }
-
-            QLabel#linhaDespesa {
-                color: #d7dcf0;
-                font-size: 15px;
-                padding: 6px;
-            }
-
-            QPushButton#btnDespesa {
-                background-color: #202638;
-                color: white;
-                padding: 13px 22px;
-                border-radius: 12px;
-                font-size: 15px;
-                font-weight: bold;
-                border: 1px solid #553030;
-            }
-
-            QPushButton#btnReceita {
-                background-color: #202638;
-                color: white;
-                padding: 13px 22px;
-                border-radius: 12px;
-                font-size: 15px;
-                font-weight: bold;
-                border: 1px solid #27553b;
-            }
-
-            QLabel#rodape {
-                color: #6f768a;
-                font-size: 12px;
-            }
-        """)
-
     def montar_tela(self):
-        container = QWidget()
-        layout_principal = QHBoxLayout(container)
-        layout_principal.setContentsMargins(0, 0, 0, 0)
-        layout_principal.setSpacing(0)
-
-        layout_principal.addWidget(MenuLateral())
-        layout_principal.addWidget(self.criar_conteudo())
-
-        self.setCentralWidget(container)
-
-    def criar_conteudo(self):
-        content = QFrame()
-        content.setObjectName("content")
-
-        layout = QVBoxLayout(content)
+        layout = QVBoxLayout(self)
         layout.setContentsMargins(36, 30, 36, 24)
         layout.setSpacing(24)
 
@@ -198,7 +67,7 @@ class TelaInicial(QMainWindow):
         painel_layout.setContentsMargins(24, 22, 24, 22)
         painel_layout.setSpacing(10)
 
-        titulo_lista = QLabel("📅 Despesas cadastradas")
+        titulo_lista = QLabel("📅 Últimas despesas")
         titulo_lista.setObjectName("cardValor")
         titulo_lista.setStyleSheet("font-size: 22px;")
 
@@ -211,9 +80,9 @@ class TelaInicial(QMainWindow):
             vazio.setObjectName("cardInfo")
             painel_layout.addWidget(vazio)
         else:
-            for despesa in despesas[:8]:
+            for despesa in despesas[:6]:
                 _, descricao, valor, vencimento, categoria, tipo, status = despesa
-                texto = f"{vencimento}  •  {descricao}  •  R$ {valor:.2f}  •  {categoria}  •  {tipo}  •  {status}"
+                texto = f"{vencimento}  •  {descricao}  •  R$ {valor:.2f}  •  {categoria}  •  {status}"
                 texto = texto.replace(".", ",")
 
                 linha = QLabel(texto)
@@ -223,13 +92,7 @@ class TelaInicial(QMainWindow):
         painel_layout.addStretch()
         layout.addWidget(painel)
 
-        rodape = QLabel("v0.6 • Tela inicial mostrando despesas cadastradas")
-        rodape.setObjectName("rodape")
-        layout.addWidget(rodape)
-
-        return content
-
     def abrir_nova_despesa(self):
         janela = NovaDespesa()
-        if janela.exec():
-            self.montar_tela()
+        if janela.exec() and self.ao_salvar_despesa:
+            self.ao_salvar_despesa()

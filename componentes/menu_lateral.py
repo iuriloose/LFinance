@@ -4,7 +4,9 @@ from PySide6.QtWidgets import QFrame, QVBoxLayout, QLabel, QPushButton
 class MenuLateral(QFrame):
     def __init__(self, ao_clicar):
         super().__init__()
+
         self.ao_clicar = ao_clicar
+        self.botoes = {}
 
         self.setObjectName("sidebar")
         self.setFixedWidth(250)
@@ -23,7 +25,7 @@ class MenuLateral(QFrame):
         layout.addWidget(subtitulo)
         layout.addSpacing(28)
 
-        botoes = [
+        itens = [
             ("tela_inicial", "🏠 Tela inicial"),
             ("receitas", "💵 Receitas"),
             ("despesas", "💳 Despesas"),
@@ -33,14 +35,27 @@ class MenuLateral(QFrame):
             ("configuracoes", "⚙️ Configurações"),
         ]
 
-        for chave, texto in botoes:
+        for chave, texto in itens:
             botao = QPushButton(texto)
             botao.setObjectName("menuButton")
-            botao.clicked.connect(lambda _, c=chave: self.ao_clicar(c))
+            botao.setCheckable(True)
+            botao.clicked.connect(lambda _, c=chave: self.clicar(c))
+
+            self.botoes[chave] = botao
             layout.addWidget(botao)
 
         layout.addStretch()
 
-        versao = QLabel("v0.7")
+        versao = QLabel("v0.10")
         versao.setObjectName("rodape")
         layout.addWidget(versao)
+
+        self.definir_ativo("tela_inicial")
+
+    def clicar(self, chave):
+        self.definir_ativo(chave)
+        self.ao_clicar(chave)
+
+    def definir_ativo(self, chave_ativa):
+        for chave, botao in self.botoes.items():
+            botao.setChecked(chave == chave_ativa)

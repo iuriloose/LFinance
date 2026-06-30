@@ -114,3 +114,29 @@ def excluir_despesa(id_despesa):
 
     conexao.commit()
     conexao.close()
+
+def reabrir_despesa(id_despesa):
+    conexao = conectar()
+    cursor = conexao.cursor()
+
+    cursor.execute("""
+        UPDATE despesas
+        SET status = 'aberta'
+        WHERE id = ?
+    """, (id_despesa,))
+
+    conexao.commit()
+    conexao.close()
+
+def atualizar_despesa(id_despesa, descricao, valor, vencimento, categoria, tipo):
+    conexao = conectar()
+    cursor = conexao.cursor()
+
+    cursor.execute("""
+        UPDATE despesas
+        SET descricao = ?, valor = ?, vencimento = ?, categoria = ?, tipo = ?
+        WHERE id = ?
+    """, (descricao, valor, vencimento, categoria, tipo, id_despesa))
+
+    conexao.commit()
+    conexao.close()
