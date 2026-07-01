@@ -127,6 +127,11 @@ class TelaPrincipal(QMainWindow):
                 border: 1px solid #553030;
             }
 
+            QPushButton#btnDespesa:hover {
+                background-color: #2a1f2a;
+                border: 1px solid #ef4444;
+            }
+
             QPushButton#btnReceita {
                 background-color: #202638;
                 color: white;
@@ -135,6 +140,105 @@ class TelaPrincipal(QMainWindow):
                 font-size: 14px;
                 font-weight: bold;
                 border: 1px solid #27553b;
+            }
+
+            QPushButton#btnReceita:hover {
+                background-color: #172a22;
+                border: 1px solid #22c55e;
+            }
+
+            QFrame#cardSaldo,
+            QFrame#cardReceita,
+            QFrame#cardDespesa,
+            QFrame#cardAtrasada {
+                border-radius: 16px;
+                min-height: 72px;
+                max-height: 72px;
+            }
+
+            QFrame#cardSaldo {
+                background-color: qlineargradient(
+                    x1:0, y1:0, x2:1, y2:1,
+                    stop:0 #163a67,
+                    stop:0.35 #1d2940,
+                    stop:1 #181d29
+                );
+                border: 1px solid #3b82f6;
+            }
+
+            QFrame#cardSaldo:hover {
+                border: 1px solid #60a5fa;
+            }
+
+            QFrame#cardReceita {
+                background-color: qlineargradient(
+                    x1:0, y1:0, x2:1, y2:1,
+                    stop:0 #18452d,
+                    stop:0.35 #1d2940,
+                    stop:1 #181d29
+                );
+                border: 1px solid #22c55e;
+            }
+
+            QFrame#cardReceita:hover {
+                border: 1px solid #4ade80;
+            }
+
+            QFrame#cardDespesa {
+                background-color: qlineargradient(
+                    x1:0, y1:0, x2:1, y2:1,
+                    stop:0 #5b3a10,
+                    stop:0.35 #1d2940,
+                    stop:1 #181d29
+                );
+                border: 1px solid #f59e0b;
+            }
+
+            QFrame#cardDespesa:hover {
+                border: 1px solid #fbbf24;
+            }
+
+            QFrame#cardAtrasada {
+                background-color: qlineargradient(
+                    x1:0, y1:0, x2:1, y2:1,
+                    stop:0 #5a1c1c,
+                    stop:0.35 #1d2940,
+                    stop:1 #181d29
+                );
+                border: 1px solid #ef4444;
+            }
+
+            QFrame#cardAtrasada:hover {
+                border: 1px solid #f87171;
+            }
+
+            QLabel#cardIcone {
+                font-size: 21px;
+
+                min-width: 42px;
+                max-width: 42px;
+
+                min-height: 42px;
+                max-height: 42px;
+
+                border-radius: 21px;
+
+                background-color: rgba(255,255,255,0.07);
+
+                border: 1px solid rgba(255,255,255,0.10);
+
+                qproperty-alignment: AlignCenter;
+            }
+
+            QLabel#cardValorMini {
+                font-size: 22px;
+                font-weight: bold;
+                color: #ffffff;
+            }
+
+            QLabel#cardInfoMini {
+                font-size: 12px;
+                color: #cbd5e1;
             }
         """)
 

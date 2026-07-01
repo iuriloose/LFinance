@@ -4,9 +4,7 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import QDate
 
-from modelos.despesa import Despesa
-from servicos.financeiro import Financeiro
-from banco.banco import atualizar_despesa
+from banco.banco import inserir_despesa, atualizar_despesa
 
 
 class NovaDespesa(QDialog):
@@ -17,16 +15,14 @@ class NovaDespesa(QDialog):
         self.modo_edicao = despesa is not None
 
         self.setWindowTitle("Editar despesa" if self.modo_edicao else "Nova despesa")
-        self.setFixedSize(520, 380)
+        self.setFixedSize(520, 460)
 
         self.aplicar_estilo()
         self.montar_tela()
 
     def aplicar_estilo(self):
         self.setStyleSheet("""
-            QDialog {
-                background-color: #0f1117;
-            }
+            QDialog { background-color: #0f1117; }
 
             QLabel {
                 color: #f5f5f5;
@@ -43,6 +39,12 @@ class NovaDespesa(QDialog):
             QLabel#subtitulo {
                 color: #9aa2b8;
                 font-size: 13px;
+            }
+
+            QLabel#valorTotal {
+                color: #9aa2b8;
+                font-size: 13px;
+                font-weight: bold;
             }
 
             QLineEdit, QComboBox {
@@ -92,7 +94,7 @@ class NovaDespesa(QDialog):
         bloco.addWidget(label)
         bloco.addWidget(widget)
 
-        return bloco
+        return bloco, label
 
     def montar_tela(self):
         layout = QVBoxLayout(self)
@@ -103,48 +105,69 @@ class NovaDespesa(QDialog):
         titulo.setObjectName("titulo")
 
         subtitulo = QLabel(
-            "Altere os dados da despesa"
-            if self.modo_edicao
-            else "Cadastre uma saída de dinheiro"
+            "Altere os dados da despesa" if self.modo_edicao else "Cadastre uma saída de dinheiro"
         )
         subtitulo.setObjectName("subtitulo")
 
         self.descricao = QLineEdit()
         self.descricao.setPlaceholderText("Ex: Internet, mercado, luz...")
-        self.descricao.returnPressed.connect(self.salvar_despesa)
 
         self.valor = QLineEdit()
-        self.valor.setPlaceholderText("129,90")
-        self.valor.returnPressed.connect(self.salvar_despesa)
+        self.valor.setPlaceholderText("Valor da parcela. Ex: 108,80")
+        self.valor.textChanged.connect(self.atualizar_valor_total)
 
         self.vencimento = QLineEdit()
         self.vencimento.setInputMask("00/00/0000")
         self.vencimento.setText(QDate.currentDate().toString("dd/MM/yyyy"))
-        self.vencimento.returnPressed.connect(self.salvar_despesa)
 
         self.categoria = QComboBox()
         self.categoria.addItems(["Casa", "Mercado", "Internet", "Luz", "Água", "Carro", "Outros"])
 
         self.tipo = QComboBox()
         self.tipo.addItems(["Despesa única", "Conta fixa", "Parcelamento"])
+        self.tipo.currentTextChanged.connect(self.atualizar_campos_parcela)
+
+        self.parcela_atual = QLineEdit()
+        self.parcela_atual.setPlaceholderText("Ex: 3")
+        self.parcela_atual.textChanged.connect(self.atualizar_valor_total)
+
+        self.total_parcelas = QLineEdit()
+        self.total_parcelas.setPlaceholderText("Ex: 12")
+        self.total_parcelas.textChanged.connect(self.atualizar_valor_total)
+
+        self.valor_total_label = QLabel("Valor total: R$ 0,00")
+        self.valor_total_label.setObjectName("valorTotal")
 
         self.valor.setMinimumWidth(220)
         self.vencimento.setMinimumWidth(220)
         self.categoria.setMinimumWidth(220)
         self.tipo.setMinimumWidth(220)
+        self.parcela_atual.setMinimumWidth(220)
+        self.total_parcelas.setMinimumWidth(220)
 
         if self.modo_edicao:
             self.preencher_campos()
 
         linha_valor_data = QHBoxLayout()
         linha_valor_data.setSpacing(12)
-        linha_valor_data.addLayout(self.campo("Valor", self.valor))
-        linha_valor_data.addLayout(self.campo("Vencimento", self.vencimento))
+        campo_valor, _ = self.campo("Valor da parcela", self.valor)
+        campo_vencimento, _ = self.campo("Vencimento", self.vencimento)
+        linha_valor_data.addLayout(campo_valor)
+        linha_valor_data.addLayout(campo_vencimento)
 
         linha_categoria_tipo = QHBoxLayout()
         linha_categoria_tipo.setSpacing(12)
-        linha_categoria_tipo.addLayout(self.campo("Categoria", self.categoria))
-        linha_categoria_tipo.addLayout(self.campo("Tipo", self.tipo))
+        campo_categoria, _ = self.campo("Categoria", self.categoria)
+        campo_tipo, _ = self.campo("Tipo", self.tipo)
+        linha_categoria_tipo.addLayout(campo_categoria)
+        linha_categoria_tipo.addLayout(campo_tipo)
+
+        linha_parcelas = QHBoxLayout()
+        linha_parcelas.setSpacing(12)
+        campo_parcela_atual, self.lbl_parcela_atual = self.campo("Parcela atual", self.parcela_atual)
+        campo_total_parcelas, self.lbl_total_parcelas = self.campo("Total de parcelas", self.total_parcelas)
+        linha_parcelas.addLayout(campo_parcela_atual)
+        linha_parcelas.addLayout(campo_total_parcelas)
 
         btn_cancelar = QPushButton("Cancelar")
         btn_cancelar.setObjectName("cancelar")
@@ -162,19 +185,79 @@ class NovaDespesa(QDialog):
         botoes.addWidget(btn_cancelar)
         botoes.addWidget(btn_salvar)
 
+        campo_descricao, _ = self.campo("Descrição", self.descricao)
+
         layout.addWidget(titulo)
         layout.addWidget(subtitulo)
         layout.addSpacing(6)
-        layout.addLayout(self.campo("Descrição", self.descricao))
+        layout.addLayout(campo_descricao)
         layout.addLayout(linha_valor_data)
         layout.addLayout(linha_categoria_tipo)
+        layout.addLayout(linha_parcelas)
+        layout.addWidget(self.valor_total_label)
         layout.addStretch()
         layout.addLayout(botoes)
 
+        self.atualizar_campos_parcela()
+        self.atualizar_valor_total()
         self.descricao.setFocus()
 
-    def preencher_campos(self):
+    def atualizar_campos_parcela(self):
+        mostrar = self.tipo.currentText() == "Parcelamento"
+
+        self.parcela_atual.setVisible(mostrar)
+        self.total_parcelas.setVisible(mostrar)
+        self.lbl_parcela_atual.setVisible(mostrar)
+        self.lbl_total_parcelas.setVisible(mostrar)
+        self.valor_total_label.setVisible(mostrar)
+
+        self.atualizar_valor_total()
+
+    def calcular_valor_total(self):
+        if self.tipo.currentText() != "Parcelamento":
+            return None
+
+        try:
+            valor = float(self.valor.text().strip().replace(",", "."))
+            total_parcelas = int(self.total_parcelas.text().strip())
+            return valor * total_parcelas
+        except ValueError:
+            return None
+
+    def atualizar_valor_total(self):
+        total = self.calcular_valor_total()
+
+        if total is None:
+            self.valor_total_label.setText("Valor total: R$ 0,00")
+        else:
+            self.valor_total_label.setText(
+                f"Valor total: R$ {total:.2f}".replace(".", ",")
+            )
+
+    def separar_despesa(self):
+        if len(self.despesa) == 10:
+            return self.despesa
+
+        if len(self.despesa) == 9:
+            id_despesa, descricao, valor, vencimento, categoria, tipo, parcela_atual, total_parcelas, status = self.despesa
+            return id_despesa, descricao, valor, vencimento, categoria, tipo, parcela_atual, total_parcelas, None, status
+
         id_despesa, descricao, valor, vencimento, categoria, tipo, status = self.despesa
+        return id_despesa, descricao, valor, vencimento, categoria, tipo, None, None, None, status
+
+    def preencher_campos(self):
+        (
+            id_despesa,
+            descricao,
+            valor,
+            vencimento,
+            categoria,
+            tipo,
+            parcela_atual,
+            total_parcelas,
+            valor_total,
+            status,
+        ) = self.separar_despesa()
 
         self.descricao.setText(descricao)
         self.valor.setText(f"{valor:.2f}".replace(".", ","))
@@ -185,12 +268,22 @@ class NovaDespesa(QDialog):
         self.categoria.setCurrentText(categoria)
         self.tipo.setCurrentText(tipo)
 
+        if parcela_atual:
+            self.parcela_atual.setText(str(parcela_atual))
+
+        if total_parcelas:
+            self.total_parcelas.setText(str(total_parcelas))
+
     def salvar_despesa(self):
         descricao = self.descricao.text().strip()
         valor_texto = self.valor.text().strip().replace(",", ".")
         data_texto = self.vencimento.text().strip()
         categoria = self.categoria.currentText()
         tipo = self.tipo.currentText()
+
+        parcela_atual = None
+        total_parcelas = None
+        valor_total = None
 
         if not descricao:
             QMessageBox.warning(self, "Atenção", "Preencha a descrição.")
@@ -210,13 +303,34 @@ class NovaDespesa(QDialog):
             self.vencimento.setFocus()
             return
 
+        if tipo == "Parcelamento":
+            try:
+                parcela_atual = int(self.parcela_atual.text().strip())
+                total_parcelas = int(self.total_parcelas.text().strip())
+            except ValueError:
+                QMessageBox.warning(self, "Atenção", "Preencha as parcelas corretamente. Ex: 3 de 12")
+                self.parcela_atual.setFocus()
+                return
+
+            if parcela_atual <= 0 or total_parcelas <= 0 or parcela_atual > total_parcelas:
+                QMessageBox.warning(self, "Atenção", "A parcela atual não pode ser maior que o total.")
+                self.parcela_atual.setFocus()
+                return
+
+            valor_total = valor * total_parcelas
+
         vencimento = data.toString("yyyy-MM-dd")
 
         if self.modo_edicao:
             id_despesa = self.despesa[0]
-            atualizar_despesa(id_despesa, descricao, valor, vencimento, categoria, tipo)
+            atualizar_despesa(
+                id_despesa, descricao, valor, vencimento, categoria, tipo,
+                parcela_atual, total_parcelas, valor_total
+            )
         else:
-            despesa = Despesa(descricao, valor, vencimento, categoria, tipo)
-            Financeiro.adicionar_despesa(despesa)
+            inserir_despesa(
+                descricao, valor, vencimento, categoria, tipo,
+                parcela_atual, total_parcelas, valor_total
+            )
 
         self.accept()
