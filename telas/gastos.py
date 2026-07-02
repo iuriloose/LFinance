@@ -3,11 +3,11 @@ from PySide6.QtWidgets import (
     QPushButton, QFrame, QMessageBox, QScrollArea
 )
 
-from banco.banco import listar_receitas, excluir_receita
-from telas.nova_receita import NovaReceita
+from banco.banco import listar_gastos, excluir_gasto
+from telas.novo_gasto import NovoGasto
 
 
-class TelaReceitas(QWidget):
+class TelaGastos(QWidget):
     def __init__(self, ao_alterar=None):
         super().__init__()
 
@@ -34,8 +34,8 @@ class TelaReceitas(QWidget):
     def formatar_moeda(self, valor):
         return f"R$ {float(valor):,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
 
-    def criar_card_receita(self, receita):
-        id_receita, descricao, valor, data_recebimento, categoria, observacao = receita
+    def criar_card_gasto(self, gasto):
+        id_gasto, descricao, valor, data_gasto, categoria, observacao = gasto
 
         card = QFrame()
         card.setObjectName("card")
@@ -47,13 +47,13 @@ class TelaReceitas(QWidget):
 
         linha1 = QLabel(
             f"<b>{descricao}</b> &nbsp;&nbsp; "
-            f"<span style='color:#22c55e;'>{self.formatar_moeda(valor)}</span>"
+            f"<span style='color:#f59e0b;'>{self.formatar_moeda(valor)}</span>"
         )
         linha1.setObjectName("linhaDespesa")
 
         extra = f"  •  📝 {observacao}" if observacao else ""
         linha2 = QLabel(
-            f"📅 {self.formatar_data(data_recebimento)}  •  "
+            f"📅 {self.formatar_data(data_gasto)}  •  "
             f"📂 {categoria}{extra}"
         )
         linha2.setObjectName("cardInfo")
@@ -69,12 +69,12 @@ class TelaReceitas(QWidget):
         btn_editar = QPushButton("✏")
         btn_editar.setObjectName("btnReceita")
         btn_editar.setFixedWidth(54)
-        btn_editar.clicked.connect(lambda _, r=receita: self.editar(r))
+        btn_editar.clicked.connect(lambda _, g=gasto: self.editar(g))
 
         btn_excluir = QPushButton("🗑")
         btn_excluir.setObjectName("btnDespesa")
         btn_excluir.setFixedWidth(54)
-        btn_excluir.clicked.connect(lambda _, id=id_receita: self.excluir(id))
+        btn_excluir.clicked.connect(lambda _, id=id_gasto: self.excluir(id))
 
         botoes.addWidget(btn_editar)
         botoes.addWidget(btn_excluir)
@@ -82,8 +82,8 @@ class TelaReceitas(QWidget):
         card_layout.addLayout(info_layout, 1)
         card_layout.addLayout(botoes)
 
-        card.mouseDoubleClickEvent = lambda evento, r=receita: self.editar(r)
-        card.setToolTip("Dê dois cliques para editar esta receita")
+        card.mouseDoubleClickEvent = lambda evento, g=gasto: self.editar(g)
+        card.setToolTip("Dê dois cliques para editar este gasto")
 
         return card
 
@@ -95,26 +95,26 @@ class TelaReceitas(QWidget):
         textos = QVBoxLayout()
         textos.setSpacing(2)
 
-        titulo = QLabel("Receitas")
+        titulo = QLabel("Gastos")
         titulo.setObjectName("titulo")
 
-        subtitulo = QLabel("Veja, edite ou exclua suas entradas de dinheiro")
+        subtitulo = QLabel("Gastos já pagos, como mercado, gasolina e compras do dia")
         subtitulo.setObjectName("subtitulo")
 
         textos.addWidget(titulo)
         textos.addWidget(subtitulo)
 
-        btn_nova = QPushButton("↑  Nova receita")
-        btn_nova.setObjectName("btnReceita")
-        btn_nova.clicked.connect(self.nova_receita)
+        btn_novo = QPushButton("🛒  Novo gasto")
+        btn_novo.setObjectName("btnDespesa")
+        btn_novo.clicked.connect(self.novo_gasto)
 
         topo.addLayout(textos)
         topo.addStretch()
-        topo.addWidget(btn_nova)
+        topo.addWidget(btn_novo)
 
         self.layout_principal.addLayout(topo)
 
-        receitas = listar_receitas()
+        gastos = listar_gastos()
 
         area = QScrollArea()
         area.setWidgetResizable(True)
@@ -158,42 +158,42 @@ class TelaReceitas(QWidget):
         lista_layout.setContentsMargins(0, 0, 0, 0)
         lista_layout.setSpacing(10)
 
-        if not receitas:
-            vazio = QLabel("Nenhuma receita cadastrada.")
+        if not gastos:
+            vazio = QLabel("Nenhum gasto cadastrado.")
             vazio.setObjectName("cardInfo")
             lista_layout.addWidget(vazio)
         else:
-            for receita in receitas:
-                lista_layout.addWidget(self.criar_card_receita(receita))
+            for gasto in gastos:
+                lista_layout.addWidget(self.criar_card_gasto(gasto))
 
         lista_layout.addStretch()
         area.setWidget(conteudo)
 
         self.layout_principal.addWidget(area, 1)
 
-    def nova_receita(self):
-        janela = NovaReceita()
+    def novo_gasto(self):
+        janela = NovoGasto()
         if janela.exec():
             self.montar_tela()
             if self.ao_alterar:
                 self.ao_alterar()
 
-    def editar(self, receita):
-        janela = NovaReceita(receita)
+    def editar(self, gasto):
+        janela = NovoGasto(gasto)
         if janela.exec():
             self.montar_tela()
             if self.ao_alterar:
                 self.ao_alterar()
 
-    def excluir(self, id_receita):
+    def excluir(self, id_gasto):
         resposta = QMessageBox.question(
             self,
-            "Excluir receita",
-            "Tem certeza que deseja excluir esta receita?"
+            "Excluir gasto",
+            "Tem certeza que deseja excluir este gasto?"
         )
 
         if resposta == QMessageBox.Yes:
-            excluir_receita(id_receita)
+            excluir_gasto(id_gasto)
             self.montar_tela()
             if self.ao_alterar:
                 self.ao_alterar()

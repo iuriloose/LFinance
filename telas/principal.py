@@ -4,7 +4,10 @@ from PySide6.QtWidgets import (
 
 from componentes.menu_lateral import MenuLateral
 from telas.despesas import TelaDespesas
+from telas.receitas import TelaReceitas
+from telas.gastos import TelaGastos
 from telas.tela_inicial import TelaInicial
+from telas.configuracoes import TelaConfiguracoes
 
 
 class TelaPrincipal(QMainWindow):
@@ -147,6 +150,21 @@ class TelaPrincipal(QMainWindow):
                 border: 1px solid #22c55e;
             }
 
+            QPushButton#btnLimparBanco {
+                background-color: #3a1d1d;
+                color: #ffffff;
+                padding: 12px 18px;
+                border-radius: 10px;
+                font-size: 14px;
+                font-weight: bold;
+                border: 1px solid #ef4444;
+            }
+
+            QPushButton#btnLimparBanco:hover {
+                background-color: #4a2424;
+                border: 1px solid #f87171;
+            }
+
             QFrame#cardSaldo,
             QFrame#cardReceita,
             QFrame#cardDespesa,
@@ -264,15 +282,17 @@ class TelaPrincipal(QMainWindow):
         self.paginas = QStackedWidget()
 
         self.pagina_inicial = TelaInicial(self.recarregar_home)
-        self.pagina_receitas = self.criar_pagina_texto("💵 Receitas")
+        self.pagina_receitas = TelaReceitas(self.recarregar_home)
+        self.pagina_gastos = TelaGastos(self.recarregar_home)
         self.pagina_despesas = TelaDespesas()
         self.pagina_contas = self.criar_pagina_texto("📅 Contas Fixas")
         self.pagina_parcelamentos = self.criar_pagina_texto("📄 Parcelamentos")
         self.pagina_relatorios = self.criar_pagina_texto("📊 Relatórios")
-        self.pagina_configuracoes = self.criar_pagina_texto("⚙️ Configurações")
+        self.pagina_configuracoes = TelaConfiguracoes(self.recarregar_home)
 
         self.paginas.addWidget(self.pagina_inicial)
         self.paginas.addWidget(self.pagina_receitas)
+        self.paginas.addWidget(self.pagina_gastos)
         self.paginas.addWidget(self.pagina_despesas)
         self.paginas.addWidget(self.pagina_contas)
         self.paginas.addWidget(self.pagina_parcelamentos)
@@ -291,7 +311,12 @@ class TelaPrincipal(QMainWindow):
             self.recarregar_home()
 
         elif tela == "receitas":
+            self.pagina_receitas.recarregar()
             self.paginas.setCurrentWidget(self.pagina_receitas)
+
+        elif tela == "gastos":
+            self.pagina_gastos.recarregar()
+            self.paginas.setCurrentWidget(self.pagina_gastos)
 
         elif tela == "despesas":
             self.pagina_despesas.recarregar()

@@ -164,6 +164,9 @@ class TelaDespesas(QWidget):
         card_layout.addLayout(info_layout, 1)
         card_layout.addLayout(botoes)
 
+        card.mouseDoubleClickEvent = lambda evento, d=despesa: self.editar(d)
+        card.setToolTip("Dê dois cliques para editar esta despesa")
+
         return card
 
     def montar_tela(self):

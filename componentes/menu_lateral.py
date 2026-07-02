@@ -28,6 +28,7 @@ class MenuLateral(QFrame):
         itens = [
             ("tela_inicial", "🏠 Tela inicial"),
             ("receitas", "💵 Receitas"),
+            ("gastos", "🛒 Gastos"),
             ("despesas", "💳 Despesas"),
             ("contas_fixas", "📅 Contas fixas"),
             ("parcelamentos", "📄 Parcelamentos"),

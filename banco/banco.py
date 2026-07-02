@@ -4,10 +4,12 @@ from datetime import datetime
 from dateutil.relativedelta import relativedelta
 
 
-CAMINHO_BANCO = Path("banco") / "lfinance.db"
+BASE_DIR = Path(__file__).resolve().parent.parent
+CAMINHO_BANCO = BASE_DIR / "banco" / "lfinance.db"
 
 
 def conectar():
+    CAMINHO_BANCO.parent.mkdir(parents=True, exist_ok=True)
     return sqlite3.connect(CAMINHO_BANCO)
 
 
@@ -42,8 +44,59 @@ def criar_tabelas():
     if "valor_total" not in colunas:
         cursor.execute("ALTER TABLE despesas ADD COLUMN valor_total REAL")
 
+
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS receitas (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            descricao TEXT NOT NULL,
+            valor REAL NOT NULL,
+            data_recebimento TEXT NOT NULL,
+            categoria TEXT NOT NULL,
+            observacao TEXT,
+            data_criacao TEXT DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+
+    colunas_receitas = [coluna[1] for coluna in cursor.execute("PRAGMA table_info(receitas)")]
+
+    if "observacao" not in colunas_receitas:
+        cursor.execute("ALTER TABLE receitas ADD COLUMN observacao TEXT")
+
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS gastos (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            descricao TEXT NOT NULL,
+            valor REAL NOT NULL,
+            data_gasto TEXT NOT NULL,
+            categoria TEXT NOT NULL,
+            observacao TEXT,
+            data_criacao TEXT DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+
+    colunas_gastos = [coluna[1] for coluna in cursor.execute("PRAGMA table_info(gastos)")]
+
+    if "observacao" not in colunas_gastos:
+        cursor.execute("ALTER TABLE gastos ADD COLUMN observacao TEXT")
+
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS pagamentos (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id_despesa INTEGER,
+            descricao TEXT NOT NULL,
+            valor REAL NOT NULL,
+            data_pagamento TEXT NOT NULL,
+            categoria TEXT NOT NULL,
+            tipo TEXT NOT NULL,
+            parcela_atual INTEGER,
+            total_parcelas INTEGER,
+            data_criacao TEXT DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+
     conexao.commit()
     conexao.close()
+    limpar_parcelamentos_pagos_duplicados()
 
 
 def inserir_despesa(
@@ -134,6 +187,22 @@ def marcar_despesa_como_paga(id_despesa):
     conexao.close()
 
 
+def buscar_despesa_por_id(id_despesa):
+    conexao = conectar()
+    cursor = conexao.cursor()
+
+    cursor.execute("""
+        SELECT id, descricao, valor, vencimento, categoria, tipo,
+               parcela_atual, total_parcelas, valor_total, status
+        FROM despesas
+        WHERE id = ?
+    """, (id_despesa,))
+
+    despesa = cursor.fetchone()
+    conexao.close()
+    return despesa
+
+
 def pagar_despesa(id_despesa):
     conexao = conectar()
     cursor = conexao.cursor()
@@ -163,51 +232,86 @@ def pagar_despesa(id_despesa):
         status,
     ) = despesa
 
-    cursor.execute("""
-        UPDATE despesas
-        SET status = 'paga'
-        WHERE id = ?
-    """, (id_despesa,))
+    if status == "paga":
+        conexao.close()
+        return
 
-    data = datetime.strptime(vencimento, "%Y-%m-%d")
-    novo_vencimento = (data + relativedelta(months=1)).strftime("%Y-%m-%d")
+    data_pagamento = datetime.now().strftime("%Y-%m-%d")
+
+    cursor.execute("""
+        INSERT INTO pagamentos (
+            id_despesa, descricao, valor, data_pagamento, categoria, tipo,
+            parcela_atual, total_parcelas
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    """, (
+        id_despesa, descricao, valor, data_pagamento, categoria, tipo,
+        parcela_atual, total_parcelas
+    ))
 
     if tipo == "Conta fixa":
+        data = datetime.strptime(vencimento, "%Y-%m-%d")
+        novo_vencimento = (data + relativedelta(months=1)).strftime("%Y-%m-%d")
+
         cursor.execute("""
-            INSERT INTO despesas (
-                descricao, valor, vencimento, categoria, tipo, status
-            )
-            VALUES (?, ?, ?, ?, ?, 'aberta')
-        """, (
-            descricao,
-            valor,
-            novo_vencimento,
-            categoria,
-            tipo,
-        ))
+            UPDATE despesas
+            SET vencimento = ?,
+                status = 'aberta'
+            WHERE id = ?
+        """, (novo_vencimento, id_despesa))
 
     elif (
         tipo == "Parcelamento"
         and parcela_atual is not None
         and total_parcelas is not None
-        and parcela_atual < total_parcelas
     ):
+        if parcela_atual < total_parcelas:
+            data = datetime.strptime(vencimento, "%Y-%m-%d")
+            novo_vencimento = (data + relativedelta(months=1)).strftime("%Y-%m-%d")
+
+            cursor.execute("""
+                UPDATE despesas
+                SET vencimento = ?,
+                    parcela_atual = ?,
+                    status = 'aberta'
+                WHERE id = ?
+            """, (novo_vencimento, parcela_atual + 1, id_despesa))
+        else:
+            cursor.execute("""
+                UPDATE despesas
+                SET status = 'paga'
+                WHERE id = ?
+            """, (id_despesa,))
+
+    else:
         cursor.execute("""
-            INSERT INTO despesas (
-                descricao, valor, vencimento, categoria, tipo,
-                parcela_atual, total_parcelas, valor_total, status
-            )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'aberta')
-        """, (
-            descricao,
-            valor,
-            novo_vencimento,
-            categoria,
-            tipo,
-            parcela_atual + 1,
-            total_parcelas,
-            valor_total,
-        ))
+            UPDATE despesas
+            SET status = 'paga'
+            WHERE id = ?
+        """, (id_despesa,))
+
+    conexao.commit()
+    conexao.close()
+
+
+def limpar_parcelamentos_pagos_duplicados():
+    conexao = conectar()
+    cursor = conexao.cursor()
+
+    cursor.execute("""
+        DELETE FROM despesas
+        WHERE status = 'paga'
+          AND tipo = 'Parcelamento'
+          AND EXISTS (
+              SELECT 1
+              FROM despesas AS aberta
+              WHERE aberta.status = 'aberta'
+                AND aberta.tipo = despesas.tipo
+                AND aberta.descricao = despesas.descricao
+                AND aberta.total_parcelas = despesas.total_parcelas
+                AND aberta.parcela_atual = despesas.parcela_atual + 1
+          )
+    """)
 
     conexao.commit()
     conexao.close()
@@ -262,6 +366,230 @@ def atualizar_despesa(
         descricao, valor, vencimento, categoria, tipo,
         parcela_atual, total_parcelas, valor_total, id_despesa
     ))
+
+    conexao.commit()
+    conexao.close()
+
+
+def inserir_receita(descricao, valor, data_recebimento, categoria, observacao=""):
+    conexao = conectar()
+    cursor = conexao.cursor()
+
+    cursor.execute("""
+        INSERT INTO receitas (descricao, valor, data_recebimento, categoria, observacao)
+        VALUES (?, ?, ?, ?, ?)
+    """, (descricao, valor, data_recebimento, categoria, observacao))
+
+    conexao.commit()
+    conexao.close()
+
+
+def listar_receitas():
+    conexao = conectar()
+    cursor = conexao.cursor()
+
+    cursor.execute("""
+        SELECT id, descricao, valor, data_recebimento, categoria, observacao
+        FROM receitas
+        ORDER BY data_recebimento DESC, id DESC
+    """)
+
+    receitas = cursor.fetchall()
+    conexao.close()
+    return receitas
+
+
+def buscar_receita_por_id(id_receita):
+    conexao = conectar()
+    cursor = conexao.cursor()
+
+    cursor.execute("""
+        SELECT id, descricao, valor, data_recebimento, categoria, observacao
+        FROM receitas
+        WHERE id = ?
+    """, (id_receita,))
+
+    receita = cursor.fetchone()
+    conexao.close()
+    return receita
+
+
+def atualizar_receita(id_receita, descricao, valor, data_recebimento, categoria, observacao=""):
+    conexao = conectar()
+    cursor = conexao.cursor()
+
+    cursor.execute("""
+        UPDATE receitas
+        SET descricao = ?,
+            valor = ?,
+            data_recebimento = ?,
+            categoria = ?,
+            observacao = ?
+        WHERE id = ?
+    """, (descricao, valor, data_recebimento, categoria, observacao, id_receita))
+
+    conexao.commit()
+    conexao.close()
+
+
+def excluir_receita(id_receita):
+    conexao = conectar()
+    cursor = conexao.cursor()
+
+    cursor.execute("""
+        DELETE FROM receitas
+        WHERE id = ?
+    """, (id_receita,))
+
+    conexao.commit()
+    conexao.close()
+
+
+def somar_receitas_mes(inicio_mes, fim_mes):
+    conexao = conectar()
+    cursor = conexao.cursor()
+
+    cursor.execute("""
+        SELECT COALESCE(SUM(valor), 0)
+        FROM receitas
+        WHERE data_recebimento BETWEEN ? AND ?
+    """, (inicio_mes, fim_mes))
+
+    total = cursor.fetchone()[0]
+    conexao.close()
+    return total
+
+
+
+def inserir_gasto(descricao, valor, data_gasto, categoria, observacao=""):
+    conexao = conectar()
+    cursor = conexao.cursor()
+
+    cursor.execute("""
+        INSERT INTO gastos (descricao, valor, data_gasto, categoria, observacao)
+        VALUES (?, ?, ?, ?, ?)
+    """, (descricao, valor, data_gasto, categoria, observacao))
+
+    conexao.commit()
+    conexao.close()
+
+
+def listar_gastos():
+    conexao = conectar()
+    cursor = conexao.cursor()
+
+    cursor.execute("""
+        SELECT id, descricao, valor, data_gasto, categoria, observacao
+        FROM gastos
+        ORDER BY data_gasto DESC, id DESC
+    """)
+
+    gastos = cursor.fetchall()
+    conexao.close()
+    return gastos
+
+
+def buscar_gasto_por_id(id_gasto):
+    conexao = conectar()
+    cursor = conexao.cursor()
+
+    cursor.execute("""
+        SELECT id, descricao, valor, data_gasto, categoria, observacao
+        FROM gastos
+        WHERE id = ?
+    """, (id_gasto,))
+
+    gasto = cursor.fetchone()
+    conexao.close()
+    return gasto
+
+
+def atualizar_gasto(id_gasto, descricao, valor, data_gasto, categoria, observacao=""):
+    conexao = conectar()
+    cursor = conexao.cursor()
+
+    cursor.execute("""
+        UPDATE gastos
+        SET descricao = ?,
+            valor = ?,
+            data_gasto = ?,
+            categoria = ?,
+            observacao = ?
+        WHERE id = ?
+    """, (descricao, valor, data_gasto, categoria, observacao, id_gasto))
+
+    conexao.commit()
+    conexao.close()
+
+
+def excluir_gasto(id_gasto):
+    conexao = conectar()
+    cursor = conexao.cursor()
+
+    cursor.execute("""
+        DELETE FROM gastos
+        WHERE id = ?
+    """, (id_gasto,))
+
+    conexao.commit()
+    conexao.close()
+
+
+def somar_gastos_mes(inicio_mes, fim_mes):
+    conexao = conectar()
+    cursor = conexao.cursor()
+
+    cursor.execute("""
+        SELECT COALESCE(SUM(valor), 0)
+        FROM gastos
+        WHERE data_gasto BETWEEN ? AND ?
+    """, (inicio_mes, fim_mes))
+
+    total = cursor.fetchone()[0]
+    conexao.close()
+    return total
+
+
+def listar_pagamentos():
+    conexao = conectar()
+    cursor = conexao.cursor()
+
+    cursor.execute("""
+        SELECT id, id_despesa, descricao, valor, data_pagamento, categoria,
+               tipo, parcela_atual, total_parcelas
+        FROM pagamentos
+        ORDER BY data_pagamento DESC, id DESC
+    """)
+
+    pagamentos = cursor.fetchall()
+    conexao.close()
+    return pagamentos
+
+
+def excluir_pagamentos_da_despesa(id_despesa):
+    conexao = conectar()
+    cursor = conexao.cursor()
+
+    cursor.execute("""
+        DELETE FROM pagamentos
+        WHERE id_despesa = ?
+    """, (id_despesa,))
+
+    conexao.commit()
+    conexao.close()
+
+
+
+def limpar_todos_os_dados():
+    conexao = conectar()
+    cursor = conexao.cursor()
+
+    cursor.execute("DELETE FROM pagamentos")
+    cursor.execute("DELETE FROM gastos")
+    cursor.execute("DELETE FROM receitas")
+    cursor.execute("DELETE FROM despesas")
+
+    cursor.execute("DELETE FROM sqlite_sequence WHERE name IN ('pagamentos', 'gastos', 'receitas', 'despesas')")
 
     conexao.commit()
     conexao.close()
