@@ -2,7 +2,8 @@ from datetime import date, datetime, timedelta
 
 from PySide6.QtWidgets import (
     QWidget, QHBoxLayout, QVBoxLayout, QLabel, QPushButton, QFrame,
-    QDialog, QTableWidget, QTableWidgetItem, QHeaderView, QSizePolicy
+    QDialog, QTableWidget, QTableWidgetItem, QHeaderView, QScrollArea,
+    QGridLayout, QSizePolicy
 )
 from PySide6.QtCore import Qt
 
@@ -420,6 +421,7 @@ class TelaInicial(QWidget):
             fim_mes = hoje.replace(month=hoje.month + 1, day=1) - timedelta(days=1)
 
         despesas = self.obter_despesas()
+        self.despesas = despesas
         todas_despesas = self.obter_todas_despesas()
         receitas = self.obter_receitas()
         gastos = self.obter_gastos()
@@ -495,16 +497,6 @@ class TelaInicial(QWidget):
         ]
         self.detalhes_pendentes = [
             {"titulo": "Contas pendentes do mês", "itens": itens_pendentes},
-            {"titulo": "Atrasadas", "itens": [
-                self.item_detalhe(
-                    d["vencimento"],
-                    d["descricao"],
-                    d["valor"],
-                    d["tipo"],
-                    "Atrasada",
-                )
-                for d in sorted(despesas_atrasadas, key=lambda item: item["data"])
-            ]},
         ]
 
         topo = QHBoxLayout()
@@ -565,24 +557,289 @@ class TelaInicial(QWidget):
 
         layout.addLayout(resumo)
 
-        painel = QFrame()
-        painel.setObjectName("card")
+        self.painel_home = QFrame()
+        self.painel_home.setObjectName("card")
 
-        painel_layout = QVBoxLayout(painel)
-        painel_layout.setContentsMargins(22, 12, 22, 12)
-        painel_layout.setSpacing(8)
+        self.painel_home_layout = QVBoxLayout(self.painel_home)
+        self.painel_home_layout.setContentsMargins(22, 12, 22, 12)
+        self.painel_home_layout.setSpacing(8)
+
+        self.mostrar_proximos_vencimentos()
+
+        layout.addWidget(self.painel_home, 1)
+
+    def limpar_painel_home(self):
+        while self.painel_home_layout.count():
+            item = self.painel_home_layout.takeAt(0)
+            widget = item.widget()
+
+            if widget is not None:
+                widget.deleteLater()
+            elif item.layout() is not None:
+                self.limpar_layout(item.layout())
+
+    def limpar_layout(self, layout):
+        while layout.count():
+            item = layout.takeAt(0)
+            widget = item.widget()
+
+            if widget is not None:
+                widget.deleteLater()
+            elif item.layout() is not None:
+                self.limpar_layout(item.layout())
+
+    def criar_botao_voltar(self):
+        botao = QPushButton("↩  Próximos vencimentos")
+        botao.setObjectName("btnReceita")
+        botao.setFixedHeight(38)
+        botao.clicked.connect(self.mostrar_proximos_vencimentos)
+        return botao
+
+    def criar_card_item_detalhe(self, item, cor="#3b82f6"):
+        card = QFrame()
+        card.setObjectName("card")
+        card.setMinimumHeight(96)
+        card.setMaximumHeight(112)
+        card.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        card.setStyleSheet(f"""
+            QFrame#card {{
+                background-color: #111827;
+                border: 1px solid #263244;
+                border-left: 3px solid {cor};
+                border-radius: 12px;
+            }}
+        """)
+
+        layout = QVBoxLayout(card)
+        layout.setContentsMargins(14, 10, 14, 10)
+        layout.setSpacing(5)
+
+        topo = QHBoxLayout()
+
+        descricao = QLabel(item.get("descricao", ""))
+        descricao.setStyleSheet("font-size: 15px; font-weight: bold; color: #ffffff;")
+
+        valor = QLabel(self.formatar_moeda(item.get("valor", 0)))
+        valor.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        valor.setStyleSheet("font-size: 18px; font-weight: bold; color: #ffffff;")
+
+        topo.addWidget(descricao, 1)
+        topo.addWidget(valor)
+
+        detalhes = QHBoxLayout()
+
+        data = QLabel(f"📅 {item.get('data', '')}")
+        tipo = QLabel(f"📄 {item.get('tipo', '')}")
+        situacao = QLabel(item.get("situacao", ""))
+        situacao.setAlignment(Qt.AlignCenter)
+
+        texto_situacao = item.get("situacao", "")
+        if texto_situacao in ["Atrasada"]:
+            cor_status = "#ef4444"
+        elif texto_situacao in ["Paga", "Pago"]:
+            cor_status = "#22c55e"
+        else:
+            cor_status = "#2563eb"
+
+        for label in (data, tipo):
+            label.setStyleSheet("font-size: 12px; color: #cbd5e1;")
+
+        situacao.setStyleSheet(f"""
+            QLabel {{
+                background-color: {cor_status};
+                color: white;
+                border-radius: 8px;
+                padding: 4px 10px;
+                font-weight: bold;
+                font-size: 12px;
+            }}
+        """)
+
+        detalhes.addWidget(data)
+        detalhes.addSpacing(8)
+        detalhes.addWidget(tipo)
+        detalhes.addStretch()
+        detalhes.addWidget(situacao)
+
+        layout.addLayout(topo)
+        layout.addLayout(detalhes)
+
+        return card
+
+    def criar_resumo_detalhe(self, titulo, valor, info, cor):
+        card = QFrame()
+        card.setObjectName("card")
+        card.setMinimumHeight(76)
+        card.setMaximumHeight(86)
+        card.setStyleSheet(f"""
+            QFrame#card {{
+                background-color: #181d29;
+                border: 1px solid #263244;
+                border-left: 3px solid {cor};
+                border-radius: 14px;
+            }}
+        """)
+
+        layout = QVBoxLayout(card)
+        layout.setContentsMargins(14, 8, 14, 8)
+        layout.setSpacing(2)
+
+        lbl_titulo = QLabel(titulo)
+        lbl_titulo.setStyleSheet("font-size: 13px; color: #9aa2b8;")
+
+        lbl_valor = QLabel(self.formatar_moeda(valor))
+        lbl_valor.setStyleSheet("font-size: 22px; font-weight: bold; color: #ffffff;")
+
+        lbl_info = QLabel(info)
+        lbl_info.setStyleSheet("font-size: 12px; color: #cbd5e1;")
+
+        layout.addWidget(lbl_titulo)
+        layout.addWidget(lbl_valor)
+        layout.addWidget(lbl_info)
+
+        return card
+
+    def mostrar_detalhes_inline(self, titulo, subtitulo, secoes, cor):
+        self.limpar_painel_home()
+
+        cabecalho = QHBoxLayout()
+
+        textos = QVBoxLayout()
+        lbl_titulo = QLabel(titulo)
+        lbl_titulo.setObjectName("cardValor")
+        lbl_titulo.setStyleSheet("font-size: 21px;")
+
+        lbl_subtitulo = QLabel(subtitulo)
+        lbl_subtitulo.setObjectName("subtitulo")
+        lbl_subtitulo.setStyleSheet("font-size: 13px; color: #9aa2b8;")
+
+        textos.addWidget(lbl_titulo)
+        textos.addWidget(lbl_subtitulo)
+
+        cabecalho.addLayout(textos)
+        cabecalho.addStretch()
+        cabecalho.addWidget(self.criar_botao_voltar())
+
+        self.painel_home_layout.addLayout(cabecalho)
+
+        resumo = QHBoxLayout()
+        resumo.setSpacing(10)
+
+        for secao in secoes:
+            itens = secao.get("itens", [])
+            total = sum(float(item.get("valor", 0) or 0) for item in itens)
+            resumo.addWidget(self.criar_resumo_detalhe(
+                secao.get("titulo", ""),
+                total,
+                f"{len(itens)} item(ns)",
+                cor,
+            ))
+
+        self.painel_home_layout.addLayout(resumo)
+
+        area = QScrollArea()
+        area.setWidgetResizable(True)
+        area.setFrameShape(QFrame.NoFrame)
+        area.setStyleSheet("""
+            QScrollArea {
+                background: transparent;
+                border: none;
+            }
+
+            QScrollArea > QWidget > QWidget {
+                background: transparent;
+            }
+
+            QScrollBar:vertical {
+                background: #111827;
+                width: 10px;
+                margin: 3px 0px 3px 0px;
+                border-radius: 5px;
+            }
+
+            QScrollBar::handle:vertical {
+                background: #475569;
+                min-height: 28px;
+                border-radius: 5px;
+            }
+
+            QScrollBar::handle:vertical:hover {
+                background: #3b82f6;
+            }
+
+            QScrollBar::add-line:vertical,
+            QScrollBar::sub-line:vertical {
+                height: 0px;
+            }
+
+            QScrollBar::add-page:vertical,
+            QScrollBar::sub-page:vertical {
+                background: none;
+            }
+        """)
+
+        conteudo = QWidget()
+        conteudo.setStyleSheet("background: transparent;")
+        grid = QGridLayout(conteudo)
+        grid.setContentsMargins(0, 4, 8, 4)
+        grid.setHorizontalSpacing(10)
+        grid.setVerticalSpacing(10)
+
+        linha = 0
+        coluna = 0
+        houve_item = False
+
+        for secao in secoes:
+            itens = secao.get("itens", [])
+            if not itens:
+                continue
+
+            lbl_secao = QLabel(secao.get("titulo", ""))
+            lbl_secao.setStyleSheet("font-size: 16px; font-weight: bold; color: #ffffff; margin-top: 8px;")
+            grid.addWidget(lbl_secao, linha, 0, 1, 2)
+            linha += 1
+            coluna = 0
+
+            for item in itens:
+                grid.addWidget(self.criar_card_item_detalhe(item, cor), linha, coluna)
+                houve_item = True
+                coluna += 1
+
+                if coluna >= 2:
+                    coluna = 0
+                    linha += 1
+
+            if coluna != 0:
+                linha += 1
+                coluna = 0
+
+        if not houve_item:
+            vazio = QLabel("Nenhum item encontrado para este mês.")
+            vazio.setAlignment(Qt.AlignCenter)
+            vazio.setStyleSheet("font-size: 15px; color: #9aa2b8; padding: 30px;")
+            grid.addWidget(vazio, 0, 0, 1, 2)
+
+        grid.setColumnStretch(0, 1)
+        grid.setColumnStretch(1, 1)
+        grid.setRowStretch(linha + 1, 1)
+
+        area.setWidget(conteudo)
+        self.painel_home_layout.addWidget(area, 1)
+
+    def mostrar_proximos_vencimentos(self):
+        self.limpar_painel_home()
 
         titulo_lista = QLabel("📅 Próximos vencimentos")
         titulo_lista.setObjectName("cardValor")
         titulo_lista.setStyleSheet("font-size: 19px;")
 
-        painel_layout.addWidget(titulo_lista)
+        self.painel_home_layout.addWidget(titulo_lista)
 
         tabela = TabelaFinanceira(["Data", "Descrição", "Valor", "Situação", "Parcela"])
         self.ajustar_tabela(tabela)
         tabela.cellDoubleClicked.connect(lambda linha, coluna, t=tabela: self.editar_despesa_tabela(t, linha))
 
-        proximas = sorted(despesas, key=lambda d: d["data"])
+        proximas = sorted(self.despesas, key=lambda d: d["data"])
 
         for despesa in proximas:
             parcela = "-"
@@ -598,26 +855,23 @@ class TelaInicial(QWidget):
                 parcela
             ], despesa["id"])
 
-        painel_layout.addWidget(tabela, 1)
-        layout.addWidget(painel, 1)
+        self.painel_home_layout.addWidget(tabela, 1)
 
     def abrir_detalhes_pagos(self):
-        janela = JanelaDetalhesMes(
-            "Pago no mês",
+        self.mostrar_detalhes_inline(
+            "✅ Pago no mês",
             "Contas e gastos que já saíram do seu dinheiro neste mês.",
             self.detalhes_pagos,
             "#22c55e",
         )
-        janela.exec()
 
     def abrir_detalhes_pendentes(self):
-        janela = JanelaDetalhesMes(
-            "A pagar",
+        self.mostrar_detalhes_inline(
+            "📌 A pagar",
             "Contas do mês que ainda precisam ser pagas.",
             self.detalhes_pendentes,
             "#ef4444",
         )
-        janela.exec()
 
     def editar_despesa_tabela(self, tabela, linha):
         item = tabela.item(linha, 0)
