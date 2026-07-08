@@ -4,7 +4,7 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import QDate
 
-from banco.banco import inserir_despesa, atualizar_despesa
+from banco.banco import inserir_despesa, atualizar_despesa, pagar_despesa, excluir_despesa_com_historico
 
 
 class NovaDespesa(QDialog):
@@ -83,6 +83,67 @@ class NovaDespesa(QDialog):
             QPushButton#salvar {
                 background-color: #2d6cdf;
                 color: white;
+            }
+
+            QPushButton#pagar {
+                background-color: #16a34a;
+                color: white;
+            }
+
+            QPushButton#pagar:hover {
+                background-color: #22c55e;
+            }
+
+            QPushButton#excluir {
+                background-color: #dc2626;
+                color: white;
+            }
+
+            QPushButton#excluir:hover {
+                background-color: #ef4444;
+            }
+
+            QDialog#confirmacaoPagamento {
+                background-color: #0f1117;
+            }
+
+            QLabel#confirmacaoTitulo {
+                font-size: 22px;
+                font-weight: bold;
+                color: #ffffff;
+            }
+
+            QLabel#confirmacaoTexto {
+                font-size: 14px;
+                color: #b8c0d6;
+            }
+
+            QLabel#confirmacaoIcone {
+                font-size: 34px;
+                min-width: 58px;
+                max-width: 58px;
+                min-height: 58px;
+                max-height: 58px;
+                border-radius: 29px;
+                background-color: rgba(34, 197, 94, 0.12);
+                border: 1px solid rgba(34, 197, 94, 0.35);
+                qproperty-alignment: AlignCenter;
+            }
+
+            QPushButton#confirmacaoNao {
+                background-color: #202638;
+                color: #d7dcf0;
+                border: 1px solid #293145;
+            }
+
+            QPushButton#confirmacaoSim {
+                background-color: #16a34a;
+                color: #ffffff;
+                border: 1px solid #22c55e;
+            }
+
+            QPushButton#confirmacaoSim:hover {
+                background-color: #22c55e;
             }
         """)
 
@@ -182,6 +243,21 @@ class NovaDespesa(QDialog):
         botoes = QHBoxLayout()
         botoes.setSpacing(12)
         botoes.addStretch()
+
+        if self.modo_edicao and self.despesa[-1] != "paga":
+            btn_pagar = QPushButton("✓ Pagar")
+            btn_pagar.setObjectName("pagar")
+            btn_pagar.setFixedWidth(105)
+            btn_pagar.clicked.connect(self.pagar)
+            botoes.addWidget(btn_pagar)
+
+        if self.modo_edicao:
+            btn_excluir = QPushButton("🗑 Excluir")
+            btn_excluir.setObjectName("excluir")
+            btn_excluir.setFixedWidth(105)
+            btn_excluir.clicked.connect(self.excluir)
+            botoes.addWidget(btn_excluir)
+
         botoes.addWidget(btn_cancelar)
         botoes.addWidget(btn_salvar)
 
@@ -273,6 +349,100 @@ class NovaDespesa(QDialog):
 
         if total_parcelas:
             self.total_parcelas.setText(str(total_parcelas))
+
+    def confirmar_pagamento(self):
+        janela = QDialog(self)
+        janela.setObjectName("confirmacaoPagamento")
+        janela.setWindowTitle("Pagar despesa")
+        janela.setFixedSize(420, 230)
+        janela.setModal(True)
+        janela.setStyleSheet(self.styleSheet())
+
+        layout = QVBoxLayout(janela)
+        layout.setContentsMargins(22, 20, 22, 18)
+        layout.setSpacing(14)
+
+        topo = QHBoxLayout()
+        topo.setSpacing(14)
+
+        icone = QLabel("✓")
+        icone.setObjectName("confirmacaoIcone")
+
+        textos = QVBoxLayout()
+        textos.setSpacing(5)
+
+        titulo = QLabel("Confirmar pagamento?")
+        titulo.setObjectName("confirmacaoTitulo")
+
+        texto = QLabel("Esta despesa será marcada como paga.")
+        texto.setObjectName("confirmacaoTexto")
+        texto.setWordWrap(True)
+
+        textos.addWidget(titulo)
+        textos.addWidget(texto)
+
+        topo.addWidget(icone)
+        topo.addLayout(textos, 1)
+
+        botoes = QHBoxLayout()
+        botoes.setSpacing(12)
+        botoes.addStretch()
+
+        btn_nao = QPushButton("Cancelar")
+        btn_nao.setObjectName("confirmacaoNao")
+        btn_nao.setFixedWidth(130)
+        btn_nao.clicked.connect(janela.reject)
+
+        btn_sim = QPushButton("✓ Confirmar")
+        btn_sim.setObjectName("confirmacaoSim")
+        btn_sim.setFixedWidth(140)
+        btn_sim.clicked.connect(janela.accept)
+
+        botoes.addWidget(btn_nao)
+        botoes.addWidget(btn_sim)
+
+        layout.addLayout(topo)
+        layout.addStretch()
+        layout.addLayout(botoes)
+
+        return janela.exec() == QDialog.Accepted
+
+
+    def confirmar_exclusao(self):
+        caixa = QMessageBox(self)
+        caixa.setWindowTitle("Excluir despesa")
+        caixa.setText("Tem certeza que deseja excluir esta despesa?")
+        caixa.setInformativeText("Esta ação não poderá ser desfeita.")
+        caixa.setIcon(QMessageBox.Warning)
+
+        btn_excluir = caixa.addButton("Excluir", QMessageBox.YesRole)
+        btn_cancelar = caixa.addButton("Cancelar", QMessageBox.NoRole)
+
+        caixa.setStyleSheet("""
+            QMessageBox { background-color: #0f1117; border: 2px solid #1f2937; border-top: 4px solid #ef4444; border-radius: 10px; }
+            QLabel { color: #d7dcf0; font-family: 'Segoe UI'; font-size: 13px; padding-left: 6px; }
+            QPushButton { background-color: #1f2937; color: #ffffff; border: 1px solid #334155; border-radius: 6px; padding: 6px 16px; font-weight: bold; font-size: 12px; min-width: 85px; }
+            QPushButton:hover { background-color: #ef4444; border: 1px solid #ef4444; }
+        """)
+
+        caixa.exec()
+        return caixa.clickedButton() == btn_excluir
+
+    def excluir(self):
+        if not self.modo_edicao:
+            return
+        if not self.confirmar_exclusao():
+            return
+        excluir_despesa_com_historico(self.despesa[0])
+        self.accept()
+
+    def pagar(self):
+        if not self.confirmar_pagamento():
+            return
+
+        id_despesa = self.despesa[0]
+        pagar_despesa(id_despesa)
+        self.accept()
 
     def salvar_despesa(self):
         descricao = self.descricao.text().strip()

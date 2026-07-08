@@ -1,11 +1,11 @@
 import sqlite3
-from pathlib import Path
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
 
+from servicos.configuracoes_app import CAMINHO_BANCO, migrar_banco_antigo_se_necessario
 
-BASE_DIR = Path(__file__).resolve().parent.parent
-CAMINHO_BANCO = BASE_DIR / "banco" / "lfinance.db"
+
+migrar_banco_antigo_se_necessario()
 
 
 def conectar():
@@ -90,9 +90,15 @@ def criar_tabelas():
             tipo TEXT NOT NULL,
             parcela_atual INTEGER,
             total_parcelas INTEGER,
+            forma_pagamento TEXT DEFAULT 'Não informado',
             data_criacao TEXT DEFAULT CURRENT_TIMESTAMP
         )
     """)
+
+    colunas_pagamentos = [coluna[1] for coluna in cursor.execute("PRAGMA table_info(pagamentos)")]
+
+    if "forma_pagamento" not in colunas_pagamentos:
+        cursor.execute("ALTER TABLE pagamentos ADD COLUMN forma_pagamento TEXT DEFAULT 'Não informado'")
 
     conexao.commit()
     conexao.close()
@@ -203,7 +209,7 @@ def buscar_despesa_por_id(id_despesa):
     return despesa
 
 
-def pagar_despesa(id_despesa):
+def pagar_despesa(id_despesa, forma_pagamento="Não informado"):
     conexao = conectar()
     cursor = conexao.cursor()
 
@@ -241,12 +247,12 @@ def pagar_despesa(id_despesa):
     cursor.execute("""
         INSERT INTO pagamentos (
             id_despesa, descricao, valor, data_pagamento, categoria, tipo,
-            parcela_atual, total_parcelas
+            parcela_atual, total_parcelas, forma_pagamento
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     """, (
         id_despesa, descricao, valor, data_pagamento, categoria, tipo,
-        parcela_atual, total_parcelas
+        parcela_atual, total_parcelas, forma_pagamento
     ))
 
     if tipo == "Conta fixa":
@@ -556,7 +562,8 @@ def listar_pagamentos():
 
     cursor.execute("""
         SELECT id, id_despesa, descricao, valor, data_pagamento, categoria,
-               tipo, parcela_atual, total_parcelas
+               tipo, parcela_atual, total_parcelas,
+               COALESCE(forma_pagamento, 'Não informado')
         FROM pagamentos
         ORDER BY data_pagamento DESC, id DESC
     """)
@@ -578,6 +585,70 @@ def excluir_pagamentos_da_despesa(id_despesa):
     conexao.commit()
     conexao.close()
 
+
+
+def excluir_pagamento(id_pagamento):
+    conexao = conectar()
+    cursor = conexao.cursor()
+
+    cursor.execute("""
+        DELETE FROM pagamentos
+        WHERE id = ?
+    """, (id_pagamento,))
+
+    conexao.commit()
+    conexao.close()
+
+
+def desfazer_pagamento(id_pagamento):
+    conexao = conectar()
+    cursor = conexao.cursor()
+
+    cursor.execute("""
+        SELECT id_despesa
+        FROM pagamentos
+        WHERE id = ?
+    """, (id_pagamento,))
+
+    registro = cursor.fetchone()
+    if not registro:
+        conexao.close()
+        return
+
+    id_despesa = registro[0]
+
+    cursor.execute("""
+        DELETE FROM pagamentos
+        WHERE id = ?
+    """, (id_pagamento,))
+
+    if id_despesa:
+        cursor.execute("""
+            UPDATE despesas
+            SET status = 'aberta'
+            WHERE id = ?
+        """, (id_despesa,))
+
+    conexao.commit()
+    conexao.close()
+
+
+def excluir_despesa_com_historico(id_despesa):
+    conexao = conectar()
+    cursor = conexao.cursor()
+
+    cursor.execute("""
+        DELETE FROM pagamentos
+        WHERE id_despesa = ?
+    """, (id_despesa,))
+
+    cursor.execute("""
+        DELETE FROM despesas
+        WHERE id = ?
+    """, (id_despesa,))
+
+    conexao.commit()
+    conexao.close()
 
 
 def limpar_todos_os_dados():

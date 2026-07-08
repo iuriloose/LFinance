@@ -3,20 +3,27 @@ from datetime import date, datetime, timedelta
 from PySide6.QtWidgets import (
     QWidget, QHBoxLayout, QVBoxLayout, QLabel, QPushButton, QFrame,
     QDialog, QTableWidget, QTableWidgetItem, QHeaderView, QScrollArea,
-    QGridLayout, QSizePolicy
+    QGridLayout, QSizePolicy, QLineEdit, QMessageBox, QComboBox
 )
 from PySide6.QtCore import Qt
+from PySide6.QtGui import QColor
 
 from componentes.tabela import TabelaFinanceira
 from telas.nova_despesa import NovaDespesa
 from telas.nova_receita import NovaReceita
 from telas.novo_gasto import NovoGasto
+from servicos.configuracoes_app import obter_nome_usuario
 from banco.banco import (
     listar_despesas,
     buscar_despesa_por_id,
     listar_receitas,
     listar_gastos,
     listar_pagamentos,
+    pagar_despesa,
+    desfazer_pagamento,
+    reabrir_despesa,
+    excluir_despesa_com_historico,
+    excluir_gasto,
 )
 
 
@@ -33,77 +40,68 @@ class JanelaDetalhesMes(QDialog):
                 color: #f8fafc;
                 font-family: Segoe UI;
             }}
-
             QLabel#tituloDetalhe {{
                 color: #ffffff;
-                font-size: 28px;
+                font-size: 24px;
                 font-weight: bold;
             }}
-
             QLabel#subtituloDetalhe {{
                 color: #9aa2b8;
-                font-size: 14px;
+                font-size: 13px;
             }}
-
             QLabel#secaoTitulo {{
                 color: #ffffff;
-                font-size: 18px;
+                font-size: 16px;
                 font-weight: bold;
-                margin-top: 10px;
+                margin-top: 5px;
             }}
-
             QLabel#resumoSecao {{
                 color: #cbd5e1;
-                font-size: 14px;
+                font-size: 13px;
             }}
-
             QTableWidget {{
                 background-color: #111827;
                 color: #f8fafc;
                 border: 1px solid #263244;
-                border-radius: 10px;
+                border-radius: 8px;
                 gridline-color: #263244;
                 alternate-background-color: #162033;
                 selection-background-color: {cor};
                 selection-color: #ffffff;
-                font-size: 14px;
+                font-size: 13px;
             }}
-
             QTableWidget::item {{
                 padding-left: 8px;
                 padding-right: 8px;
                 border-bottom: 1px solid #263244;
             }}
-
             QHeaderView::section {{
                 background-color: #1f2937;
                 color: #f8fafc;
                 border: none;
                 border-right: 1px solid #253044;
                 border-bottom: 1px solid #334155;
-                padding: 7px 8px;
+                padding: 5px 8px;
                 font-weight: bold;
-                font-size: 14px;
+                font-size: 13px;
             }}
-
             QPushButton#btnFechar {{
                 background-color: #202638;
                 color: #ffffff;
-                padding: 11px 28px;
-                border-radius: 10px;
-                font-size: 14px;
+                padding: 8px 24px;
+                border-radius: 8px;
+                font-size: 13px;
                 font-weight: bold;
                 border: 1px solid #2d3447;
             }}
-
             QPushButton#btnFechar:hover {{
                 background-color: #2d3447;
             }}
         """)
 
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(28, 24, 28, 22)
-        layout.setSpacing(12)
+        layout.setContentsMargins(20, 20, 20, 16)
+        layout.setSpacing(10)
 
         lbl_titulo = QLabel(titulo)
         lbl_titulo.setObjectName("tituloDetalhe")
@@ -165,9 +163,9 @@ class JanelaDetalhesMes(QDialog):
         tabela.setFocusPolicy(Qt.NoFocus)
         tabela.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         tabela.horizontalHeader().setStretchLastSection(False)
-        tabela.horizontalHeader().setFixedHeight(34)
+        tabela.horizontalHeader().setFixedHeight(30)
 
-        larguras = [95, 250, 120, 130, 120]
+        larguras = [90, 250, 110, 120, 110]
         for indice, largura in enumerate(larguras):
             tabela.setColumnWidth(indice, largura)
             tabela.horizontalHeader().setSectionResizeMode(indice, QHeaderView.Fixed)
@@ -176,7 +174,7 @@ class JanelaDetalhesMes(QDialog):
 
         tabela.setRowCount(len(itens))
         for linha, item in enumerate(itens):
-            tabela.setRowHeight(linha, 34)
+            tabela.setRowHeight(linha, 30)
             tabela.setItem(linha, 0, self.criar_item(item.get("data", "")))
             tabela.setItem(linha, 1, self.criar_item(item.get("descricao", ""), Qt.AlignCenter))
             tabela.setItem(linha, 2, self.criar_item(self.formatar_moeda(item.get("valor", 0))))
@@ -187,7 +185,7 @@ class JanelaDetalhesMes(QDialog):
             tabela.setRowCount(1)
             tabela.setSpan(0, 0, 1, 5)
             tabela.setItem(0, 0, self.criar_item("Nenhum item encontrado para este mês."))
-            tabela.setRowHeight(0, 40)
+            tabela.setRowHeight(0, 36)
 
         return tabela
 
@@ -196,27 +194,23 @@ class TelaInicial(QWidget):
     def __init__(self, ao_salvar_despesa=None):
         super().__init__()
         self.ao_salvar_despesa = ao_salvar_despesa
+        self.caixa_busca = None
         self.montar_tela()
 
     def saudacao_atual(self):
         hora = datetime.now().hour
-
         if 5 <= hora < 12:
             return "Bom dia"
-
         if 12 <= hora < 18:
             return "Boa tarde"
-
         return "Boa noite"
 
     def separar_despesa(self, despesa):
         if len(despesa) == 10:
             return despesa
-
         if len(despesa) == 9:
             id_despesa, descricao, valor, vencimento, categoria, tipo, parcela_atual, total_parcelas, status = despesa
             return id_despesa, descricao, valor, vencimento, categoria, tipo, parcela_atual, total_parcelas, None, status
-
         id_despesa, descricao, valor, vencimento, categoria, tipo, status = despesa
         return id_despesa, descricao, valor, vencimento, categoria, tipo, None, None, None, status
 
@@ -237,19 +231,32 @@ class TelaInicial(QWidget):
 
     def status_vencimento(self, data):
         hoje = date.today()
-
         if data < hoje:
             return "Atrasada"
         if data == hoje:
             return "Hoje"
         if data == hoje + timedelta(days=1):
             return "Amanhã"
-
         return f"Em {(data - hoje).days} dias"
+
+    def aplicar_destaque_data_mes_atual(self, tabela, linha, data_vencimento):
+        """Destaca de forma discreta as datas que vencem no mês atual."""
+        hoje = date.today()
+        if not data_vencimento or data_vencimento.month != hoje.month or data_vencimento.year != hoje.year:
+            return
+
+        item_data = tabela.item(linha, 0)
+        if item_data is None:
+            return
+
+        item_data.setForeground(QColor("#eab308"))
+        fonte = item_data.font()
+        fonte.setBold(True)
+        item_data.setFont(fonte)
+        item_data.setToolTip("Esta conta vence no mês atual.")
 
     def obter_todas_despesas(self):
         despesas = []
-
         for despesa in listar_despesas():
             (
                 id_despesa,
@@ -263,12 +270,9 @@ class TelaInicial(QWidget):
                 _,
                 status,
             ) = self.separar_despesa(despesa)
-
             data = self.converter_data(vencimento)
-
             if data is None:
                 continue
-
             despesas.append({
                 "id": id_despesa,
                 "descricao": descricao,
@@ -281,7 +285,6 @@ class TelaInicial(QWidget):
                 "total_parcelas": total_parcelas,
                 "status": status,
             })
-
         return despesas
 
     def obter_despesas(self):
@@ -289,14 +292,11 @@ class TelaInicial(QWidget):
 
     def obter_receitas(self):
         receitas = []
-
         for receita in listar_receitas():
             id_receita, descricao, valor, data_recebimento, categoria, observacao = receita
             data = self.converter_data(data_recebimento)
-
             if data is None:
                 continue
-
             receitas.append({
                 "id": id_receita,
                 "descricao": descricao,
@@ -306,19 +306,15 @@ class TelaInicial(QWidget):
                 "categoria": categoria,
                 "observacao": observacao,
             })
-
         return receitas
 
     def obter_gastos(self):
         gastos = []
-
         for gasto in listar_gastos():
             id_gasto, descricao, valor, data_gasto, categoria, observacao = gasto
             data = self.converter_data(data_gasto)
-
             if data is None:
                 continue
-
             gastos.append({
                 "id": id_gasto,
                 "descricao": descricao,
@@ -328,19 +324,19 @@ class TelaInicial(QWidget):
                 "categoria": categoria,
                 "observacao": observacao,
             })
-
         return gastos
 
     def obter_pagamentos(self):
         pagamentos = []
-
         for pagamento in listar_pagamentos():
-            id_pagamento, id_despesa, descricao, valor, data_pagamento, categoria, tipo, parcela_atual, total_parcelas = pagamento
+            if len(pagamento) >= 10:
+                id_pagamento, id_despesa, descricao, valor, data_pagamento, categoria, tipo, parcela_atual, total_parcelas, forma_pagamento = pagamento
+            else:
+                id_pagamento, id_despesa, descricao, valor, data_pagamento, categoria, tipo, parcela_atual, total_parcelas = pagamento
+                forma_pagamento = "Não informado"
             data = self.converter_data(data_pagamento)
-
             if data is None:
                 continue
-
             pagamentos.append({
                 "id": id_pagamento,
                 "id_despesa": id_despesa,
@@ -352,20 +348,22 @@ class TelaInicial(QWidget):
                 "tipo": tipo,
                 "parcela_atual": parcela_atual,
                 "total_parcelas": total_parcelas,
+                "forma_pagamento": forma_pagamento,
             })
-
         return pagamentos
 
-    def criar_card_resumo(self, objeto, icone, titulo, valor, info="", acao=None):
+    def criar_card_resumo(self, objeto, icone, titulo, valor, info="", acao=None, tooltip=""):
         card = QFrame()
         card.setObjectName(objeto)
-
         layout = QHBoxLayout(card)
-        layout.setContentsMargins(18, 8, 18, 8)
-        layout.setSpacing(12)
+        layout.setContentsMargins(14, 8, 14, 8)
+        layout.setSpacing(10)
 
         lbl_icone = QLabel(icone)
-        lbl_icone.setObjectName("cardIcone")
+        if objeto == "cardSaldoNegativo":
+            lbl_icone.setObjectName("cardIconeNegativo")
+        else:
+            lbl_icone.setObjectName("cardIcone")
 
         textos = QVBoxLayout()
         textos.setSpacing(0)
@@ -374,7 +372,10 @@ class TelaInicial(QWidget):
         lbl_titulo.setObjectName("cardTitulo")
 
         lbl_valor = QLabel(valor)
-        lbl_valor.setObjectName("cardValorMini")
+        if objeto == "cardSaldoNegativo":
+            lbl_valor.setObjectName("cardValorNegativo")
+        else:
+            lbl_valor.setObjectName("cardValorMini")
 
         textos.addWidget(lbl_titulo)
         textos.addWidget(lbl_valor)
@@ -388,28 +389,34 @@ class TelaInicial(QWidget):
         layout.addLayout(textos)
         layout.addStretch()
 
+        if tooltip:
+            card.setToolTip(tooltip)
         if acao:
             card.setCursor(Qt.PointingHandCursor)
             card.mousePressEvent = lambda evento: acao()
-            card.setToolTip("Clique para ver os detalhes")
-
+            if not tooltip:
+                card.setToolTip("Clique para ver os detalhes")
         return card
 
     def ajustar_tabela(self, tabela):
         tabela.horizontalHeader().setStretchLastSection(False)
 
-    def item_detalhe(self, data, descricao, valor, tipo, situacao):
+    def item_detalhe(self, data, descricao, valor, tipo, situacao, id_despesa=None, origem="", id_pagamento=None, id_gasto=None, forma_pagamento=None):
         return {
             "data": self.formatar_data(data),
             "descricao": descricao,
             "valor": float(valor or 0),
             "tipo": tipo,
             "situacao": situacao,
+            "id_despesa": id_despesa,
+            "id_pagamento": id_pagamento,
+            "id_gasto": id_gasto,
+            "origem": origem,
+            "forma_pagamento": forma_pagamento,
         }
-
     def montar_tela(self):
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(36, 16, 36, 12)
+        layout.setContentsMargins(24, 14, 24, 10)
         layout.setSpacing(10)
 
         hoje = date.today()
@@ -444,7 +451,6 @@ class TelaInicial(QWidget):
         total_pagas_sem_historico = sum(d["valor"] for d in despesas_pagas_mes_sem_historico)
         total_pago_mes = total_gastos_mes + total_pagamentos_mes + total_pagas_sem_historico
         total_a_pagar_mes = sum(d["valor"] for d in despesas_pendentes_mes)
-        total_atrasadas = sum(d["valor"] for d in despesas_atrasadas)
         saldo_mes = total_receitas_mes - total_pago_mes
 
         itens_pagos_contas = [
@@ -454,6 +460,11 @@ class TelaInicial(QWidget):
                 p["valor"],
                 p["tipo"],
                 "Paga",
+                p.get("id_despesa"),
+                "despesa_paga",
+                p.get("id"),
+                None,
+                p.get("forma_pagamento", "Não informado"),
             )
             for p in pagamentos_mes
         ]
@@ -465,6 +476,8 @@ class TelaInicial(QWidget):
                 d["valor"],
                 d["tipo"],
                 "Paga",
+                d.get("id"),
+                "despesa_paga",  # Corrigido origem para identificar como paga
             )
             for d in despesas_pagas_mes_sem_historico
         ])
@@ -476,6 +489,10 @@ class TelaInicial(QWidget):
                 g["valor"],
                 "Gasto",
                 "Pago",
+                None,
+                "gasto",
+                None,
+                g.get("id"),
             )
             for g in gastos_mes
         ]
@@ -487,6 +504,8 @@ class TelaInicial(QWidget):
                 d["valor"],
                 d["tipo"],
                 self.status_vencimento(d["data"]),
+                d.get("id"),
+                "despesa_aberta",
             )
             for d in sorted(despesas_pendentes_mes, key=lambda item: item["data"])
         ]
@@ -504,7 +523,7 @@ class TelaInicial(QWidget):
         textos = QVBoxLayout()
         textos.setSpacing(2)
 
-        titulo = QLabel(f"{self.saudacao_atual()}, Iuri 👋")
+        titulo = QLabel(f"{self.saudacao_atual()}, {obter_nome_usuario()} 👋")
         titulo.setObjectName("titulo")
 
         subtitulo = QLabel("Resumo financeiro deste mês")
@@ -515,14 +534,17 @@ class TelaInicial(QWidget):
 
         btn_despesa = QPushButton("↓  Nova despesa")
         btn_despesa.setObjectName("btnDespesa")
+        btn_despesa.setToolTip("Nova despesa\n\nUse para contas a pagar, boletos, mensalidades ou compromissos futuros.\nA despesa ficará pendente até ser marcada como paga.")
         btn_despesa.clicked.connect(self.abrir_nova_despesa)
 
         btn_gasto = QPushButton("🛒  Novo gasto")
         btn_gasto.setObjectName("btnDespesa")
+        btn_gasto.setToolTip("Novo gasto\n\nUse para compras pagas na hora, como mercado, combustível, farmácia ou lazer.\nO valor entra como pago imediatamente no mês atual.")
         btn_gasto.clicked.connect(self.abrir_novo_gasto)
 
         btn_receita = QPushButton("↑  Nova receita")
         btn_receita.setObjectName("btnReceita")
+        btn_receita.setToolTip("Nova receita\n\nUse para registrar dinheiro que entrou, como salário, venda, comissão ou outro recebimento.")
         btn_receita.clicked.connect(self.abrir_nova_receita)
 
         topo.addLayout(textos)
@@ -536,8 +558,11 @@ class TelaInicial(QWidget):
         resumo = QHBoxLayout()
         resumo.setSpacing(12)
 
-        resumo.addWidget(self.criar_card_resumo("cardSaldo", "💰", "Saldo atual", self.formatar_moeda(saldo_mes)))
-        resumo.addWidget(self.criar_card_resumo("cardReceita", "📈", "Receitas do mês", self.formatar_moeda(total_receitas_mes), f"{len(receitas_mes)} entradas"))
+        if saldo_mes < 0:
+            resumo.addWidget(self.criar_card_resumo("cardSaldoNegativo", "💸", "Saldo atual", self.formatar_moeda(saldo_mes), tooltip="Saldo atual\n\nReceitas do mês menos tudo que foi efetivamente pago no mês.\nInclui gastos registrados e contas marcadas como pagas."))
+        else:
+            resumo.addWidget(self.criar_card_resumo("cardSaldo", "💰", "Saldo atual", self.formatar_moeda(saldo_mes), tooltip="Saldo atual\n\nReceitas do mês menos tudo que foi efetivamente pago no mês.\nInclui gastos registrados e contas marcadas como pagas."))
+        resumo.addWidget(self.criar_card_resumo("cardReceita", "📈", "Receitas do mês", self.formatar_moeda(total_receitas_mes), f"{len(receitas_mes)} entradas", tooltip="Receitas do mês\n\nTotal de entradas cadastradas dentro do mês atual."))
         resumo.addWidget(self.criar_card_resumo(
             "cardDespesa",
             "✅",
@@ -545,24 +570,39 @@ class TelaInicial(QWidget):
             self.formatar_moeda(total_pago_mes),
             f"{len(itens_pagos_contas)} contas + {len(gastos_mes)} gastos",
             self.abrir_detalhes_pagos,
+            "Pago no mês\n\nMostra tudo que já saiu do seu dinheiro neste mês.\nInclui contas marcadas como pagas e gastos registrados.\nClique para ver os detalhes.",
         ))
         resumo.addWidget(self.criar_card_resumo(
             "cardAtrasada",
             "📌",
             "A pagar",
             self.formatar_moeda(total_a_pagar_mes),
-            f"{len(despesas_pendentes_mes)} pendentes • {len(despesas_atrasadas)} atrasadas",
+            f"{len(despesas_pendentes_mes)} pendentes",
             self.abrir_detalhes_pendentes,
+            "A pagar\n\nSoma das contas, despesas e parcelas que ainda estão pendentes no mês atual.\nClique para ver os detalhes.",
         ))
 
         layout.addLayout(resumo)
+
+        busca_layout = QHBoxLayout()
+        busca_layout.setSpacing(10)
+
+        self.caixa_busca = QLineEdit()
+        self.caixa_busca.setObjectName("campoBusca")
+        self.caixa_busca.setPlaceholderText("Pesquisar conta, gasto ou receita...")
+        self.caixa_busca.setToolTip("Busca rápida\n\nDigite parte do nome, valor, tipo ou observação para localizar receitas, gastos, despesas e pagamentos.")
+        self.caixa_busca.setClearButtonEnabled(True)
+        self.caixa_busca.textChanged.connect(self.buscar_rapido)
+
+        busca_layout.addWidget(self.caixa_busca, 1)
+        layout.addLayout(busca_layout)
 
         self.painel_home = QFrame()
         self.painel_home.setObjectName("card")
 
         self.painel_home_layout = QVBoxLayout(self.painel_home)
-        self.painel_home_layout.setContentsMargins(22, 12, 22, 12)
-        self.painel_home_layout.setSpacing(8)
+        self.painel_home_layout.setContentsMargins(16, 10, 16, 10)
+        self.painel_home_layout.setSpacing(6)
 
         self.mostrar_proximos_vencimentos()
 
@@ -572,7 +612,6 @@ class TelaInicial(QWidget):
         while self.painel_home_layout.count():
             item = self.painel_home_layout.takeAt(0)
             widget = item.widget()
-
             if widget is not None:
                 widget.deleteLater()
             elif item.layout() is not None:
@@ -582,7 +621,6 @@ class TelaInicial(QWidget):
         while layout.count():
             item = layout.takeAt(0)
             widget = item.widget()
-
             if widget is not None:
                 widget.deleteLater()
             elif item.layout() is not None:
@@ -591,45 +629,46 @@ class TelaInicial(QWidget):
     def criar_botao_voltar(self):
         botao = QPushButton("↩  Próximos vencimentos")
         botao.setObjectName("btnReceita")
-        botao.setFixedHeight(38)
+        botao.setFixedHeight(34)
         botao.clicked.connect(self.mostrar_proximos_vencimentos)
         return botao
 
-    def criar_card_item_detalhe(self, item, cor="#3b82f6"):
+    def criar_card_item_detalhe(self, item, cor="#3b82f6", compacto=False):
         card = QFrame()
         card.setObjectName("card")
-        card.setMinimumHeight(96)
-        card.setMaximumHeight(112)
+        
+        if compacto:
+            card.setMinimumHeight(64)
+            card.setMaximumHeight(70)
+        else:
+            card.setMinimumHeight(72)
+            card.setMaximumHeight(78)
+            
         card.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
-        card.setStyleSheet(f"""
-            QFrame#card {{
-                background-color: #111827;
-                border: 1px solid #263244;
-                border-left: 3px solid {cor};
-                border-radius: 12px;
-            }}
-        """)
+        card.setStyleSheet(f"QFrame#card {{ background-color: #111827; border: 1px solid #1f2937; border-left: 4px solid {cor}; border-radius: 8px; }}")
 
         layout = QVBoxLayout(card)
-        layout.setContentsMargins(14, 10, 14, 10)
-        layout.setSpacing(5)
+        layout.setContentsMargins(12, 6, 12, 6)
+        layout.setSpacing(4)
 
         topo = QHBoxLayout()
-
         descricao = QLabel(item.get("descricao", ""))
-        descricao.setStyleSheet("font-size: 15px; font-weight: bold; color: #ffffff;")
+        descricao.setStyleSheet("font-size: 13px; font-weight: bold; color: #ffffff;")
 
         valor = QLabel(self.formatar_moeda(item.get("valor", 0)))
         valor.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
-        valor.setStyleSheet("font-size: 18px; font-weight: bold; color: #ffffff;")
+        valor.setStyleSheet("font-size: 14px; font-weight: bold; color: #ffffff;")
 
         topo.addWidget(descricao, 1)
         topo.addWidget(valor)
 
         detalhes = QHBoxLayout()
+        detalhes.setSpacing(6)
 
         data = QLabel(f"📅 {item.get('data', '')}")
         tipo = QLabel(f"📄 {item.get('tipo', '')}")
+        forma_pagamento = item.get("forma_pagamento") or ""
+        pagamento = QLabel(f"💳 {forma_pagamento}")
         situacao = QLabel(item.get("situacao", ""))
         situacao.setAlignment(Qt.AlignCenter)
 
@@ -638,152 +677,146 @@ class TelaInicial(QWidget):
             cor_status = "#ef4444"
         elif texto_situacao in ["Paga", "Pago"]:
             cor_status = "#22c55e"
+        elif texto_situacao in ["Hoje", "Amanhã"]:
+            cor_status = "#f59e0b"
         else:
             cor_status = "#2563eb"
 
-        for label in (data, tipo):
-            label.setStyleSheet("font-size: 12px; color: #cbd5e1;")
+        for label in (data, tipo, pagamento):
+            label.setStyleSheet("font-size: 11px; color: #cbd5e1;")
 
-        situacao.setStyleSheet(f"""
-            QLabel {{
-                background-color: {cor_status};
-                color: white;
-                border-radius: 8px;
-                padding: 4px 10px;
-                font-weight: bold;
-                font-size: 12px;
-            }}
-        """)
+        situacao.setMinimumWidth(72)
+        situacao.setFixedHeight(20)
+        situacao.setStyleSheet(f"QLabel {{ background-color: {cor_status}; color: white; border-radius: 4px; padding: 2px 6px; font-weight: bold; font-size: 10px; }}")
 
         detalhes.addWidget(data)
-        detalhes.addSpacing(8)
+        detalhes.addSpacing(4)
         detalhes.addWidget(tipo)
+        if item.get("origem") == "despesa_paga" and forma_pagamento:
+            detalhes.addSpacing(4)
+            detalhes.addWidget(pagamento)
         detalhes.addStretch()
         detalhes.addWidget(situacao)
 
+        id_despesa = item.get("id_despesa")
+        origem = item.get("origem")
+        
+        # BOTÃO PARA CONTAS EM ABERTO (PAGAR)
+        if origem == "despesa_aberta" and id_despesa:
+            btn_pagar = QPushButton("✓  Pagar")
+            btn_pagar.setMinimumWidth(76)
+            btn_pagar.setFixedWidth(76)
+            btn_pagar.setFixedHeight(20)
+            btn_pagar.setCursor(Qt.PointingHandCursor)
+            btn_pagar.setToolTip("Marcar como pago\n\nRegistra esta conta como paga e ela passa a entrar no total Pago no mês.")
+            btn_pagar.setStyleSheet("QPushButton { background-color: #1f2937; color: #ffffff; border: 1px solid #3b82f6; border-radius: 4px; font-size: 10px; font-weight: bold; } QPushButton:hover { background-color: #3b82f6; }")
+            btn_pagar.clicked.connect(lambda _, id=id_despesa: self.marcar_despesa_home(id))
+            detalhes.addSpacing(4)
+            detalhes.addWidget(btn_pagar)
+            
+        # BOTÕES PARA CONTAS PAGAS
+        elif origem == "despesa_paga" and id_despesa:
+            btn_desfazer = QPushButton("↩  Desfazer")
+            btn_desfazer.setFixedWidth(82)
+            btn_desfazer.setFixedHeight(20)
+            btn_desfazer.setCursor(Qt.PointingHandCursor)
+            btn_desfazer.setToolTip("Desfazer pagamento\n\nRemove o pagamento e coloca a conta novamente em aberto.")
+            btn_desfazer.setStyleSheet("QPushButton { background-color: #1f2937; color: #ffffff; border: 1px solid #3b82f6; border-radius: 4px; font-size: 10px; font-weight: bold; } QPushButton:hover { background-color: #3b82f6; color: white; }")
+            btn_desfazer.clicked.connect(lambda _, item=item: self.desfazer_pagamento_home(item))
+
+            btn_excluir = QPushButton("🗑")
+            btn_excluir.setFixedWidth(36)
+            btn_excluir.setFixedHeight(20)
+            btn_excluir.setCursor(Qt.PointingHandCursor)
+            btn_excluir.setToolTip("Excluir registro\n\nRemove este lançamento do sistema após confirmação.")
+            btn_excluir.setStyleSheet("QPushButton { background-color: #1f2937; color: #ffffff; border: 1px solid #ef4444; border-radius: 4px; font-size: 10px; font-weight: bold; } QPushButton:hover { background-color: #ef4444; color: white; }")
+            btn_excluir.clicked.connect(lambda _, item=item: self.excluir_item_pago_home(item))
+
+            detalhes.addSpacing(4)
+            detalhes.addWidget(btn_desfazer)
+            detalhes.addWidget(btn_excluir)
+
+        elif origem == "gasto" and item.get("id_gasto"):
+            btn_excluir = QPushButton("🗑  Excluir")
+            btn_excluir.setFixedWidth(82)
+            btn_excluir.setFixedHeight(20)
+            btn_excluir.setCursor(Qt.PointingHandCursor)
+            btn_excluir.setToolTip("Excluir registro\n\nRemove este lançamento do sistema após confirmação.")
+            btn_excluir.setStyleSheet("QPushButton { background-color: #1f2937; color: #ffffff; border: 1px solid #ef4444; border-radius: 4px; font-size: 10px; font-weight: bold; } QPushButton:hover { background-color: #ef4444; color: white; }")
+            btn_excluir.clicked.connect(lambda _, item=item: self.excluir_item_pago_home(item))
+            detalhes.addSpacing(4)
+            detalhes.addWidget(btn_excluir)
+
         layout.addLayout(topo)
         layout.addLayout(detalhes)
-
         return card
 
     def criar_resumo_detalhe(self, titulo, valor, info, cor):
         card = QFrame()
         card.setObjectName("card")
-        card.setMinimumHeight(76)
-        card.setMaximumHeight(86)
-        card.setStyleSheet(f"""
-            QFrame#card {{
-                background-color: #181d29;
-                border: 1px solid #263244;
-                border-left: 3px solid {cor};
-                border-radius: 14px;
-            }}
-        """)
+        card.setMinimumHeight(60)
+        card.setMaximumHeight(66)
+        card.setStyleSheet(f"QFrame#card {{ background-color: #181d29; border: 1px solid #263244; border-left: 3px solid {cor}; border-radius: 8px; }}")
 
         layout = QVBoxLayout(card)
-        layout.setContentsMargins(14, 8, 14, 8)
-        layout.setSpacing(2)
+        layout.setContentsMargins(12, 4, 12, 4)
+        layout.setSpacing(1)
 
         lbl_titulo = QLabel(titulo)
-        lbl_titulo.setStyleSheet("font-size: 13px; color: #9aa2b8;")
+        lbl_titulo.setStyleSheet("font-size: 11px; color: #9aa2b8;")
 
         lbl_valor = QLabel(self.formatar_moeda(valor))
-        lbl_valor.setStyleSheet("font-size: 22px; font-weight: bold; color: #ffffff;")
+        lbl_valor.setStyleSheet("font-size: 16px; font-weight: bold; color: #ffffff;")
 
         lbl_info = QLabel(info)
-        lbl_info.setStyleSheet("font-size: 12px; color: #cbd5e1;")
+        lbl_info.setStyleSheet("font-size: 11px; color: #cbd5e1;")
 
         layout.addWidget(lbl_titulo)
         layout.addWidget(lbl_valor)
         layout.addWidget(lbl_info)
-
         return card
 
-    def mostrar_detalhes_inline(self, titulo, subtitulo, secoes, cor):
+    def mostrar_detalhes_inline(self, titulo, subtitulo, secoes, cor, mostrar_voltar=True, compacto=False, ocultar_resumo=False):
         self.limpar_painel_home()
-
         cabecalho = QHBoxLayout()
 
         textos = QVBoxLayout()
         lbl_titulo = QLabel(titulo)
-        lbl_titulo.setObjectName("cardValor")
-        lbl_titulo.setStyleSheet("font-size: 21px;")
+        lbl_titulo.setStyleSheet("font-size: 18px; font-weight: bold; color: #ffffff;")
 
         lbl_subtitulo = QLabel(subtitulo)
-        lbl_subtitulo.setObjectName("subtitulo")
-        lbl_subtitulo.setStyleSheet("font-size: 13px; color: #9aa2b8;")
+        lbl_subtitulo.setStyleSheet("font-size: 12px; color: #9aa2b8;")
 
         textos.addWidget(lbl_titulo)
         textos.addWidget(lbl_subtitulo)
 
         cabecalho.addLayout(textos)
         cabecalho.addStretch()
-        cabecalho.addWidget(self.criar_botao_voltar())
+
+        if mostrar_voltar:
+            cabecalho.addWidget(self.criar_botao_voltar())
 
         self.painel_home_layout.addLayout(cabecalho)
 
-        resumo = QHBoxLayout()
-        resumo.setSpacing(10)
-
-        for secao in secoes:
-            itens = secao.get("itens", [])
-            total = sum(float(item.get("valor", 0) or 0) for item in itens)
-            resumo.addWidget(self.criar_resumo_detalhe(
-                secao.get("titulo", ""),
-                total,
-                f"{len(itens)} item(ns)",
-                cor,
-            ))
-
-        self.painel_home_layout.addLayout(resumo)
+        if not ocultar_resumo:
+            resumo = QHBoxLayout()
+            resumo.setSpacing(8)
+            for secao in secoes:
+                itens = secao.get("itens", [])
+                total = sum(float(item.get("valor", 0) or 0) for item in itens)
+                resumo.addWidget(self.criar_resumo_detalhe(secao.get("titulo", ""), total, f"{len(itens)} item(ns)", cor))
+            self.painel_home_layout.addLayout(resumo)
 
         area = QScrollArea()
         area.setWidgetResizable(True)
         area.setFrameShape(QFrame.NoFrame)
-        area.setStyleSheet("""
-            QScrollArea {
-                background: transparent;
-                border: none;
-            }
-
-            QScrollArea > QWidget > QWidget {
-                background: transparent;
-            }
-
-            QScrollBar:vertical {
-                background: #111827;
-                width: 10px;
-                margin: 3px 0px 3px 0px;
-                border-radius: 5px;
-            }
-
-            QScrollBar::handle:vertical {
-                background: #475569;
-                min-height: 28px;
-                border-radius: 5px;
-            }
-
-            QScrollBar::handle:vertical:hover {
-                background: #3b82f6;
-            }
-
-            QScrollBar::add-line:vertical,
-            QScrollBar::sub-line:vertical {
-                height: 0px;
-            }
-
-            QScrollBar::add-page:vertical,
-            QScrollBar::sub-page:vertical {
-                background: none;
-            }
-        """)
+        area.setStyleSheet("QScrollArea { background: transparent; border: none; } QScrollArea > QWidget > QWidget { background: transparent; } QScrollBar:vertical { background: #111827; width: 8px; border-radius: 4px; } QScrollBar::handle:vertical { background: #475569; border-radius: 4px; } QScrollBar::handle:vertical:hover { background: #3b82f6; } QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0px; }")
 
         conteudo = QWidget()
-        conteudo.setStyleSheet("background: transparent;")
         grid = QGridLayout(conteudo)
         grid.setContentsMargins(0, 4, 8, 4)
-        grid.setHorizontalSpacing(10)
-        grid.setVerticalSpacing(10)
+        grid.setHorizontalSpacing(12)
+        grid.setVerticalSpacing(8)
 
         linha = 0
         coluna = 0
@@ -795,16 +828,15 @@ class TelaInicial(QWidget):
                 continue
 
             lbl_secao = QLabel(secao.get("titulo", ""))
-            lbl_secao.setStyleSheet("font-size: 16px; font-weight: bold; color: #ffffff; margin-top: 8px;")
-            grid.addWidget(lbl_secao, linha, 0, 1, 2)
-            linha += 1
+            lbl_secao.setStyleSheet("font-size: 13px; font-weight: bold; color: #ffffff; margin-top: 4px;")
+            grid.addWidget(lbl_secao, grid.rowCount(), 0, 1, 2)
+            linha = grid.rowCount()
             coluna = 0
 
             for item in itens:
-                grid.addWidget(self.criar_card_item_detalhe(item, cor), linha, coluna)
+                grid.addWidget(self.criar_card_item_detalhe(item, cor, compacto), linha, coluna)
                 houve_item = True
                 coluna += 1
-
                 if coluna >= 2:
                     coluna = 0
                     linha += 1
@@ -816,7 +848,520 @@ class TelaInicial(QWidget):
         if not houve_item:
             vazio = QLabel("Nenhum item encontrado para este mês.")
             vazio.setAlignment(Qt.AlignCenter)
-            vazio.setStyleSheet("font-size: 15px; color: #9aa2b8; padding: 30px;")
+            vazio.setStyleSheet("font-size: 13px; color: #9aa2b8; padding: 20px;")
+            grid.addWidget(vazio, 0, 0, 1, 2)
+
+        grid.setColumnStretch(0, 1)
+        grid.setColumnStretch(1, 1)
+
+        area.setWidget(conteudo)
+        self.painel_home_layout.addWidget(area, 1)
+
+    def mostrar_proximos_vencimentos(self):
+        self.limpar_painel_home()
+        titulo_lista = QLabel("📅 Próximos vencimentos")
+        titulo_lista.setToolTip("Próximos vencimentos\n\nLista de contas, despesas e parcelas em aberto, ordenadas pela data de vencimento.")
+        titulo_lista.setStyleSheet("font-size: 16px; font-weight: bold; color: #ffffff;")
+        self.painel_home_layout.addWidget(titulo_lista)
+
+        tabela = TabelaFinanceira(["Data", "Descrição", "Valor", "Situação", "Parcela"])
+        self.ajustar_tabela(tabela)
+        tabela.cellDoubleClicked.connect(lambda l, c, t=tabela: self.editar_despesa_tabela(t, l))
+
+        proximas = sorted(self.despesas, key=lambda d: d["data"])
+        for despesa in proximas:
+            parcela = "-"
+            if despesa["tipo"] == "Parcelamento" and despesa["parcela_atual"] and despesa["total_parcelas"]:
+                parcela = f"{despesa['parcela_atual']}/{despesa['total_parcelas']}"
+
+            tabela.adicionar_linha([
+                self.formatar_data(despesa["vencimento"]),
+                despesa["descricao"],
+                self.formatar_moeda(despesa["valor"]),
+                self.status_vencimento(despesa["data"]),
+                parcela
+            ], despesa["id"])
+            self.aplicar_destaque_data_mes_atual(tabela, tabela.rowCount() - 1, despesa["data"])
+        self.painel_home_layout.addWidget(tabela, 1)
+
+    def buscar_rapido(self, texto):
+        termo = texto.strip().lower()
+        if not termo:
+            self.mostrar_proximos_vencimentos()
+            return
+
+        resultados = []
+        for despesa in self.obter_todas_despesas():
+            campos = [despesa.get("descricao", ""), despesa.get("categoria", ""), despesa.get("tipo", ""), despesa.get("status", ""), self.formatar_moeda(despesa.get("valor", 0))]
+            if any(termo in str(campo).lower() for campo in campos):
+                situacao = "Paga" if despesa.get("status") == "paga" else self.status_vencimento(despesa.get("data"))
+                origem = "despesa_paga" if despesa.get("status") == "paga" else "despesa_aberta"
+                resultados.append(self.item_detalhe(despesa.get("vencimento"), despesa.get("descricao"), despesa.get("valor"), despesa.get("tipo"), situacao, despesa.get("id"), origem))
+
+        for receita in self.obter_receitas():
+            campos = [receita.get("descricao", ""), receita.get("categoria", ""), receita.get("observacao", ""), self.formatar_moeda(receita.get("valor", 0))]
+            if any(termo in str(campo).lower() for campo in campos):
+                resultados.append(self.item_detalhe(receita.get("data_recebimento"), receita.get("descricao"), receita.get("valor"), "Receita", "Entrada", None, "receita"))
+
+        for gasto in self.obter_gastos():
+            campos = [gasto.get("descricao", ""), gasto.get("categoria", ""), gasto.get("observacao", ""), self.formatar_moeda(gasto.get("valor", 0))]
+            if any(termo in str(campo).lower() for campo in campos):
+                resultados.append(self.item_detalhe(gasto.get("data_gasto"), gasto.get("descricao"), gasto.get("valor"), "Gasto", "Pago", None, "gasto", None, gasto.get("id")))
+
+        secoes = [{"titulo": f"Resultados para '{texto}'", "itens": resultados}]
+        self.mostrar_detalhes_inline("🔎 Busca rápida", f"{len(resultados)} resultado(s).", secoes, "#3b82f6", mostrar_voltar=False)
+
+    def marcar_despesa_home(self, id_despesa):
+        from PySide6.QtWidgets import QMessageBox
+        from banco.banco import buscar_despesa_por_id
+        
+        despesa = buscar_despesa_por_id(id_despesa)
+        if not despesa:
+            return
+            
+        status_atual = str(despesa[-1]).lower()
+        is_paga = (status_atual == "paga" or status_atual == "pago")
+
+        if is_paga:
+            titulo_janela = "Reverter Pagamento"
+            texto_principal = "Esta conta já está marcada como PAGA."
+            texto_informativo = "Deseja REVERTER o pagamento para colocá-la em aberto novamente?"
+            texto_botao_confirmar = "Sim, reverter"
+            cor_borda = "#ef4444"
+        else:
+            titulo_janela = "Confirmar Pagamento"
+            texto_principal = "Confirmar pagamento desta conta?"
+            texto_informativo = "A despesa será movida para o histórico de contas pagas."
+            texto_botao_confirmar = "Sim, pagar"
+            cor_borda = "#22c55e"
+
+        caixa = QMessageBox(self)
+        caixa.setWindowTitle(titulo_janela)
+        caixa.setText(f"<b style='font-size: 15px; color: #ffffff;'>{texto_principal}</b>")
+        caixa.setInformativeText(texto_informativo)
+        caixa.setIcon(QMessageBox.Question)
+        
+        combo_pagamento = None
+        if not is_paga:
+            combo_pagamento = QComboBox(caixa)
+            combo_pagamento.addItems(["Pix", "Dinheiro", "Débito", "Crédito", "Boleto", "Transferência", "Outros"])
+            combo_pagamento.setCurrentText("Pix")
+            combo_pagamento.setStyleSheet("QComboBox { background-color: #1f2937; color: #ffffff; border: 1px solid #334155; border-radius: 6px; padding: 6px 10px; font-size: 12px; min-width: 180px; }")
+            caixa.layout().addWidget(QLabel("Forma de pagamento:"), 1, 1)
+            caixa.layout().addWidget(combo_pagamento, 2, 1)
+
+        btn_sim = caixa.addButton(texto_botao_confirmar, QMessageBox.YesRole)
+        btn_nao = caixa.addButton("Cancelar", QMessageBox.NoRole)
+        
+        caixa.setStyleSheet(f"""
+            QMessageBox {{ background-color: #0f1117; border: 2px solid #1f2937; border-top: 4px solid {cor_borda}; border-radius: 10px; }}
+            QLabel {{ color: #9aa2b8; font-family: 'Segoe UI'; font-size: 13px; padding-left: 6px; }}
+            QPushButton {{ background-color: #1f2937; color: #ffffff; border: 1px solid #334155; border-radius: 6px; padding: 6px 16px; font-weight: bold; font-size: 12px; min-width: 85px; }}
+            QPushButton:hover {{ background-color: {cor_borda}; border: 1px solid {cor_borda}; }}
+        """)
+        
+        caixa.exec()
+        if caixa.clickedButton() == btn_nao:
+            return
+
+        import sqlite3
+        from pathlib import Path
+        caminho_db = Path(__file__).resolve().parent.parent / "banco" / "financeiro.db"
+        
+        if is_paga:
+            try:
+                conexao = sqlite3.connect(str(caminho_db))
+                cursor = conexao.cursor()
+                cursor.execute("DELETE FROM pagamentos WHERE id_despesa = ?", (id_despesa,))
+                cursor.execute("UPDATE despesas SET status = 'pendente' WHERE id = ?", (id_despesa,))
+                conexao.commit()
+                conexao.close()
+            except Exception as e:
+                print(f"Erro ao reverter: {e}")
+        else:
+            forma_pagamento_escolhida = combo_pagamento.currentText() if combo_pagamento else "Não informado"
+            pagar_despesa(id_despesa, forma_pagamento_escolhida)
+
+        if self.ao_salvar_despesa:
+            self.ao_salvar_despesa()
+        else:
+            self.montar_tela()
+
+
+    def confirmar_acao_home(self, titulo, texto, botao, cor):
+        caixa = QMessageBox(self)
+        caixa.setWindowTitle(titulo)
+        caixa.setText(f"<b style='font-size: 15px; color: #ffffff;'>{texto}</b>")
+        caixa.setIcon(QMessageBox.Question)
+
+        btn_sim = caixa.addButton(botao, QMessageBox.YesRole)
+        btn_nao = caixa.addButton("Cancelar", QMessageBox.NoRole)
+
+        caixa.setStyleSheet(f"""
+            QMessageBox {{ background-color: #0f1117; border: 2px solid #1f2937; border-top: 4px solid {cor}; border-radius: 10px; }}
+            QLabel {{ color: #9aa2b8; font-family: 'Segoe UI'; font-size: 13px; padding-left: 6px; }}
+            QPushButton {{ background-color: #1f2937; color: #ffffff; border: 1px solid #334155; border-radius: 6px; padding: 6px 16px; font-weight: bold; font-size: 12px; min-width: 85px; }}
+            QPushButton:hover {{ background-color: {cor}; border: 1px solid {cor}; }}
+        """)
+
+        caixa.exec()
+        return caixa.clickedButton() == btn_sim
+
+    def desfazer_pagamento_home(self, item):
+        id_pagamento = item.get("id_pagamento")
+        id_despesa = item.get("id_despesa")
+        if not self.confirmar_acao_home("Desfazer pagamento", "Deseja desfazer este pagamento?", "Desfazer", "#3b82f6"):
+            return
+        if id_pagamento:
+            desfazer_pagamento(id_pagamento)
+        elif id_despesa:
+            reabrir_despesa(id_despesa)
+        if self.ao_salvar_despesa:
+            self.ao_salvar_despesa()
+        else:
+            self.montar_tela()
+
+    def excluir_item_pago_home(self, item):
+        origem = item.get("origem")
+        if not self.confirmar_acao_home("Excluir", "Deseja excluir este item definitivamente?", "Excluir", "#ef4444"):
+            return
+        if origem == "gasto" and item.get("id_gasto"):
+            excluir_gasto(item.get("id_gasto"))
+        elif item.get("id_despesa"):
+            excluir_despesa_com_historico(item.get("id_despesa"))
+        if self.ao_salvar_despesa:
+            self.ao_salvar_despesa()
+        else:
+            self.montar_tela()
+
+    def abrir_detalhes_pagos(self):
+        # Criamos uma nova estrutura de seções com cores individuais
+        secoes_coloridas = [
+            {"titulo": "Contas pagas", "itens": self.detalhes_pagos[0]["itens"], "cor": "#22c55e"}, # Verde
+            {"titulo": "Gastos realizados", "itens": self.detalhes_pagos[1]["itens"], "cor": "#ef4444"} # Vermelho
+        ]
+        
+        # Chamamos uma lógica que respeita a cor de cada seção
+        self.mostrar_detalhes_coloridos("✅ Pago no mês", "Contas e gastos efetuados.", secoes_coloridas)
+
+    def mostrar_detalhes_coloridos(self, titulo, subtitulo, secoes):
+        self.limpar_painel_home()
+        cabecalho = QHBoxLayout()
+        textos = QVBoxLayout()
+        lbl_titulo = QLabel(titulo)
+        lbl_titulo.setStyleSheet("font-size: 18px; font-weight: bold; color: #ffffff;")
+        lbl_subtitulo = QLabel(subtitulo)
+        lbl_subtitulo.setStyleSheet("font-size: 12px; color: #9aa2b8;")
+        textos.addWidget(lbl_titulo)
+        textos.addWidget(lbl_subtitulo)
+        cabecalho.addLayout(textos)
+        cabecalho.addStretch()
+        cabecalho.addWidget(self.criar_botao_voltar())
+        self.painel_home_layout.addLayout(cabecalho)
+
+        area = QScrollArea()
+        area.setWidgetResizable(True)
+        area.setStyleSheet("QScrollArea { background: transparent; border: none; }")
+
+        conteudo = QWidget()
+        grid = QGridLayout(conteudo)
+        
+        linha = 0
+        for secao in secoes:
+            lbl_secao = QLabel(secao.get("titulo", ""))
+            lbl_secao.setStyleSheet("font-size: 13px; font-weight: bold; color: #ffffff; margin-top: 10px;")
+            grid.addWidget(lbl_secao, linha, 0, 1, 2)
+            linha += 1
+            
+            cor_secao = secao.get("cor", "#3b82f6")
+            coluna = 0
+            for item in secao.get("itens", []):
+                # Aqui usamos a cor específica da seção
+                grid.addWidget(self.criar_card_item_detalhe(item, cor_secao, compacto=False), linha, coluna)
+                coluna += 1
+                if coluna >= 2:
+                    coluna = 0
+                    linha += 1
+            linha += 1
+
+        area.setWidget(conteudo)
+        self.painel_home_layout.addWidget(area, 1)
+    def abrir_detalhes_pendentes(self):
+        self.mostrar_detalhes_inline("📌 A pagar", "Contas pendentes.", self.detalhes_pendentes, "#ef4444", compacto=True, ocultar_resumo=True)
+
+    def editar_despesa_tabela(self, tabela, linha):
+        item = tabela.item(linha, 0)
+        if item is None: return
+        id_despesa = item.data(Qt.UserRole)
+        if not id_despesa: return
+        despesa = buscar_despesa_por_id(id_despesa)
+        if not despesa: return
+        janela = NovaDespesa(despesa)
+        if janela.exec() and self.ao_salvar_despesa:
+            self.ao_salvar_despesa()
+
+    def abrir_nova_despesa(self):
+        janela = NovaDespesa()
+        if janela.exec() and self.ao_salvar_despesa:
+            self.ao_salvar_despesa()
+
+    def abrir_novo_gasto(self):
+        janela = NovoGasto()
+        if janela.exec() and self.ao_salvar_despesa:
+            self.ao_salvar_despesa()
+
+    def abrir_nova_receita(self):
+        janela = NovaReceita()
+        if janela.exec() and self.ao_salvar_despesa:
+            self.ao_salvar_despesa()
+
+    def limpar_painel_home(self):
+        while self.painel_home_layout.count():
+            item = self.painel_home_layout.takeAt(0)
+            widget = item.widget()
+            if widget is not None:
+                widget.deleteLater()
+            elif item.layout() is not None:
+                self.limpar_layout(item.layout())
+
+    def limpar_layout(self, layout):
+        while layout.count():
+            item = layout.takeAt(0)
+            widget = item.widget()
+            if widget is not None:
+                widget.deleteLater()
+            elif item.layout() is not None:
+                self.limpar_layout(item.layout())
+
+    def criar_botao_voltar(self):
+        botao = QPushButton("↩  Próximos vencimentos")
+        botao.setObjectName("btnReceita")
+        botao.setFixedHeight(34)
+        botao.clicked.connect(self.mostrar_proximos_vencimentos)
+        return botao
+
+    def criar_card_item_detalhe(self, item, cor="#ef4444", compacto=False):
+        card = QFrame()
+        card.setObjectName("card")
+        
+        if compacto:
+            card.setMinimumHeight(64)
+            card.setMaximumHeight(70)
+        else:
+            card.setMinimumHeight(72)
+            card.setMaximumHeight(78)
+            
+        card.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        card.setStyleSheet(f"QFrame#card {{ background-color: #111827; border: 1px solid #1f2937; border-left: 4px solid {cor}; border-radius: 8px; }}")
+
+        layout = QVBoxLayout(card)
+        layout.setContentsMargins(12, 6, 12, 6)
+        layout.setSpacing(4)
+
+        topo = QHBoxLayout()
+        descricao = QLabel(item.get("descricao", ""))
+        descricao.setStyleSheet("font-size: 13px; font-weight: bold; color: #ffffff;")
+
+        valor = QLabel(self.formatar_moeda(item.get("valor", 0)))
+        valor.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        valor.setStyleSheet("font-size: 14px; font-weight: bold; color: #ffffff;")
+
+        topo.addWidget(descricao, 1)
+        topo.addWidget(valor)
+
+        detalhes = QHBoxLayout()
+        detalhes.setSpacing(6)
+
+        data = QLabel(f"📅 {item.get('data', '')}")
+        tipo = QLabel(f"📄 {item.get('tipo', '')}")
+        forma_pagamento = item.get("forma_pagamento") or ""
+        pagamento = QLabel(f"💳 {forma_pagamento}")
+        situacao = QLabel(item.get("situacao", ""))
+        situacao.setAlignment(Qt.AlignCenter)
+
+        texto_situacao = item.get("situacao", "")
+        if texto_situacao in ["Atrasada"]:
+            cor_status = "#ef4444"
+        elif texto_situacao in ["Paga", "Pago"]:
+            cor_status = "#22c55e"
+        elif texto_situacao in ["Hoje", "Amanhã"]:
+            cor_status = "#f59e0b"
+        else:
+            cor_status = "#2563eb"
+
+        for label in (data, tipo, pagamento):
+            label.setStyleSheet("font-size: 11px; color: #cbd5e1;")
+
+        situacao.setMinimumWidth(72)
+        situacao.setFixedHeight(20)
+        situacao.setStyleSheet(f"QLabel {{ background-color: {cor_status}; color: white; border-radius: 4px; padding: 2px 6px; font-weight: bold; font-size: 10px; }}")
+
+        detalhes.addWidget(data)
+        detalhes.addSpacing(4)
+        detalhes.addWidget(tipo)
+        detalhes.addStretch()
+        detalhes.addWidget(situacao)
+
+        id_despesa = item.get("id_despesa")
+        origem = item.get("origem")
+
+        if origem == "despesa_aberta" and id_despesa:
+            btn_pagar = QPushButton("✓  Pagar")
+            btn_pagar.setMinimumWidth(76)
+            btn_pagar.setFixedWidth(76)
+            btn_pagar.setFixedHeight(20)
+            btn_pagar.setCursor(Qt.PointingHandCursor)
+            btn_pagar.setToolTip("Marcar como pago\n\nRegistra esta conta como paga e ela passa a entrar no total Pago no mês.")
+            btn_pagar.setStyleSheet("QPushButton { background-color: #1f2937; color: #ffffff; border: 1px solid #3b82f6; border-radius: 4px; font-size: 10px; font-weight: bold; } QPushButton:hover { background-color: #3b82f6; }")
+            btn_pagar.clicked.connect(lambda _, id=id_despesa: self.marcar_despesa_home(id))
+
+            btn_excluir = QPushButton("🗑")
+            btn_excluir.setFixedWidth(34)
+            btn_excluir.setFixedHeight(20)
+            btn_excluir.setCursor(Qt.PointingHandCursor)
+            btn_excluir.setToolTip("Excluir despesa")
+            btn_excluir.setStyleSheet("QPushButton { background-color: #1f2937; color: #ffffff; border: 1px solid #ef4444; border-radius: 4px; font-size: 10px; font-weight: bold; } QPushButton:hover { background-color: #ef4444; color: white; }")
+            btn_excluir.clicked.connect(lambda _, item=item: self.excluir_item_pago_home(item))
+
+            detalhes.addSpacing(4)
+            detalhes.addWidget(btn_pagar)
+            detalhes.addWidget(btn_excluir)
+
+        elif origem == "despesa_paga" and id_despesa:
+            btn_desfazer = QPushButton("↩")
+            btn_desfazer.setFixedWidth(34)
+            btn_desfazer.setFixedHeight(20)
+            btn_desfazer.setCursor(Qt.PointingHandCursor)
+            btn_desfazer.setToolTip("Desfazer pagamento")
+            btn_desfazer.setStyleSheet("QPushButton { background-color: #1f2937; color: #ffffff; border: 1px solid #3b82f6; border-radius: 4px; font-size: 10px; font-weight: bold; } QPushButton:hover { background-color: #3b82f6; color: white; }")
+            btn_desfazer.clicked.connect(lambda _, item=item: self.desfazer_pagamento_home(item))
+
+            btn_excluir = QPushButton("🗑")
+            btn_excluir.setFixedWidth(34)
+            btn_excluir.setFixedHeight(20)
+            btn_excluir.setCursor(Qt.PointingHandCursor)
+            btn_excluir.setToolTip("Excluir despesa")
+            btn_excluir.setStyleSheet("QPushButton { background-color: #1f2937; color: #ffffff; border: 1px solid #ef4444; border-radius: 4px; font-size: 10px; font-weight: bold; } QPushButton:hover { background-color: #ef4444; color: white; }")
+            btn_excluir.clicked.connect(lambda _, item=item: self.excluir_item_pago_home(item))
+
+            detalhes.addSpacing(4)
+            detalhes.addWidget(btn_desfazer)
+            detalhes.addWidget(btn_excluir)
+
+        elif origem == "gasto" and item.get("id_gasto"):
+            btn_excluir = QPushButton("🗑")
+            btn_excluir.setFixedWidth(34)
+            btn_excluir.setFixedHeight(20)
+            btn_excluir.setCursor(Qt.PointingHandCursor)
+            btn_excluir.setToolTip("Excluir gasto")
+            btn_excluir.setStyleSheet("QPushButton { background-color: #1f2937; color: #ffffff; border: 1px solid #ef4444; border-radius: 4px; font-size: 10px; font-weight: bold; } QPushButton:hover { background-color: #ef4444; color: white; }")
+            btn_excluir.clicked.connect(lambda _, item=item: self.excluir_item_pago_home(item))
+
+            detalhes.addSpacing(4)
+            detalhes.addWidget(btn_excluir)
+
+        layout.addLayout(topo)
+        layout.addLayout(detalhes)
+        return card
+
+    def criar_resumo_detalhe(self, titulo, valor, info, cor):
+        card = QFrame()
+        card.setObjectName("card")
+        card.setMinimumHeight(60)
+        card.setMaximumHeight(66)
+        card.setStyleSheet(f"QFrame#card {{ background-color: #181d29; border: 1px solid #263244; border-left: 3px solid {cor}; border-radius: 8px; }}")
+
+        layout = QVBoxLayout(card)
+        layout.setContentsMargins(12, 4, 12, 4)
+        layout.setSpacing(1)
+
+        lbl_titulo = QLabel(titulo)
+        lbl_titulo.setStyleSheet("font-size: 11px; color: #9aa2b8;")
+
+        lbl_valor = QLabel(self.formatar_moeda(valor))
+        lbl_valor.setStyleSheet("font-size: 16px; font-weight: bold; color: #ffffff;")
+
+        lbl_info = QLabel(info)
+        lbl_info.setStyleSheet("font-size: 11px; color: #cbd5e1;")
+
+        layout.addWidget(lbl_titulo)
+        layout.addWidget(lbl_valor)
+        layout.addWidget(lbl_info)
+        return card
+
+    def mostrar_detalhes_inline(self, titulo, subtitulo, secoes, cor, mostrar_voltar=True, compacto=False, ocultar_resumo=False):
+        self.limpar_painel_home()
+        cabecalho = QHBoxLayout()
+
+        textos = QVBoxLayout()
+        lbl_titulo = QLabel(titulo)
+        lbl_titulo.setStyleSheet("font-size: 18px; font-weight: bold; color: #ffffff;")
+
+        lbl_subtitulo = QLabel(subtitulo)
+        lbl_subtitulo.setStyleSheet("font-size: 12px; color: #9aa2b8;")
+
+        textos.addWidget(lbl_titulo)
+        textos.addWidget(lbl_subtitulo)
+
+        cabecalho.addLayout(textos)
+        cabecalho.addStretch()
+
+        if mostrar_voltar:
+            cabecalho.addWidget(self.criar_botao_voltar())
+
+        self.painel_home_layout.addLayout(cabecalho)
+
+        if not ocultar_resumo:
+            resumo = QHBoxLayout()
+            resumo.setSpacing(8)
+            for secao in secoes:
+                itens = secao.get("itens", [])
+                total = sum(float(item.get("valor", 0) or 0) for item in itens)
+                resumo.addWidget(self.criar_resumo_detalhe(secao.get("titulo", ""), total, f"{len(itens)} item(ns)", cor))
+            self.painel_home_layout.addLayout(resumo)
+
+        area = QScrollArea()
+        area.setWidgetResizable(True)
+        area.setFrameShape(QFrame.NoFrame)
+        area.setStyleSheet("QScrollArea { background: transparent; border: none; } QScrollArea > QWidget > QWidget { background: transparent; } QScrollBar:vertical { background: #111827; width: 8px; border-radius: 4px; } QScrollBar::handle:vertical { background: #475569; border-radius: 4px; } QScrollBar::handle:vertical:hover { background: #3b82f6; } QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0px; }")
+
+        conteudo = QWidget()
+        grid = QGridLayout(conteudo)
+        grid.setContentsMargins(0, 4, 8, 4)
+        grid.setHorizontalSpacing(12)
+        grid.setVerticalSpacing(8)
+
+        linha = 0
+        coluna = 0
+        houve_item = False
+
+        for secao in secoes:
+            itens = secao.get("itens", [])
+            if not itens:
+                continue
+
+            lbl_secao = QLabel(secao.get("titulo", ""))
+            lbl_secao.setStyleSheet("font-size: 13px; font-weight: bold; color: #ffffff; margin-top: 4px;")
+            grid.addWidget(lbl_secao, linha, 0, 1, 2)
+            linha += 1
+            coluna = 0
+
+            for item in itens:
+                grid.addWidget(self.criar_card_item_detalhe(item, cor, compacto), linha, coluna)
+                houve_item = True
+                coluna += 1
+                if coluna >= 2:
+                    coluna = 0
+                    linha += 1
+
+            if coluna != 0:
+                linha += 1
+                coluna = 0
+
+        if not houve_item:
+            vazio = QLabel("Nenhum item encontrado para este mês.")
+            vazio.setAlignment(Qt.AlignCenter)
+            vazio.setStyleSheet("font-size: 13px; color: #9aa2b8; padding: 20px;")
             grid.addWidget(vazio, 0, 0, 1, 2)
 
         grid.setColumnStretch(0, 1)
@@ -828,22 +1373,18 @@ class TelaInicial(QWidget):
 
     def mostrar_proximos_vencimentos(self):
         self.limpar_painel_home()
-
         titulo_lista = QLabel("📅 Próximos vencimentos")
-        titulo_lista.setObjectName("cardValor")
-        titulo_lista.setStyleSheet("font-size: 19px;")
-
+        titulo_lista.setToolTip("Próximos vencimentos\n\nLista de contas, despesas e parcelas em aberto, ordenadas pela data de vencimento.")
+        titulo_lista.setStyleSheet("font-size: 16px; font-weight: bold; color: #ffffff;")
         self.painel_home_layout.addWidget(titulo_lista)
 
         tabela = TabelaFinanceira(["Data", "Descrição", "Valor", "Situação", "Parcela"])
         self.ajustar_tabela(tabela)
-        tabela.cellDoubleClicked.connect(lambda linha, coluna, t=tabela: self.editar_despesa_tabela(t, linha))
+        tabela.cellDoubleClicked.connect(lambda l, c, t=tabela: self.editar_despesa_tabela(t, l))
 
         proximas = sorted(self.despesas, key=lambda d: d["data"])
-
         for despesa in proximas:
             parcela = "-"
-
             if despesa["tipo"] == "Parcelamento" and despesa["parcela_atual"] and despesa["total_parcelas"]:
                 parcela = f"{despesa['parcela_atual']}/{despesa['total_parcelas']}"
 
@@ -854,43 +1395,193 @@ class TelaInicial(QWidget):
                 self.status_vencimento(despesa["data"]),
                 parcela
             ], despesa["id"])
-
+            self.aplicar_destaque_data_mes_atual(tabela, tabela.rowCount() - 1, despesa["data"])
         self.painel_home_layout.addWidget(tabela, 1)
 
+    def buscar_rapido(self, texto):
+        termo = texto.strip().lower()
+        if not termo:
+            self.mostrar_proximos_vencimentos()
+            return
+
+        resultados = []
+        for despesa in self.obter_todas_despesas():
+            campos = [despesa.get("descricao", ""), despesa.get("categoria", ""), despesa.get("tipo", ""), despesa.get("status", ""), self.formatar_moeda(despesa.get("valor", 0))]
+            if any(termo in str(campo).lower() for campo in campos):
+                situacao = "Paga" if despesa.get("status") == "paga" else self.status_vencimento(despesa.get("data"))
+                origem = "despesa_paga" if despesa.get("status") == "paga" else "despesa_aberta"
+                
+                # CORREÇÃO AQUI: Passando o despesa.get("id") no campo correto
+                resultados.append(self.item_detalhe(
+                    despesa.get("vencimento"), 
+                    despesa.get("descricao"), 
+                    despesa.get("valor"), 
+                    despesa.get("tipo"), 
+                    situacao, 
+                    despesa.get("id"), # Antes estava None aqui!
+                    origem
+                ))
+
+        for receita in self.obter_receitas():
+            campos = [receita.get("descricao", ""), receita.get("categoria", ""), receita.get("observacao", ""), self.formatar_moeda(receita.get("valor", 0))]
+            if any(termo in str(campo).lower() for campo in campos):
+                resultados.append(self.item_detalhe(receita.get("data_recebimento"), receita.get("descricao"), receita.get("valor"), "Receita", "Entrada", None, "receita"))
+
+        for gasto in self.obter_gastos():
+            campos = [gasto.get("descricao", ""), gasto.get("categoria", ""), gasto.get("observacao", ""), self.formatar_moeda(gasto.get("valor", 0))]
+            if any(termo in str(campo).lower() for campo in campos):
+                resultados.append(self.item_detalhe(gasto.get("data_gasto"), gasto.get("descricao"), gasto.get("valor"), "Gasto", "Pago", None, "gasto", None, gasto.get("id")))
+
+        secoes = [{"titulo": f"Resultados para '{texto}'", "itens": resultados}]
+        self.mostrar_detalhes_inline("🔎 Busca rápida", f"{len(resultados)} resultado(s).", secoes, "#3b82f6", mostrar_voltar=False)
+    def marcar_despesa_home(self, id_despesa):
+        from PySide6.QtWidgets import QMessageBox
+        from banco.banco import buscar_despesa_por_id
+        
+        # 1. Verifica se a despesa existe
+        despesa = buscar_despesa_por_id(id_despesa)
+        if not despesa:
+            return
+            
+        status_atual = str(despesa[-1]).lower()
+        is_paga = (status_atual == "paga" or status_atual == "pago")
+
+        # Define textos e cores do pop-up
+        if is_paga:
+            titulo_janela = "Reverber Pagamento"
+            texto_principal = "Esta conta já está marcada como PAGA."
+            texto_informativo = "Deseja REVERTER o pagamento para colocá-la em aberto novamente?"
+            texto_botao_confirmar = "Sim, reverter"
+            cor_borda = "#ef4444"
+        else:
+            titulo_janela = "Confirmar Pagamento"
+            texto_principal = "Confirmar pagamento desta conta?"
+            texto_informativo = "A despesa será movida para o histórico de contas pagas."
+            texto_botao_confirmar = "Sim, pagar"
+            cor_borda = "#22c55e"
+
+        # 2. Pop-up customizado e bonito
+        caixa = QMessageBox(self)
+        caixa.setWindowTitle(titulo_janela)
+        caixa.setText(f"<b style='font-size: 15px; color: #ffffff;'>{texto_principal}</b>")
+        caixa.setInformativeText(texto_informativo)
+        caixa.setIcon(QMessageBox.Question)
+        
+        combo_pagamento = None
+        if not is_paga:
+            combo_pagamento = QComboBox(caixa)
+            combo_pagamento.addItems(["Pix", "Dinheiro", "Débito", "Crédito", "Boleto", "Transferência", "Outros"])
+            combo_pagamento.setCurrentText("Pix")
+            combo_pagamento.setStyleSheet("QComboBox { background-color: #1f2937; color: #ffffff; border: 1px solid #334155; border-radius: 6px; padding: 6px 10px; font-size: 12px; min-width: 180px; }")
+            caixa.layout().addWidget(QLabel("Forma de pagamento:"), 1, 1)
+            caixa.layout().addWidget(combo_pagamento, 2, 1)
+
+        btn_sim = caixa.addButton(texto_botao_confirmar, QMessageBox.YesRole)
+        btn_nao = caixa.addButton("Cancelar", QMessageBox.NoRole)
+        
+        caixa.setStyleSheet(f"""
+            QMessageBox {{ background-color: #0f1117; border: 2px solid #1f2937; border-top: 4px solid {cor_borda}; border-radius: 10px; }}
+            QLabel {{ color: #9aa2b8; font-family: 'Segoe UI'; font-size: 13px; padding-left: 6px; }}
+            QPushButton {{ background-color: #1f2937; color: #ffffff; border: 1px solid #334155; border-radius: 6px; padding: 6px 16px; font-weight: bold; font-size: 12px; min-width: 85px; }}
+            QPushButton:hover {{ background-color: {cor_borda}; border: 1px solid {cor_borda}; }}
+        """)
+        
+        caixa.exec()
+        if caixa.clickedButton() == btn_nao:
+            return
+
+        # 3. Executa a ação no Banco de Dados
+        import sqlite3
+        from pathlib import Path
+        
+        caminho_db = Path(__file__).resolve().parent.parent / "banco" / "financeiro.db"
+        
+        if is_paga:
+            try:
+                conexao = sqlite3.connect(str(caminho_db))
+                cursor = conexao.cursor()
+                
+                # Deleta o registro gerado na tabela de pagamentos para sumir do histórico
+                cursor.execute("DELETE FROM pagamentos WHERE id_despesa = ?", (id_despesa,))
+                
+                # Devolve o status da despesa original para pendente
+                cursor.execute("UPDATE despesas SET status = 'pendente' WHERE id = ?", (id_despesa,))
+                
+                conexao.commit()
+                conexao.close()
+            except Exception as e:
+                print(f"Erro ao reverter pagamento: {e}")
+        else:
+            forma_pagamento_escolhida = combo_pagamento.currentText() if combo_pagamento else "Não informado"
+            pagar_despesa(id_despesa, forma_pagamento_escolhida)
+
+        # 4. Recarrega as informações na tela
+        if self.ao_salvar_despesa:
+            self.ao_salvar_despesa()
+        else:
+            self.montar_tela()
+
+
+    def confirmar_acao_home(self, titulo, texto, botao, cor):
+        caixa = QMessageBox(self)
+        caixa.setWindowTitle(titulo)
+        caixa.setText(f"<b style='font-size: 15px; color: #ffffff;'>{texto}</b>")
+        caixa.setIcon(QMessageBox.Question)
+
+        btn_sim = caixa.addButton(botao, QMessageBox.YesRole)
+        btn_nao = caixa.addButton("Cancelar", QMessageBox.NoRole)
+
+        caixa.setStyleSheet(f"""
+            QMessageBox {{ background-color: #0f1117; border: 2px solid #1f2937; border-top: 4px solid {cor}; border-radius: 10px; }}
+            QLabel {{ color: #9aa2b8; font-family: 'Segoe UI'; font-size: 13px; padding-left: 6px; }}
+            QPushButton {{ background-color: #1f2937; color: #ffffff; border: 1px solid #334155; border-radius: 6px; padding: 6px 16px; font-weight: bold; font-size: 12px; min-width: 85px; }}
+            QPushButton:hover {{ background-color: {cor}; border: 1px solid {cor}; }}
+        """)
+
+        caixa.exec()
+        return caixa.clickedButton() == btn_sim
+
+    def desfazer_pagamento_home(self, item):
+        id_pagamento = item.get("id_pagamento")
+        id_despesa = item.get("id_despesa")
+        if not self.confirmar_acao_home("Desfazer pagamento", "Deseja desfazer este pagamento?", "Desfazer", "#3b82f6"):
+            return
+        if id_pagamento:
+            desfazer_pagamento(id_pagamento)
+        elif id_despesa:
+            reabrir_despesa(id_despesa)
+        if self.ao_salvar_despesa:
+            self.ao_salvar_despesa()
+        else:
+            self.montar_tela()
+
+    def excluir_item_pago_home(self, item):
+        origem = item.get("origem")
+        if not self.confirmar_acao_home("Excluir", "Deseja excluir este item definitivamente?", "Excluir", "#ef4444"):
+            return
+        if origem == "gasto" and item.get("id_gasto"):
+            excluir_gasto(item.get("id_gasto"))
+        elif item.get("id_despesa"):
+            excluir_despesa_com_historico(item.get("id_despesa"))
+        if self.ao_salvar_despesa:
+            self.ao_salvar_despesa()
+        else:
+            self.montar_tela()
+
     def abrir_detalhes_pagos(self):
-        self.mostrar_detalhes_inline(
-            "✅ Pago no mês",
-            "Contas e gastos que já saíram do seu dinheiro neste mês.",
-            self.detalhes_pagos,
-            "#22c55e",
-        )
+        self.mostrar_detalhes_inline("✅ Pago no mês", "Contas e gastos efetuados.", self.detalhes_pagos, "#ef4444")
 
     def abrir_detalhes_pendentes(self):
-        self.mostrar_detalhes_inline(
-            "📌 A pagar",
-            "Contas do mês que ainda precisam ser pagas.",
-            self.detalhes_pendentes,
-            "#ef4444",
-        )
+        self.mostrar_detalhes_inline("📌 A pagar", "Contas pendentes.", self.detalhes_pendentes, "#ef4444", compacto=True, ocultar_resumo=True)
 
     def editar_despesa_tabela(self, tabela, linha):
         item = tabela.item(linha, 0)
-
-        if item is None:
-            return
-
+        if item is None: return
         id_despesa = item.data(Qt.UserRole)
-
-        if not id_despesa:
-            return
-
+        if not id_despesa: return
         despesa = buscar_despesa_por_id(id_despesa)
-
-        if not despesa:
-            return
-
+        if not despesa: return
         janela = NovaDespesa(despesa)
-
         if janela.exec() and self.ao_salvar_despesa:
             self.ao_salvar_despesa()
 

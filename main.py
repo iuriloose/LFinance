@@ -11,6 +11,6 @@ criar_tabelas()
 app = QApplication(sys.argv)
 
 janela = TelaPrincipal()
-janela.show()
+janela.showMaximized()
 
 sys.exit(app.exec())
