@@ -8,6 +8,8 @@ from banco.banco import (
     listar_despesas,
     pagar_despesa,
     excluir_despesa,
+    excluir_despesa_com_historico,
+    buscar_despesa_por_id,
     reabrir_despesa,
 )
 
@@ -526,14 +528,63 @@ class TelaDespesas(QWidget):
             if self.ao_alterar:
                 self.ao_alterar()
 
-    def excluir(self, id_despesa, descricao="esta despesa"):
-        janela = ConfirmacaoExclusaoDespesa(descricao)
+    def confirmar_exclusao_despesa_paga(self):
+        from PySide6.QtWidgets import QMessageBox
 
-        if janela.exec():
+        caixa = QMessageBox(self)
+        caixa.setWindowTitle("Excluir despesa paga")
+        caixa.setText("Esta despesa já foi paga.")
+        caixa.setInformativeText(
+            "Ela já foi considerada no saldo do sistema.\n\n"
+            "Escolha se deseja manter o saldo atual ou estornar este pagamento."
+        )
+        caixa.setIcon(QMessageBox.Warning)
+
+        btn_manter = caixa.addButton("Manter saldo", QMessageBox.YesRole)
+        btn_estornar = caixa.addButton("Estornar pagamento", QMessageBox.DestructiveRole)
+        btn_cancelar = caixa.addButton("Cancelar", QMessageBox.NoRole)
+
+        caixa.setStyleSheet("""
+            QMessageBox { background-color: #0f1117; border: 2px solid #1f2937; border-top: 4px solid #ef4444; border-radius: 10px; }
+            QLabel { color: #d7dcf0; font-family: 'Segoe UI'; font-size: 13px; padding-left: 6px; }
+            QPushButton { background-color: #1f2937; color: #ffffff; border: 1px solid #334155; border-radius: 6px; padding: 6px 16px; font-weight: bold; font-size: 12px; min-width: 170px; }
+            QPushButton:hover { background-color: #ef4444; border: 1px solid #ef4444; }
+        """)
+
+        caixa.setMinimumSize(760, 280)
+        btn_manter.setMinimumWidth(180)
+        btn_estornar.setMinimumWidth(210)
+        btn_cancelar.setMinimumWidth(180)
+
+        caixa.exec()
+        clicado = caixa.clickedButton()
+        if clicado == btn_manter:
+            return "manter_saldo"
+        if clicado == btn_estornar:
+            return "estornar"
+        return "cancelar"
+
+    def excluir(self, id_despesa, descricao="esta despesa"):
+        despesa = buscar_despesa_por_id(id_despesa)
+        status = str(despesa[-1]).lower() if despesa else ""
+
+        if status == "paga":
+            escolha = self.confirmar_exclusao_despesa_paga()
+            if escolha == "cancelar":
+                return
+            if escolha == "manter_saldo":
+                excluir_despesa(id_despesa)
+            else:
+                excluir_despesa_com_historico(id_despesa)
+        else:
+            janela = ConfirmacaoExclusaoDespesa(descricao)
+            if not janela.exec():
+                return
             excluir_despesa(id_despesa)
-            self.montar_tela()
-            if self.ao_alterar:
-                self.ao_alterar()
+
+        self.montar_tela()
+        if self.ao_alterar:
+            self.ao_alterar()
 
     def recarregar(self):
         self.montar_tela()

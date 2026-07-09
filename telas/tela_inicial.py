@@ -23,6 +23,7 @@ from banco.banco import (
     desfazer_pagamento,
     reabrir_despesa,
     excluir_despesa_com_historico,
+    excluir_despesa,
     excluir_gasto,
 )
 
@@ -436,14 +437,18 @@ class TelaInicial(QWidget):
 
         despesas_pendentes_mes = [d for d in despesas if inicio_mes <= d["data"] <= fim_mes]
         despesas_atrasadas = [d for d in despesas if d["data"] < hoje]
-        despesas_pagas_mes_sem_historico = [
-            d for d in todas_despesas
-            if d["status"] == "paga" and inicio_mes <= d["data"] <= fim_mes
-        ]
-
         receitas_mes = [r for r in receitas if inicio_mes <= r["data"] <= fim_mes]
         gastos_mes = [g for g in gastos if inicio_mes <= g["data"] <= fim_mes]
         pagamentos_mes = [p for p in pagamentos if inicio_mes <= p["data"] <= fim_mes]
+        ids_despesas_com_pagamento = {
+            p.get("id_despesa") for p in pagamentos_mes if p.get("id_despesa") is not None
+        }
+        despesas_pagas_mes_sem_historico = [
+            d for d in todas_despesas
+            if d["status"] == "paga"
+            and inicio_mes <= d["data"] <= fim_mes
+            and d.get("id") not in ids_despesas_com_pagamento
+        ]
 
         total_receitas_mes = sum(r["valor"] for r in receitas_mes)
         total_gastos_mes = sum(g["valor"] for g in gastos_mes)
@@ -940,15 +945,6 @@ class TelaInicial(QWidget):
         caixa.setText(f"<b style='font-size: 15px; color: #ffffff;'>{texto_principal}</b>")
         caixa.setInformativeText(texto_informativo)
         caixa.setIcon(QMessageBox.Question)
-        
-        combo_pagamento = None
-        if not is_paga:
-            combo_pagamento = QComboBox(caixa)
-            combo_pagamento.addItems(["Pix", "Dinheiro", "Débito", "Crédito", "Boleto", "Transferência", "Outros"])
-            combo_pagamento.setCurrentText("Pix")
-            combo_pagamento.setStyleSheet("QComboBox { background-color: #1f2937; color: #ffffff; border: 1px solid #334155; border-radius: 6px; padding: 6px 10px; font-size: 12px; min-width: 180px; }")
-            caixa.layout().addWidget(QLabel("Forma de pagamento:"), 1, 1)
-            caixa.layout().addWidget(combo_pagamento, 2, 1)
 
         btn_sim = caixa.addButton(texto_botao_confirmar, QMessageBox.YesRole)
         btn_nao = caixa.addButton("Cancelar", QMessageBox.NoRole)
@@ -965,22 +961,21 @@ class TelaInicial(QWidget):
             return
 
         import sqlite3
-        from pathlib import Path
-        caminho_db = Path(__file__).resolve().parent.parent / "banco" / "financeiro.db"
+        from servicos.configuracoes_app import CAMINHO_BANCO
+        caminho_db = CAMINHO_BANCO
         
         if is_paga:
             try:
                 conexao = sqlite3.connect(str(caminho_db))
                 cursor = conexao.cursor()
                 cursor.execute("DELETE FROM pagamentos WHERE id_despesa = ?", (id_despesa,))
-                cursor.execute("UPDATE despesas SET status = 'pendente' WHERE id = ?", (id_despesa,))
+                cursor.execute("UPDATE despesas SET status = 'aberta' WHERE id = ?", (id_despesa,))
                 conexao.commit()
                 conexao.close()
             except Exception as e:
                 print(f"Erro ao reverter: {e}")
         else:
-            forma_pagamento_escolhida = combo_pagamento.currentText() if combo_pagamento else "Não informado"
-            pagar_despesa(id_despesa, forma_pagamento_escolhida)
+            pagar_despesa(id_despesa)
 
         if self.ao_salvar_despesa:
             self.ao_salvar_despesa()
@@ -1007,6 +1002,40 @@ class TelaInicial(QWidget):
         caixa.exec()
         return caixa.clickedButton() == btn_sim
 
+    def confirmar_exclusao_despesa_paga_home(self):
+        caixa = QMessageBox(self)
+        caixa.setWindowTitle("Excluir conta paga")
+        caixa.setText("<b style='font-size: 15px; color: #ffffff;'>Esta conta já foi paga.</b>")
+        caixa.setInformativeText(
+            "Ela já foi considerada no saldo do sistema.\n\n"
+            "Escolha se deseja manter o saldo atual ou estornar este pagamento."
+        )
+        caixa.setIcon(QMessageBox.Warning)
+
+        btn_manter = caixa.addButton("Manter saldo", QMessageBox.YesRole)
+        btn_estornar = caixa.addButton("Estornar pagamento", QMessageBox.DestructiveRole)
+        btn_cancelar = caixa.addButton("Cancelar", QMessageBox.NoRole)
+
+        caixa.setStyleSheet("""
+            QMessageBox { background-color: #0f1117; border: 2px solid #1f2937; border-top: 4px solid #ef4444; border-radius: 10px; }
+            QLabel { color: #d7dcf0; font-family: 'Segoe UI'; font-size: 13px; padding-left: 6px; }
+            QPushButton { background-color: #1f2937; color: #ffffff; border: 1px solid #334155; border-radius: 6px; padding: 6px 16px; font-weight: bold; font-size: 12px; min-width: 170px; }
+            QPushButton:hover { background-color: #ef4444; border: 1px solid #ef4444; }
+        """)
+
+        caixa.setMinimumSize(760, 280)
+        btn_manter.setMinimumWidth(180)
+        btn_estornar.setMinimumWidth(210)
+        btn_cancelar.setMinimumWidth(180)
+
+        caixa.exec()
+        clicado = caixa.clickedButton()
+        if clicado == btn_manter:
+            return "manter_saldo"
+        if clicado == btn_estornar:
+            return "estornar"
+        return "cancelar"
+
     def desfazer_pagamento_home(self, item):
         id_pagamento = item.get("id_pagamento")
         id_despesa = item.get("id_despesa")
@@ -1023,12 +1052,20 @@ class TelaInicial(QWidget):
 
     def excluir_item_pago_home(self, item):
         origem = item.get("origem")
-        if not self.confirmar_acao_home("Excluir", "Deseja excluir este item definitivamente?", "Excluir", "#ef4444"):
-            return
+
         if origem == "gasto" and item.get("id_gasto"):
+            if not self.confirmar_acao_home("Excluir gasto", "Deseja excluir este gasto definitivamente?", "Excluir", "#ef4444"):
+                return
             excluir_gasto(item.get("id_gasto"))
         elif item.get("id_despesa"):
-            excluir_despesa_com_historico(item.get("id_despesa"))
+            escolha = self.confirmar_exclusao_despesa_paga_home()
+            if escolha == "cancelar":
+                return
+            if escolha == "manter_saldo":
+                excluir_despesa(item.get("id_despesa"))
+            elif escolha == "estornar":
+                excluir_despesa_com_historico(item.get("id_despesa"))
+
         if self.ao_salvar_despesa:
             self.ao_salvar_despesa()
         else:
@@ -1448,7 +1485,7 @@ class TelaInicial(QWidget):
 
         # Define textos e cores do pop-up
         if is_paga:
-            titulo_janela = "Reverber Pagamento"
+            titulo_janela = "Reverter Pagamento"
             texto_principal = "Esta conta já está marcada como PAGA."
             texto_informativo = "Deseja REVERTER o pagamento para colocá-la em aberto novamente?"
             texto_botao_confirmar = "Sim, reverter"
@@ -1466,15 +1503,6 @@ class TelaInicial(QWidget):
         caixa.setText(f"<b style='font-size: 15px; color: #ffffff;'>{texto_principal}</b>")
         caixa.setInformativeText(texto_informativo)
         caixa.setIcon(QMessageBox.Question)
-        
-        combo_pagamento = None
-        if not is_paga:
-            combo_pagamento = QComboBox(caixa)
-            combo_pagamento.addItems(["Pix", "Dinheiro", "Débito", "Crédito", "Boleto", "Transferência", "Outros"])
-            combo_pagamento.setCurrentText("Pix")
-            combo_pagamento.setStyleSheet("QComboBox { background-color: #1f2937; color: #ffffff; border: 1px solid #334155; border-radius: 6px; padding: 6px 10px; font-size: 12px; min-width: 180px; }")
-            caixa.layout().addWidget(QLabel("Forma de pagamento:"), 1, 1)
-            caixa.layout().addWidget(combo_pagamento, 2, 1)
 
         btn_sim = caixa.addButton(texto_botao_confirmar, QMessageBox.YesRole)
         btn_nao = caixa.addButton("Cancelar", QMessageBox.NoRole)
@@ -1492,9 +1520,8 @@ class TelaInicial(QWidget):
 
         # 3. Executa a ação no Banco de Dados
         import sqlite3
-        from pathlib import Path
-        
-        caminho_db = Path(__file__).resolve().parent.parent / "banco" / "financeiro.db"
+        from servicos.configuracoes_app import CAMINHO_BANCO
+        caminho_db = CAMINHO_BANCO
         
         if is_paga:
             try:
@@ -1505,15 +1532,14 @@ class TelaInicial(QWidget):
                 cursor.execute("DELETE FROM pagamentos WHERE id_despesa = ?", (id_despesa,))
                 
                 # Devolve o status da despesa original para pendente
-                cursor.execute("UPDATE despesas SET status = 'pendente' WHERE id = ?", (id_despesa,))
+                cursor.execute("UPDATE despesas SET status = 'aberta' WHERE id = ?", (id_despesa,))
                 
                 conexao.commit()
                 conexao.close()
             except Exception as e:
                 print(f"Erro ao reverter pagamento: {e}")
         else:
-            forma_pagamento_escolhida = combo_pagamento.currentText() if combo_pagamento else "Não informado"
-            pagar_despesa(id_despesa, forma_pagamento_escolhida)
+            pagar_despesa(id_despesa)
 
         # 4. Recarrega as informações na tela
         if self.ao_salvar_despesa:
@@ -1557,12 +1583,20 @@ class TelaInicial(QWidget):
 
     def excluir_item_pago_home(self, item):
         origem = item.get("origem")
-        if not self.confirmar_acao_home("Excluir", "Deseja excluir este item definitivamente?", "Excluir", "#ef4444"):
-            return
+
         if origem == "gasto" and item.get("id_gasto"):
+            if not self.confirmar_acao_home("Excluir gasto", "Deseja excluir este gasto definitivamente?", "Excluir", "#ef4444"):
+                return
             excluir_gasto(item.get("id_gasto"))
         elif item.get("id_despesa"):
-            excluir_despesa_com_historico(item.get("id_despesa"))
+            escolha = self.confirmar_exclusao_despesa_paga_home()
+            if escolha == "cancelar":
+                return
+            if escolha == "manter_saldo":
+                excluir_despesa(item.get("id_despesa"))
+            elif escolha == "estornar":
+                excluir_despesa_com_historico(item.get("id_despesa"))
+
         if self.ao_salvar_despesa:
             self.ao_salvar_despesa()
         else:

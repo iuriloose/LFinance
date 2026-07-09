@@ -15,7 +15,7 @@ import subprocess
 from banco.banco import limpar_todos_os_dados, CAMINHO_BANCO
 from servicos.configuracoes_app import (
     APP_VERSAO, PASTA_DADOS, carregar_configuracoes,
-    salvar_configuracoes, executando_como_exe
+    salvar_configuracoes, salvar_nome_usuario, executando_como_exe
 )
 
 
@@ -148,6 +148,7 @@ class TelaConfiguracoes(QWidget):
         conteudo_layout.setSpacing(14)
 
         conteudo_layout.addWidget(self.criar_card_sistema())
+        conteudo_layout.addWidget(self.criar_card_sobre())
         conteudo_layout.addWidget(self.criar_card_backup())
         conteudo_layout.addWidget(self.criar_card_ferramentas())
         conteudo_layout.addStretch()
@@ -234,7 +235,7 @@ class TelaConfiguracoes(QWidget):
         linha_nome.setSpacing(10)
         self.campo_nome_usuario = QLineEdit()
         self.campo_nome_usuario.setObjectName("campoNomeUsuario")
-        self.campo_nome_usuario.setText(config.get("nome_usuario", "Iuri"))
+        self.campo_nome_usuario.setText(config.get("nome_usuario", "Usuário"))
         self.campo_nome_usuario.setPlaceholderText("Digite seu nome")
         self.campo_nome_usuario.setToolTip(
             "Nome do usuário\n\nEsse nome aparece na saudação da tela inicial do LFinance."
@@ -305,6 +306,35 @@ class TelaConfiguracoes(QWidget):
         card_layout.addLayout(linha_sistema)
         return card
 
+    def criar_card_sobre(self):
+        card, card_layout = self.criar_card_base(
+            "ℹ️ Sobre o LFinance",
+            "Sistema de gerenciamento financeiro pessoal desenvolvido para organizar receitas, despesas, gastos e compromissos do dia a dia."
+        )
+
+        linha_sobre = QHBoxLayout()
+        linha_sobre.setSpacing(12)
+
+        info_produto = self.criar_linha_info(
+            "configLinhaAzul",
+            "📦 Produto",
+            "LFinance",
+            f"Versão {APP_VERSAO}"
+        )
+
+        info_autor = self.criar_linha_info(
+            "configLinhaVerde",
+            "👨‍💻 Desenvolvedor",
+            "Iuri Loose",
+            "© 2026 Iuri Loose. Todos os direitos reservados."
+        )
+
+        linha_sobre.addWidget(info_produto, 1)
+        linha_sobre.addWidget(info_autor, 2)
+        card_layout.addLayout(linha_sobre)
+
+        return card
+
     def salvar_nome_usuario(self):
         nome = (self.campo_nome_usuario.text() if self.campo_nome_usuario else "").strip()
 
@@ -319,7 +349,7 @@ class TelaConfiguracoes(QWidget):
             )
             return
 
-        salvar_configuracoes({"nome_usuario": nome})
+        salvar_nome_usuario(nome)
 
         self.dialogo_lfinance(
             titulo_janela="Nome salvo",

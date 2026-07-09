@@ -340,6 +340,25 @@ def reabrir_despesa(id_despesa):
     conexao = conectar()
     cursor = conexao.cursor()
 
+    # Ao reabrir uma despesa paga, o pagamento precisa ser estornado
+    # do histórico. Removemos apenas o pagamento mais recente ligado
+    # a esta despesa para não apagar histórico antigo de contas fixas
+    # ou parcelamentos que reutilizam o mesmo registro.
+    cursor.execute("""
+        SELECT id
+        FROM pagamentos
+        WHERE id_despesa = ?
+        ORDER BY id DESC
+        LIMIT 1
+    """, (id_despesa,))
+    pagamento = cursor.fetchone()
+
+    if pagamento:
+        cursor.execute("""
+            DELETE FROM pagamentos
+            WHERE id = ?
+        """, (pagamento[0],))
+
     cursor.execute("""
         UPDATE despesas
         SET status = 'aberta'

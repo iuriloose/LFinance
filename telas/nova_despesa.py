@@ -4,7 +4,7 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import QDate
 
-from banco.banco import inserir_despesa, atualizar_despesa, pagar_despesa, excluir_despesa_com_historico
+from banco.banco import inserir_despesa, atualizar_despesa, pagar_despesa, excluir_despesa_com_historico, excluir_despesa
 
 
 class NovaDespesa(QDialog):
@@ -428,12 +428,60 @@ class NovaDespesa(QDialog):
         caixa.exec()
         return caixa.clickedButton() == btn_excluir
 
+    def confirmar_exclusao_paga(self):
+        caixa = QMessageBox(self)
+        caixa.setWindowTitle("Excluir despesa paga")
+        caixa.setText("Esta despesa já foi paga.")
+        caixa.setInformativeText(
+            "Ela já foi considerada no saldo do sistema.\n\n"
+            "Escolha se deseja manter o saldo atual ou estornar este pagamento."
+        )
+        caixa.setIcon(QMessageBox.Warning)
+
+        btn_manter = caixa.addButton("Manter saldo", QMessageBox.YesRole)
+        btn_estornar = caixa.addButton("Estornar pagamento", QMessageBox.DestructiveRole)
+        btn_cancelar = caixa.addButton("Cancelar", QMessageBox.NoRole)
+
+        caixa.setStyleSheet("""
+            QMessageBox { background-color: #0f1117; border: 2px solid #1f2937; border-top: 4px solid #ef4444; border-radius: 10px; }
+            QLabel { color: #d7dcf0; font-family: 'Segoe UI'; font-size: 13px; padding-left: 6px; }
+            QPushButton { background-color: #1f2937; color: #ffffff; border: 1px solid #334155; border-radius: 6px; padding: 6px 16px; font-weight: bold; font-size: 12px; min-width: 170px; }
+            QPushButton:hover { background-color: #ef4444; border: 1px solid #ef4444; }
+        """)
+
+        caixa.setMinimumSize(760, 280)
+        btn_manter.setMinimumWidth(180)
+        btn_estornar.setMinimumWidth(210)
+        btn_cancelar.setMinimumWidth(180)
+
+        caixa.exec()
+        clicado = caixa.clickedButton()
+        if clicado == btn_manter:
+            return "manter_saldo"
+        if clicado == btn_estornar:
+            return "estornar"
+        return "cancelar"
+
     def excluir(self):
         if not self.modo_edicao:
             return
-        if not self.confirmar_exclusao():
-            return
-        excluir_despesa_com_historico(self.despesa[0])
+
+        id_despesa = self.despesa[0]
+        status = str(self.despesa[-1]).lower() if self.despesa else ""
+
+        if status == "paga":
+            escolha = self.confirmar_exclusao_paga()
+            if escolha == "cancelar":
+                return
+            if escolha == "manter_saldo":
+                excluir_despesa(id_despesa)
+            else:
+                excluir_despesa_com_historico(id_despesa)
+        else:
+            if not self.confirmar_exclusao():
+                return
+            excluir_despesa(id_despesa)
+
         self.accept()
 
     def pagar(self):

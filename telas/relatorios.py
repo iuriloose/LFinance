@@ -37,6 +37,7 @@ class TelaRelatorios(QWidget):
             QLabel#subtituloRelatorio {
                 color: #a8b3c7;
                 font-size: 14px;
+                padding-right: 8px;
             }
 
             QLabel#periodoRelatorio {
@@ -205,7 +206,7 @@ class TelaRelatorios(QWidget):
                 border-radius: 7px;
             }
 
-            QPushButton#btnAtualizarRelatorio, QPushButton#btnMesRelatorio {
+            QPushButton#btnAtualizarRelatorio, QPushButton#btnMesRelatorio, QPushButton#btnMesAtualRelatorio {
                 background-color: rgba(30, 41, 59, 0.78);
                 color: #ffffff;
                 padding: 10px 18px;
@@ -215,15 +216,25 @@ class TelaRelatorios(QWidget):
                 border: 1px solid #2563eb;
             }
 
-            QPushButton#btnAtualizarRelatorio:hover, QPushButton#btnMesRelatorio:hover {
+            QPushButton#btnAtualizarRelatorio:hover, QPushButton#btnMesRelatorio:hover, QPushButton#btnMesAtualRelatorio:hover {
                 background-color: rgba(37, 99, 235, 0.24);
                 border: 1px solid #60a5fa;
             }
 
             QPushButton#btnMesRelatorio {
-                padding: 9px 13px;
+                padding: 9px 12px;
                 border: 1px solid #334155;
-                min-width: 42px;
+                min-width: 54px;
+            }
+
+            QPushButton#btnMesAtualRelatorio {
+                padding: 9px 12px;
+                border: 1px solid #334155;
+                min-width: 154px;
+            }
+
+            QPushButton#btnAtualizarRelatorio {
+                min-width: 142px;
             }
 
             QScrollArea#areaRelatorios {
@@ -633,45 +644,59 @@ class TelaRelatorios(QWidget):
         topo = QHBoxLayout()
         topo.setSpacing(16)
 
-        titulo_box = QVBoxLayout()
-        titulo_box.setSpacing(4)
+        bloco_titulo = QVBoxLayout()
+        bloco_titulo.setSpacing(4)
 
         titulo = QLabel("📊 Relatórios")
         titulo.setObjectName("tituloRelatorio")
+        titulo.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
 
         subtitulo = QLabel("Resumo financeiro por mês, com entradas, valores pagos e contas em aberto")
         subtitulo.setObjectName("subtituloRelatorio")
+        subtitulo.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
+        subtitulo.setWordWrap(True)
+        subtitulo.setMinimumHeight(34)
 
-        titulo_box.addWidget(titulo)
-        titulo_box.addWidget(subtitulo)
+        bloco_titulo.addWidget(titulo)
+        bloco_titulo.addWidget(subtitulo)
+
+        controles = QHBoxLayout()
+        controles.setSpacing(10)
+        controles.setAlignment(Qt.AlignRight | Qt.AlignTop)
 
         btn_anterior = QPushButton("‹")
         btn_anterior.setObjectName("btnMesRelatorio")
+        btn_anterior.setFixedSize(58, 52)
         btn_anterior.clicked.connect(self.mes_anterior)
 
         periodo = QLabel(self.nome_mes(self.mes_referencia))
         periodo.setObjectName("periodoRelatorio")
         periodo.setAlignment(Qt.AlignCenter)
+        periodo.setFixedSize(170, 52)
 
         btn_proximo = QPushButton("›")
         btn_proximo.setObjectName("btnMesRelatorio")
+        btn_proximo.setFixedSize(58, 52)
         btn_proximo.clicked.connect(self.mes_proximo)
 
         btn_mes_atual = QPushButton("Mês atual")
-        btn_mes_atual.setObjectName("btnMesRelatorio")
+        btn_mes_atual.setObjectName("btnMesAtualRelatorio")
+        btn_mes_atual.setFixedSize(154, 52)
         btn_mes_atual.clicked.connect(self.voltar_mes_atual)
 
         btn_atualizar = QPushButton("↻ Atualizar")
         btn_atualizar.setObjectName("btnAtualizarRelatorio")
+        btn_atualizar.setFixedSize(142, 52)
         btn_atualizar.clicked.connect(self.recarregar)
 
-        topo.addLayout(titulo_box)
-        topo.addStretch()
-        topo.addWidget(btn_anterior)
-        topo.addWidget(periodo)
-        topo.addWidget(btn_proximo)
-        topo.addWidget(btn_mes_atual)
-        topo.addWidget(btn_atualizar)
+        controles.addWidget(btn_anterior)
+        controles.addWidget(periodo)
+        controles.addWidget(btn_proximo)
+        controles.addWidget(btn_mes_atual)
+        controles.addWidget(btn_atualizar)
+
+        topo.addLayout(bloco_titulo, 1)
+        topo.addLayout(controles, 0)
         principal.addLayout(topo)
 
         area = QScrollArea()

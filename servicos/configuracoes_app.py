@@ -5,8 +5,8 @@ import sys
 from pathlib import Path
 
 APP_NOME = "LFinance"
-APP_VERSAO = "1.0"
-USUARIO_PADRAO = "Iuri"
+APP_VERSAO = "1.0.0"
+USUARIO_PADRAO = "Usuário"
 
 
 def obter_pasta_dados():
@@ -85,6 +85,7 @@ def carregar_configuracoes():
     preparar_pasta_dados()
     dados = {
         "nome_usuario": USUARIO_PADRAO,
+        "nome_configurado": False,
         "versao": APP_VERSAO,
     }
 
@@ -115,3 +116,18 @@ def salvar_configuracoes(dados):
 
 def obter_nome_usuario():
     return carregar_configuracoes().get("nome_usuario") or USUARIO_PADRAO
+
+
+def nome_inicial_precisa_ser_configurado():
+    """Retorna True quando o usuário ainda não configurou o nome inicial."""
+    config = carregar_configuracoes()
+    nome = (config.get("nome_usuario") or "").strip()
+    return not nome or nome == USUARIO_PADRAO
+
+def salvar_nome_usuario(nome):
+    """Salva o nome de exibição informado pelo usuário."""
+    nome_limpo = (nome or "").strip() or USUARIO_PADRAO
+    return salvar_configuracoes({
+        "nome_usuario": nome_limpo,
+        "nome_configurado": nome_limpo != USUARIO_PADRAO,
+    })
