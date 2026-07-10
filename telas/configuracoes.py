@@ -3,7 +3,7 @@ from PySide6.QtWidgets import (
     QPushButton, QFrame, QFileDialog, QDialog, QLineEdit, QApplication,
     QScrollArea
 )
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QStandardPaths
 
 from pathlib import Path
 from datetime import datetime
@@ -277,6 +277,17 @@ class TelaConfiguracoes(QWidget):
         )
         banco_layout.addWidget(lbl_caminho)
 
+        aviso_persistencia = self.criar_label(
+            "Se o LFinance for desinstalado ou atualizado, suas contas continuam salvas neste local. "
+            "Os arquivos de backup não são carregados automaticamente; eles só são usados quando você clica em Restaurar backup.",
+            "configAvisoAmarelo",
+            True
+        )
+        aviso_persistencia.setToolTip(
+            "Seus dados ficam separados do programa instalado. Reinstalar o LFinance não apaga nem restaura backups automaticamente."
+        )
+        banco_layout.addWidget(aviso_persistencia)
+
         botoes_banco = QHBoxLayout()
         botoes_banco.setSpacing(10)
         botoes_banco.addStretch()
@@ -376,10 +387,18 @@ class TelaConfiguracoes(QWidget):
         )
 
     def criar_card_backup(self):
+        pasta_padrao = self.obter_pasta_padrao_backups()
         card, card_layout = self.criar_card_base(
             "💾 Backup e restauração",
             "Faça uma cópia de segurança do banco de dados ou restaure um backup anterior."
         )
+
+        local_backup = self.criar_label(
+            f"Os backups são sugeridos automaticamente em:\n{pasta_padrao}",
+            "configCaminho",
+            True
+        )
+        local_backup.setTextInteractionFlags(local_backup.textInteractionFlags() | Qt.TextSelectableByMouse)
 
         aviso = self.criar_label(
             "Ao restaurar um backup, os dados atuais serão substituídos pelos dados do arquivo escolhido.",
@@ -394,7 +413,7 @@ class TelaConfiguracoes(QWidget):
         btn_backup = QPushButton("💾 Fazer backup")
         btn_backup.setStyleSheet(self.estilo_botao_config("azul"))
         btn_backup.setMinimumWidth(170)
-        btn_backup.setToolTip("Fazer backup\n\nCria uma cópia segura do banco de dados em uma pasta escolhida por você.")
+        btn_backup.setToolTip("Fazer backup\n\nAbre a pasta padrão Documentos\\LFinance\\Backups com o nome do arquivo já preenchido. Basta clicar em Salvar.")
         btn_backup.clicked.connect(self.fazer_backup)
 
         btn_restaurar = QPushButton("📂 Restaurar backup")
@@ -406,6 +425,7 @@ class TelaConfiguracoes(QWidget):
         botoes.addWidget(btn_backup)
         botoes.addWidget(btn_restaurar)
 
+        card_layout.addWidget(local_backup)
         card_layout.addWidget(aviso)
         card_layout.addLayout(botoes)
         return card
@@ -438,6 +458,11 @@ class TelaConfiguracoes(QWidget):
         card_layout.addLayout(botoes)
         return card
 
+    def obter_pasta_padrao_backups(self):
+        documentos = QStandardPaths.writableLocation(QStandardPaths.DocumentsLocation)
+        base = Path(documentos) if documentos else Path.home() / "Documents"
+        return base / "LFinance" / "Backups"
+
     def fazer_backup(self):
         if not CAMINHO_BANCO.exists():
             self.dialogo_lfinance(
@@ -450,18 +475,28 @@ class TelaConfiguracoes(QWidget):
             )
             return
 
-        pasta = QFileDialog.getExistingDirectory(
-            self,
-            "Escolher pasta para salvar o backup"
-        )
-
-        if not pasta:
-            return
+        pasta_padrao = self.obter_pasta_padrao_backups()
+        pasta_padrao.mkdir(parents=True, exist_ok=True)
 
         data_hora = datetime.now().strftime("%d-%m-%Y_%H-%M")
-        destino = Path(pasta) / f"LFinance_Backup_{data_hora}.db"
+        nome_sugerido = pasta_padrao / f"LFinance_Backup_{data_hora}.db"
+
+        arquivo, _ = QFileDialog.getSaveFileName(
+            self,
+            "Salvar backup do LFinance",
+            str(nome_sugerido),
+            "Banco de dados SQLite (*.db)"
+        )
+
+        if not arquivo:
+            return
+
+        destino = Path(arquivo)
+        if destino.suffix.lower() != ".db":
+            destino = destino.with_suffix(".db")
 
         try:
+            destino.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(CAMINHO_BANCO, destino)
         except Exception as erro:
             self.dialogo_lfinance(
@@ -765,10 +800,13 @@ class TelaConfiguracoes(QWidget):
         return dialogo.exec() == QDialog.Accepted
 
     def restaurar_backup(self):
+        pasta_padrao = self.obter_pasta_padrao_backups()
+        pasta_padrao.mkdir(parents=True, exist_ok=True)
+
         arquivo, _ = QFileDialog.getOpenFileName(
             self,
             "Escolher arquivo de backup",
-            "",
+            str(pasta_padrao),
             "Banco de dados SQLite (*.db);;Todos os arquivos (*)"
         )
 

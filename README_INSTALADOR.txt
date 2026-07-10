@@ -21,6 +21,7 @@ O instalador final:
 - Registra o desinstalador no Windows.
 - Mantém os dados do usuário em %LOCALAPPDATA%\LFinance.
 - A desinstalação remove o programa, mas não apaga os dados financeiros do usuário.
+- Backups salvos pelo usuário nunca são carregados automaticamente; só são usados pela opção Restaurar backup.
 
 Observação importante:
 Se já existir um instalador antigo na pasta instalador, ele será substituído quando você compilar novamente.
