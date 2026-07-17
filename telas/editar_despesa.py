@@ -5,6 +5,7 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import QDate
 
 from banco.banco import atualizar_despesa
+from servicos.valores import converter_texto_moeda
 
 
 class EditarDespesa(QDialog):
@@ -65,16 +66,15 @@ class EditarDespesa(QDialog):
 
     def salvar(self):
         descricao = self.descricao.text().strip()
-        valor_texto = self.valor.text().strip().replace(",", ".")
 
         if not descricao:
             QMessageBox.warning(self, "Atenção", "Preencha a descrição.")
             return
 
         try:
-            valor = float(valor_texto)
+            valor = converter_texto_moeda(self.valor.text())
         except ValueError:
-            QMessageBox.warning(self, "Atenção", "Digite um valor válido.")
+            QMessageBox.warning(self, "Atenção", "Digite um valor maior que zero.")
             return
 
         atualizar_despesa(

@@ -5,7 +5,7 @@ import sys
 from pathlib import Path
 
 APP_NOME = "LFinance"
-APP_VERSAO = "1.0.0"
+APP_VERSAO = "1.0.1"
 USUARIO_PADRAO = "Usuário"
 
 
@@ -74,11 +74,7 @@ def migrar_banco_antigo_se_necessario():
 
     banco_antigo = obter_banco_antigo_projeto()
     if banco_antigo.exists():
-        try:
-            shutil.copy2(banco_antigo, CAMINHO_BANCO)
-        except Exception:
-            # Se a cópia falhar, o SQLite criará um banco novo ao conectar.
-            pass
+        shutil.copy2(banco_antigo, CAMINHO_BANCO)
 
 
 def carregar_configuracoes():

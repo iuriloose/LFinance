@@ -7,16 +7,16 @@ from PySide6.QtCore import Qt, QStandardPaths
 
 from pathlib import Path
 from datetime import datetime
-import shutil
 import os
 import sys
 import subprocess
 
-from banco.banco import limpar_todos_os_dados, CAMINHO_BANCO
+from banco.banco import criar_tabelas, limpar_todos_os_dados, CAMINHO_BANCO
 from servicos.configuracoes_app import (
     APP_VERSAO, PASTA_DADOS, carregar_configuracoes,
     salvar_configuracoes, salvar_nome_usuario, executando_como_exe
 )
+from servicos.backup import copiar_banco_sqlite, validar_backup_lfinance
 
 
 class TelaConfiguracoes(QWidget):
@@ -277,17 +277,6 @@ class TelaConfiguracoes(QWidget):
         )
         banco_layout.addWidget(lbl_caminho)
 
-        aviso_persistencia = self.criar_label(
-            "Se o LFinance for desinstalado ou atualizado, suas contas continuam salvas neste local. "
-            "Os arquivos de backup não são carregados automaticamente; eles só são usados quando você clica em Restaurar backup.",
-            "configAvisoAmarelo",
-            True
-        )
-        aviso_persistencia.setToolTip(
-            "Seus dados ficam separados do programa instalado. Reinstalar o LFinance não apaga nem restaura backups automaticamente."
-        )
-        banco_layout.addWidget(aviso_persistencia)
-
         botoes_banco = QHBoxLayout()
         botoes_banco.setSpacing(10)
         botoes_banco.addStretch()
@@ -495,9 +484,19 @@ class TelaConfiguracoes(QWidget):
         if destino.suffix.lower() != ".db":
             destino = destino.with_suffix(".db")
 
+        if destino.resolve() == CAMINHO_BANCO.resolve():
+            self.dialogo_lfinance(
+                titulo_janela="Backup não realizado",
+                icone="⚠️",
+                titulo="Escolha outro local",
+                mensagem="O backup não pode substituir o banco de dados que está em uso.",
+                tipo="aviso",
+                texto_confirmar="OK",
+            )
+            return
+
         try:
-            destino.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(CAMINHO_BANCO, destino)
+            copiar_banco_sqlite(CAMINHO_BANCO, destino)
         except Exception as erro:
             self.dialogo_lfinance(
                 titulo_janela="Erro ao fazer backup",
@@ -826,6 +825,30 @@ class TelaConfiguracoes(QWidget):
             )
             return
 
+        if origem.resolve() == CAMINHO_BANCO.resolve():
+            self.dialogo_lfinance(
+                titulo_janela="Restauração não realizada",
+                icone="⚠️",
+                titulo="Este banco já está em uso",
+                mensagem="Escolha um arquivo de backup diferente do banco atual do programa.",
+                tipo="aviso",
+                texto_confirmar="OK",
+            )
+            return
+
+        backup_valido, motivo = validar_backup_lfinance(origem)
+        if not backup_valido:
+            self.dialogo_lfinance(
+                titulo_janela="Backup inválido",
+                icone="⚠️",
+                titulo="Este arquivo não é um backup válido do LFinance",
+                mensagem=motivo,
+                tipo="perigo",
+                texto_confirmar="OK",
+                perigo=True,
+            )
+            return
+
         confirmar = self.dialogo_lfinance(
             titulo_janela="Restaurar backup",
             icone="⚠️",
@@ -849,11 +872,12 @@ class TelaConfiguracoes(QWidget):
             if CAMINHO_BANCO.exists():
                 pasta_backup_auto = CAMINHO_BANCO.parent / "backups_automaticos"
                 pasta_backup_auto.mkdir(parents=True, exist_ok=True)
-                data_hora = datetime.now().strftime("%d-%m-%Y_%H-%M")
+                data_hora = datetime.now().strftime("%d-%m-%Y_%H-%M-%S")
                 destino_auto = pasta_backup_auto / f"antes_restauracao_{data_hora}.db"
-                shutil.copy2(CAMINHO_BANCO, destino_auto)
+                copiar_banco_sqlite(CAMINHO_BANCO, destino_auto)
 
-            shutil.copy2(origem, CAMINHO_BANCO)
+            copiar_banco_sqlite(origem, CAMINHO_BANCO)
+            criar_tabelas()
         except Exception as erro:
             self.dialogo_lfinance(
                 titulo_janela="Erro ao restaurar backup",

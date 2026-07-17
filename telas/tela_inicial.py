@@ -564,9 +564,9 @@ class TelaInicial(QWidget):
         resumo.setSpacing(12)
 
         if saldo_mes < 0:
-            resumo.addWidget(self.criar_card_resumo("cardSaldoNegativo", "💸", "Saldo atual", self.formatar_moeda(saldo_mes), tooltip="Saldo atual\n\nReceitas do mês menos tudo que foi efetivamente pago no mês.\nInclui gastos registrados e contas marcadas como pagas."))
+            resumo.addWidget(self.criar_card_resumo("cardSaldoNegativo", "💸", "Saldo do mês", self.formatar_moeda(saldo_mes), tooltip="Saldo do mês\n\nReceitas do mês menos tudo que foi efetivamente pago no mês.\nInclui gastos registrados e contas marcadas como pagas."))
         else:
-            resumo.addWidget(self.criar_card_resumo("cardSaldo", "💰", "Saldo atual", self.formatar_moeda(saldo_mes), tooltip="Saldo atual\n\nReceitas do mês menos tudo que foi efetivamente pago no mês.\nInclui gastos registrados e contas marcadas como pagas."))
+            resumo.addWidget(self.criar_card_resumo("cardSaldo", "💰", "Saldo do mês", self.formatar_moeda(saldo_mes), tooltip="Saldo do mês\n\nReceitas do mês menos tudo que foi efetivamente pago no mês.\nInclui gastos registrados e contas marcadas como pagas."))
         resumo.addWidget(self.criar_card_resumo("cardReceita", "📈", "Receitas do mês", self.formatar_moeda(total_receitas_mes), f"{len(receitas_mes)} entradas", tooltip="Receitas do mês\n\nTotal de entradas cadastradas dentro do mês atual."))
         resumo.addWidget(self.criar_card_resumo(
             "cardDespesa",
@@ -638,545 +638,6 @@ class TelaInicial(QWidget):
         botao.clicked.connect(self.mostrar_proximos_vencimentos)
         return botao
 
-    def criar_card_item_detalhe(self, item, cor="#3b82f6", compacto=False):
-        card = QFrame()
-        card.setObjectName("card")
-        
-        if compacto:
-            card.setMinimumHeight(64)
-            card.setMaximumHeight(70)
-        else:
-            card.setMinimumHeight(72)
-            card.setMaximumHeight(78)
-            
-        card.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
-        card.setStyleSheet(f"QFrame#card {{ background-color: #111827; border: 1px solid #1f2937; border-left: 4px solid {cor}; border-radius: 8px; }}")
-
-        layout = QVBoxLayout(card)
-        layout.setContentsMargins(12, 6, 12, 6)
-        layout.setSpacing(4)
-
-        topo = QHBoxLayout()
-        descricao = QLabel(item.get("descricao", ""))
-        descricao.setStyleSheet("font-size: 13px; font-weight: bold; color: #ffffff;")
-
-        valor = QLabel(self.formatar_moeda(item.get("valor", 0)))
-        valor.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
-        valor.setStyleSheet("font-size: 14px; font-weight: bold; color: #ffffff;")
-
-        topo.addWidget(descricao, 1)
-        topo.addWidget(valor)
-
-        detalhes = QHBoxLayout()
-        detalhes.setSpacing(6)
-
-        data = QLabel(f"📅 {item.get('data', '')}")
-        tipo = QLabel(f"📄 {item.get('tipo', '')}")
-        forma_pagamento = item.get("forma_pagamento") or ""
-        pagamento = QLabel(f"💳 {forma_pagamento}")
-        situacao = QLabel(item.get("situacao", ""))
-        situacao.setAlignment(Qt.AlignCenter)
-
-        texto_situacao = item.get("situacao", "")
-        if texto_situacao in ["Atrasada"]:
-            cor_status = "#ef4444"
-        elif texto_situacao in ["Paga", "Pago"]:
-            cor_status = "#22c55e"
-        elif texto_situacao in ["Hoje", "Amanhã"]:
-            cor_status = "#f59e0b"
-        else:
-            cor_status = "#2563eb"
-
-        for label in (data, tipo, pagamento):
-            label.setStyleSheet("font-size: 11px; color: #cbd5e1;")
-
-        situacao.setMinimumWidth(72)
-        situacao.setFixedHeight(20)
-        situacao.setStyleSheet(f"QLabel {{ background-color: {cor_status}; color: white; border-radius: 4px; padding: 2px 6px; font-weight: bold; font-size: 10px; }}")
-
-        detalhes.addWidget(data)
-        detalhes.addSpacing(4)
-        detalhes.addWidget(tipo)
-        if item.get("origem") == "despesa_paga" and forma_pagamento:
-            detalhes.addSpacing(4)
-            detalhes.addWidget(pagamento)
-        detalhes.addStretch()
-        detalhes.addWidget(situacao)
-
-        id_despesa = item.get("id_despesa")
-        origem = item.get("origem")
-        
-        # BOTÃO PARA CONTAS EM ABERTO (PAGAR)
-        if origem == "despesa_aberta" and id_despesa:
-            btn_pagar = QPushButton("✓  Pagar")
-            btn_pagar.setMinimumWidth(76)
-            btn_pagar.setFixedWidth(76)
-            btn_pagar.setFixedHeight(20)
-            btn_pagar.setCursor(Qt.PointingHandCursor)
-            btn_pagar.setToolTip("Marcar como pago\n\nRegistra esta conta como paga e ela passa a entrar no total Pago no mês.")
-            btn_pagar.setStyleSheet("QPushButton { background-color: #1f2937; color: #ffffff; border: 1px solid #3b82f6; border-radius: 4px; font-size: 10px; font-weight: bold; } QPushButton:hover { background-color: #3b82f6; }")
-            btn_pagar.clicked.connect(lambda _, id=id_despesa: self.marcar_despesa_home(id))
-            detalhes.addSpacing(4)
-            detalhes.addWidget(btn_pagar)
-            
-        # BOTÕES PARA CONTAS PAGAS
-        elif origem == "despesa_paga" and id_despesa:
-            btn_desfazer = QPushButton("↩  Desfazer")
-            btn_desfazer.setFixedWidth(82)
-            btn_desfazer.setFixedHeight(20)
-            btn_desfazer.setCursor(Qt.PointingHandCursor)
-            btn_desfazer.setToolTip("Desfazer pagamento\n\nRemove o pagamento e coloca a conta novamente em aberto.")
-            btn_desfazer.setStyleSheet("QPushButton { background-color: #1f2937; color: #ffffff; border: 1px solid #3b82f6; border-radius: 4px; font-size: 10px; font-weight: bold; } QPushButton:hover { background-color: #3b82f6; color: white; }")
-            btn_desfazer.clicked.connect(lambda _, item=item: self.desfazer_pagamento_home(item))
-
-            btn_excluir = QPushButton("🗑")
-            btn_excluir.setFixedWidth(36)
-            btn_excluir.setFixedHeight(20)
-            btn_excluir.setCursor(Qt.PointingHandCursor)
-            btn_excluir.setToolTip("Excluir registro\n\nRemove este lançamento do sistema após confirmação.")
-            btn_excluir.setStyleSheet("QPushButton { background-color: #1f2937; color: #ffffff; border: 1px solid #ef4444; border-radius: 4px; font-size: 10px; font-weight: bold; } QPushButton:hover { background-color: #ef4444; color: white; }")
-            btn_excluir.clicked.connect(lambda _, item=item: self.excluir_item_pago_home(item))
-
-            detalhes.addSpacing(4)
-            detalhes.addWidget(btn_desfazer)
-            detalhes.addWidget(btn_excluir)
-
-        elif origem == "gasto" and item.get("id_gasto"):
-            btn_excluir = QPushButton("🗑  Excluir")
-            btn_excluir.setFixedWidth(82)
-            btn_excluir.setFixedHeight(20)
-            btn_excluir.setCursor(Qt.PointingHandCursor)
-            btn_excluir.setToolTip("Excluir registro\n\nRemove este lançamento do sistema após confirmação.")
-            btn_excluir.setStyleSheet("QPushButton { background-color: #1f2937; color: #ffffff; border: 1px solid #ef4444; border-radius: 4px; font-size: 10px; font-weight: bold; } QPushButton:hover { background-color: #ef4444; color: white; }")
-            btn_excluir.clicked.connect(lambda _, item=item: self.excluir_item_pago_home(item))
-            detalhes.addSpacing(4)
-            detalhes.addWidget(btn_excluir)
-
-        layout.addLayout(topo)
-        layout.addLayout(detalhes)
-        return card
-
-    def criar_resumo_detalhe(self, titulo, valor, info, cor):
-        card = QFrame()
-        card.setObjectName("card")
-        card.setMinimumHeight(60)
-        card.setMaximumHeight(66)
-        card.setStyleSheet(f"QFrame#card {{ background-color: #181d29; border: 1px solid #263244; border-left: 3px solid {cor}; border-radius: 8px; }}")
-
-        layout = QVBoxLayout(card)
-        layout.setContentsMargins(12, 4, 12, 4)
-        layout.setSpacing(1)
-
-        lbl_titulo = QLabel(titulo)
-        lbl_titulo.setStyleSheet("font-size: 11px; color: #9aa2b8;")
-
-        lbl_valor = QLabel(self.formatar_moeda(valor))
-        lbl_valor.setStyleSheet("font-size: 16px; font-weight: bold; color: #ffffff;")
-
-        lbl_info = QLabel(info)
-        lbl_info.setStyleSheet("font-size: 11px; color: #cbd5e1;")
-
-        layout.addWidget(lbl_titulo)
-        layout.addWidget(lbl_valor)
-        layout.addWidget(lbl_info)
-        return card
-
-    def mostrar_detalhes_inline(self, titulo, subtitulo, secoes, cor, mostrar_voltar=True, compacto=False, ocultar_resumo=False):
-        self.limpar_painel_home()
-        cabecalho = QHBoxLayout()
-
-        textos = QVBoxLayout()
-        lbl_titulo = QLabel(titulo)
-        lbl_titulo.setStyleSheet("font-size: 18px; font-weight: bold; color: #ffffff;")
-
-        lbl_subtitulo = QLabel(subtitulo)
-        lbl_subtitulo.setStyleSheet("font-size: 12px; color: #9aa2b8;")
-
-        textos.addWidget(lbl_titulo)
-        textos.addWidget(lbl_subtitulo)
-
-        cabecalho.addLayout(textos)
-        cabecalho.addStretch()
-
-        if mostrar_voltar:
-            cabecalho.addWidget(self.criar_botao_voltar())
-
-        self.painel_home_layout.addLayout(cabecalho)
-
-        if not ocultar_resumo:
-            resumo = QHBoxLayout()
-            resumo.setSpacing(8)
-            for secao in secoes:
-                itens = secao.get("itens", [])
-                total = sum(float(item.get("valor", 0) or 0) for item in itens)
-                resumo.addWidget(self.criar_resumo_detalhe(secao.get("titulo", ""), total, f"{len(itens)} item(ns)", cor))
-            self.painel_home_layout.addLayout(resumo)
-
-        area = QScrollArea()
-        area.setWidgetResizable(True)
-        area.setFrameShape(QFrame.NoFrame)
-        area.setStyleSheet("QScrollArea { background: transparent; border: none; } QScrollArea > QWidget > QWidget { background: transparent; } QScrollBar:vertical { background: #111827; width: 8px; border-radius: 4px; } QScrollBar::handle:vertical { background: #475569; border-radius: 4px; } QScrollBar::handle:vertical:hover { background: #3b82f6; } QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0px; }")
-
-        conteudo = QWidget()
-        grid = QGridLayout(conteudo)
-        grid.setContentsMargins(0, 4, 8, 4)
-        grid.setHorizontalSpacing(12)
-        grid.setVerticalSpacing(8)
-
-        linha = 0
-        coluna = 0
-        houve_item = False
-
-        for secao in secoes:
-            itens = secao.get("itens", [])
-            if not itens:
-                continue
-
-            lbl_secao = QLabel(secao.get("titulo", ""))
-            lbl_secao.setStyleSheet("font-size: 13px; font-weight: bold; color: #ffffff; margin-top: 4px;")
-            grid.addWidget(lbl_secao, grid.rowCount(), 0, 1, 2)
-            linha = grid.rowCount()
-            coluna = 0
-
-            for item in itens:
-                grid.addWidget(self.criar_card_item_detalhe(item, cor, compacto), linha, coluna)
-                houve_item = True
-                coluna += 1
-                if coluna >= 2:
-                    coluna = 0
-                    linha += 1
-
-            if coluna != 0:
-                linha += 1
-                coluna = 0
-
-        if not houve_item:
-            vazio = QLabel("Nenhum item encontrado para este mês.")
-            vazio.setAlignment(Qt.AlignCenter)
-            vazio.setStyleSheet("font-size: 13px; color: #9aa2b8; padding: 20px;")
-            grid.addWidget(vazio, 0, 0, 1, 2)
-
-        grid.setColumnStretch(0, 1)
-        grid.setColumnStretch(1, 1)
-
-        area.setWidget(conteudo)
-        self.painel_home_layout.addWidget(area, 1)
-
-    def mostrar_proximos_vencimentos(self):
-        self.limpar_painel_home()
-        titulo_lista = QLabel("📅 Próximos vencimentos")
-        titulo_lista.setToolTip("Próximos vencimentos\n\nLista de contas, despesas e parcelas em aberto, ordenadas pela data de vencimento.")
-        titulo_lista.setStyleSheet("font-size: 16px; font-weight: bold; color: #ffffff;")
-        self.painel_home_layout.addWidget(titulo_lista)
-
-        tabela = TabelaFinanceira(["Data", "Descrição", "Valor", "Situação", "Parcela"])
-        self.ajustar_tabela(tabela)
-        tabela.cellDoubleClicked.connect(lambda l, c, t=tabela: self.editar_despesa_tabela(t, l))
-
-        proximas = sorted(self.despesas, key=lambda d: d["data"])
-        for despesa in proximas:
-            parcela = "-"
-            if despesa["tipo"] == "Parcelamento" and despesa["parcela_atual"] and despesa["total_parcelas"]:
-                parcela = f"{despesa['parcela_atual']}/{despesa['total_parcelas']}"
-
-            tabela.adicionar_linha([
-                self.formatar_data(despesa["vencimento"]),
-                despesa["descricao"],
-                self.formatar_moeda(despesa["valor"]),
-                self.status_vencimento(despesa["data"]),
-                parcela
-            ], despesa["id"])
-            self.aplicar_destaque_data_mes_atual(tabela, tabela.rowCount() - 1, despesa["data"])
-        self.painel_home_layout.addWidget(tabela, 1)
-
-    def buscar_rapido(self, texto):
-        termo = texto.strip().lower()
-        if not termo:
-            self.mostrar_proximos_vencimentos()
-            return
-
-        resultados = []
-        for despesa in self.obter_todas_despesas():
-            campos = [despesa.get("descricao", ""), despesa.get("categoria", ""), despesa.get("tipo", ""), despesa.get("status", ""), self.formatar_moeda(despesa.get("valor", 0))]
-            if any(termo in str(campo).lower() for campo in campos):
-                situacao = "Paga" if despesa.get("status") == "paga" else self.status_vencimento(despesa.get("data"))
-                origem = "despesa_paga" if despesa.get("status") == "paga" else "despesa_aberta"
-                resultados.append(self.item_detalhe(despesa.get("vencimento"), despesa.get("descricao"), despesa.get("valor"), despesa.get("tipo"), situacao, despesa.get("id"), origem))
-
-        for receita in self.obter_receitas():
-            campos = [receita.get("descricao", ""), receita.get("categoria", ""), receita.get("observacao", ""), self.formatar_moeda(receita.get("valor", 0))]
-            if any(termo in str(campo).lower() for campo in campos):
-                resultados.append(self.item_detalhe(receita.get("data_recebimento"), receita.get("descricao"), receita.get("valor"), "Receita", "Entrada", None, "receita"))
-
-        for gasto in self.obter_gastos():
-            campos = [gasto.get("descricao", ""), gasto.get("categoria", ""), gasto.get("observacao", ""), self.formatar_moeda(gasto.get("valor", 0))]
-            if any(termo in str(campo).lower() for campo in campos):
-                resultados.append(self.item_detalhe(gasto.get("data_gasto"), gasto.get("descricao"), gasto.get("valor"), "Gasto", "Pago", None, "gasto", None, gasto.get("id")))
-
-        secoes = [{"titulo": f"Resultados para '{texto}'", "itens": resultados}]
-        self.mostrar_detalhes_inline("🔎 Busca rápida", f"{len(resultados)} resultado(s).", secoes, "#3b82f6", mostrar_voltar=False)
-
-    def marcar_despesa_home(self, id_despesa):
-        from PySide6.QtWidgets import QMessageBox
-        from banco.banco import buscar_despesa_por_id
-        
-        despesa = buscar_despesa_por_id(id_despesa)
-        if not despesa:
-            return
-            
-        status_atual = str(despesa[-1]).lower()
-        is_paga = (status_atual == "paga" or status_atual == "pago")
-
-        if is_paga:
-            titulo_janela = "Reverter Pagamento"
-            texto_principal = "Esta conta já está marcada como PAGA."
-            texto_informativo = "Deseja REVERTER o pagamento para colocá-la em aberto novamente?"
-            texto_botao_confirmar = "Sim, reverter"
-            cor_borda = "#ef4444"
-        else:
-            titulo_janela = "Confirmar Pagamento"
-            texto_principal = "Confirmar pagamento desta conta?"
-            texto_informativo = "A despesa será movida para o histórico de contas pagas."
-            texto_botao_confirmar = "Sim, pagar"
-            cor_borda = "#22c55e"
-
-        caixa = QMessageBox(self)
-        caixa.setWindowTitle(titulo_janela)
-        caixa.setText(f"<b style='font-size: 15px; color: #ffffff;'>{texto_principal}</b>")
-        caixa.setInformativeText(texto_informativo)
-        caixa.setIcon(QMessageBox.Question)
-
-        btn_sim = caixa.addButton(texto_botao_confirmar, QMessageBox.YesRole)
-        btn_nao = caixa.addButton("Cancelar", QMessageBox.NoRole)
-        
-        caixa.setStyleSheet(f"""
-            QMessageBox {{ background-color: #0f1117; border: 2px solid #1f2937; border-top: 4px solid {cor_borda}; border-radius: 10px; }}
-            QLabel {{ color: #9aa2b8; font-family: 'Segoe UI'; font-size: 13px; padding-left: 6px; }}
-            QPushButton {{ background-color: #1f2937; color: #ffffff; border: 1px solid #334155; border-radius: 6px; padding: 6px 16px; font-weight: bold; font-size: 12px; min-width: 85px; }}
-            QPushButton:hover {{ background-color: {cor_borda}; border: 1px solid {cor_borda}; }}
-        """)
-        
-        caixa.exec()
-        if caixa.clickedButton() == btn_nao:
-            return
-
-        import sqlite3
-        from servicos.configuracoes_app import CAMINHO_BANCO
-        caminho_db = CAMINHO_BANCO
-        
-        if is_paga:
-            try:
-                conexao = sqlite3.connect(str(caminho_db))
-                cursor = conexao.cursor()
-                cursor.execute("DELETE FROM pagamentos WHERE id_despesa = ?", (id_despesa,))
-                cursor.execute("UPDATE despesas SET status = 'aberta' WHERE id = ?", (id_despesa,))
-                conexao.commit()
-                conexao.close()
-            except Exception as e:
-                print(f"Erro ao reverter: {e}")
-        else:
-            pagar_despesa(id_despesa)
-
-        if self.ao_salvar_despesa:
-            self.ao_salvar_despesa()
-        else:
-            self.montar_tela()
-
-
-    def confirmar_acao_home(self, titulo, texto, botao, cor):
-        caixa = QMessageBox(self)
-        caixa.setWindowTitle(titulo)
-        caixa.setText(f"<b style='font-size: 15px; color: #ffffff;'>{texto}</b>")
-        caixa.setIcon(QMessageBox.Question)
-
-        btn_sim = caixa.addButton(botao, QMessageBox.YesRole)
-        btn_nao = caixa.addButton("Cancelar", QMessageBox.NoRole)
-
-        caixa.setStyleSheet(f"""
-            QMessageBox {{ background-color: #0f1117; border: 2px solid #1f2937; border-top: 4px solid {cor}; border-radius: 10px; }}
-            QLabel {{ color: #9aa2b8; font-family: 'Segoe UI'; font-size: 13px; padding-left: 6px; }}
-            QPushButton {{ background-color: #1f2937; color: #ffffff; border: 1px solid #334155; border-radius: 6px; padding: 6px 16px; font-weight: bold; font-size: 12px; min-width: 85px; }}
-            QPushButton:hover {{ background-color: {cor}; border: 1px solid {cor}; }}
-        """)
-
-        caixa.exec()
-        return caixa.clickedButton() == btn_sim
-
-    def confirmar_exclusao_despesa_paga_home(self):
-        caixa = QMessageBox(self)
-        caixa.setWindowTitle("Excluir conta paga")
-        caixa.setText("<b style='font-size: 15px; color: #ffffff;'>Esta conta já foi paga.</b>")
-        caixa.setInformativeText(
-            "Ela já foi considerada no saldo do sistema.\n\n"
-            "Escolha se deseja manter o saldo atual ou estornar este pagamento."
-        )
-        caixa.setIcon(QMessageBox.Warning)
-
-        btn_manter = caixa.addButton("Manter saldo", QMessageBox.YesRole)
-        btn_estornar = caixa.addButton("Estornar pagamento", QMessageBox.DestructiveRole)
-        btn_cancelar = caixa.addButton("Cancelar", QMessageBox.NoRole)
-
-        caixa.setStyleSheet("""
-            QMessageBox { background-color: #0f1117; border: 2px solid #1f2937; border-top: 4px solid #ef4444; border-radius: 10px; }
-            QLabel { color: #d7dcf0; font-family: 'Segoe UI'; font-size: 13px; padding-left: 6px; }
-            QPushButton { background-color: #1f2937; color: #ffffff; border: 1px solid #334155; border-radius: 6px; padding: 6px 16px; font-weight: bold; font-size: 12px; min-width: 170px; }
-            QPushButton:hover { background-color: #ef4444; border: 1px solid #ef4444; }
-        """)
-
-        caixa.setMinimumSize(760, 280)
-        btn_manter.setMinimumWidth(180)
-        btn_estornar.setMinimumWidth(210)
-        btn_cancelar.setMinimumWidth(180)
-
-        caixa.exec()
-        clicado = caixa.clickedButton()
-        if clicado == btn_manter:
-            return "manter_saldo"
-        if clicado == btn_estornar:
-            return "estornar"
-        return "cancelar"
-
-    def desfazer_pagamento_home(self, item):
-        id_pagamento = item.get("id_pagamento")
-        id_despesa = item.get("id_despesa")
-        if not self.confirmar_acao_home("Desfazer pagamento", "Deseja desfazer este pagamento?", "Desfazer", "#3b82f6"):
-            return
-        if id_pagamento:
-            desfazer_pagamento(id_pagamento)
-        elif id_despesa:
-            reabrir_despesa(id_despesa)
-        if self.ao_salvar_despesa:
-            self.ao_salvar_despesa()
-        else:
-            self.montar_tela()
-
-    def excluir_item_pago_home(self, item):
-        origem = item.get("origem")
-
-        if origem == "gasto" and item.get("id_gasto"):
-            if not self.confirmar_acao_home("Excluir gasto", "Deseja excluir este gasto definitivamente?", "Excluir", "#ef4444"):
-                return
-            excluir_gasto(item.get("id_gasto"))
-        elif item.get("id_despesa"):
-            escolha = self.confirmar_exclusao_despesa_paga_home()
-            if escolha == "cancelar":
-                return
-            if escolha == "manter_saldo":
-                excluir_despesa(item.get("id_despesa"))
-            elif escolha == "estornar":
-                excluir_despesa_com_historico(item.get("id_despesa"))
-
-        if self.ao_salvar_despesa:
-            self.ao_salvar_despesa()
-        else:
-            self.montar_tela()
-
-    def abrir_detalhes_pagos(self):
-        # Criamos uma nova estrutura de seções com cores individuais
-        secoes_coloridas = [
-            {"titulo": "Contas pagas", "itens": self.detalhes_pagos[0]["itens"], "cor": "#22c55e"}, # Verde
-            {"titulo": "Gastos realizados", "itens": self.detalhes_pagos[1]["itens"], "cor": "#ef4444"} # Vermelho
-        ]
-        
-        # Chamamos uma lógica que respeita a cor de cada seção
-        self.mostrar_detalhes_coloridos("✅ Pago no mês", "Contas e gastos efetuados.", secoes_coloridas)
-
-    def mostrar_detalhes_coloridos(self, titulo, subtitulo, secoes):
-        self.limpar_painel_home()
-        cabecalho = QHBoxLayout()
-        textos = QVBoxLayout()
-        lbl_titulo = QLabel(titulo)
-        lbl_titulo.setStyleSheet("font-size: 18px; font-weight: bold; color: #ffffff;")
-        lbl_subtitulo = QLabel(subtitulo)
-        lbl_subtitulo.setStyleSheet("font-size: 12px; color: #9aa2b8;")
-        textos.addWidget(lbl_titulo)
-        textos.addWidget(lbl_subtitulo)
-        cabecalho.addLayout(textos)
-        cabecalho.addStretch()
-        cabecalho.addWidget(self.criar_botao_voltar())
-        self.painel_home_layout.addLayout(cabecalho)
-
-        area = QScrollArea()
-        area.setWidgetResizable(True)
-        area.setStyleSheet("QScrollArea { background: transparent; border: none; }")
-
-        conteudo = QWidget()
-        grid = QGridLayout(conteudo)
-        
-        linha = 0
-        for secao in secoes:
-            lbl_secao = QLabel(secao.get("titulo", ""))
-            lbl_secao.setStyleSheet("font-size: 13px; font-weight: bold; color: #ffffff; margin-top: 10px;")
-            grid.addWidget(lbl_secao, linha, 0, 1, 2)
-            linha += 1
-            
-            cor_secao = secao.get("cor", "#3b82f6")
-            coluna = 0
-            for item in secao.get("itens", []):
-                # Aqui usamos a cor específica da seção
-                grid.addWidget(self.criar_card_item_detalhe(item, cor_secao, compacto=False), linha, coluna)
-                coluna += 1
-                if coluna >= 2:
-                    coluna = 0
-                    linha += 1
-            linha += 1
-
-        area.setWidget(conteudo)
-        self.painel_home_layout.addWidget(area, 1)
-    def abrir_detalhes_pendentes(self):
-        self.mostrar_detalhes_inline("📌 A pagar", "Contas pendentes.", self.detalhes_pendentes, "#ef4444", compacto=True, ocultar_resumo=True)
-
-    def editar_despesa_tabela(self, tabela, linha):
-        item = tabela.item(linha, 0)
-        if item is None: return
-        id_despesa = item.data(Qt.UserRole)
-        if not id_despesa: return
-        despesa = buscar_despesa_por_id(id_despesa)
-        if not despesa: return
-        janela = NovaDespesa(despesa)
-        if janela.exec() and self.ao_salvar_despesa:
-            self.ao_salvar_despesa()
-
-    def abrir_nova_despesa(self):
-        janela = NovaDespesa()
-        if janela.exec() and self.ao_salvar_despesa:
-            self.ao_salvar_despesa()
-
-    def abrir_novo_gasto(self):
-        janela = NovoGasto()
-        if janela.exec() and self.ao_salvar_despesa:
-            self.ao_salvar_despesa()
-
-    def abrir_nova_receita(self):
-        janela = NovaReceita()
-        if janela.exec() and self.ao_salvar_despesa:
-            self.ao_salvar_despesa()
-
-    def limpar_painel_home(self):
-        while self.painel_home_layout.count():
-            item = self.painel_home_layout.takeAt(0)
-            widget = item.widget()
-            if widget is not None:
-                widget.deleteLater()
-            elif item.layout() is not None:
-                self.limpar_layout(item.layout())
-
-    def limpar_layout(self, layout):
-        while layout.count():
-            item = layout.takeAt(0)
-            widget = item.widget()
-            if widget is not None:
-                widget.deleteLater()
-            elif item.layout() is not None:
-                self.limpar_layout(item.layout())
-
-    def criar_botao_voltar(self):
-        botao = QPushButton("↩  Próximos vencimentos")
-        botao.setObjectName("btnReceita")
-        botao.setFixedHeight(34)
-        botao.clicked.connect(self.mostrar_proximos_vencimentos)
-        return botao
-
     def criar_card_item_detalhe(self, item, cor="#ef4444", compacto=False):
         card = QFrame()
         card.setObjectName("card")
@@ -1211,8 +672,6 @@ class TelaInicial(QWidget):
 
         data = QLabel(f"📅 {item.get('data', '')}")
         tipo = QLabel(f"📄 {item.get('tipo', '')}")
-        forma_pagamento = item.get("forma_pagamento") or ""
-        pagamento = QLabel(f"💳 {forma_pagamento}")
         situacao = QLabel(item.get("situacao", ""))
         situacao.setAlignment(Qt.AlignCenter)
 
@@ -1226,7 +685,7 @@ class TelaInicial(QWidget):
         else:
             cor_status = "#2563eb"
 
-        for label in (data, tipo, pagamento):
+        for label in (data, tipo):
             label.setStyleSheet("font-size: 11px; color: #cbd5e1;")
 
         situacao.setMinimumWidth(72)
@@ -1273,17 +732,21 @@ class TelaInicial(QWidget):
             btn_desfazer.setStyleSheet("QPushButton { background-color: #1f2937; color: #ffffff; border: 1px solid #3b82f6; border-radius: 4px; font-size: 10px; font-weight: bold; } QPushButton:hover { background-color: #3b82f6; color: white; }")
             btn_desfazer.clicked.connect(lambda _, item=item: self.desfazer_pagamento_home(item))
 
-            btn_excluir = QPushButton("🗑")
-            btn_excluir.setFixedWidth(34)
-            btn_excluir.setFixedHeight(20)
-            btn_excluir.setCursor(Qt.PointingHandCursor)
-            btn_excluir.setToolTip("Excluir despesa")
-            btn_excluir.setStyleSheet("QPushButton { background-color: #1f2937; color: #ffffff; border: 1px solid #ef4444; border-radius: 4px; font-size: 10px; font-weight: bold; } QPushButton:hover { background-color: #ef4444; color: white; }")
-            btn_excluir.clicked.connect(lambda _, item=item: self.excluir_item_pago_home(item))
-
             detalhes.addSpacing(4)
             detalhes.addWidget(btn_desfazer)
-            detalhes.addWidget(btn_excluir)
+
+            # Pagamentos de contas fixas e parcelamentos compartilham o mesmo
+            # cadastro com a próxima cobrança. Eles só podem ser desfeitos aqui;
+            # a exclusão do cadastro continua nas telas específicas.
+            if not item.get("id_pagamento"):
+                btn_excluir = QPushButton("🗑")
+                btn_excluir.setFixedWidth(34)
+                btn_excluir.setFixedHeight(20)
+                btn_excluir.setCursor(Qt.PointingHandCursor)
+                btn_excluir.setToolTip("Excluir despesa")
+                btn_excluir.setStyleSheet("QPushButton { background-color: #1f2937; color: #ffffff; border: 1px solid #ef4444; border-radius: 4px; font-size: 10px; font-weight: bold; } QPushButton:hover { background-color: #ef4444; color: white; }")
+                btn_excluir.clicked.connect(lambda _, item=item: self.excluir_item_pago_home(item))
+                detalhes.addWidget(btn_excluir)
 
         elif origem == "gasto" and item.get("id_gasto"):
             btn_excluir = QPushButton("🗑")
@@ -1471,19 +934,15 @@ class TelaInicial(QWidget):
 
         secoes = [{"titulo": f"Resultados para '{texto}'", "itens": resultados}]
         self.mostrar_detalhes_inline("🔎 Busca rápida", f"{len(resultados)} resultado(s).", secoes, "#3b82f6", mostrar_voltar=False)
+
     def marcar_despesa_home(self, id_despesa):
-        from PySide6.QtWidgets import QMessageBox
-        from banco.banco import buscar_despesa_por_id
-        
-        # 1. Verifica se a despesa existe
         despesa = buscar_despesa_por_id(id_despesa)
         if not despesa:
             return
-            
-        status_atual = str(despesa[-1]).lower()
-        is_paga = (status_atual == "paga" or status_atual == "pago")
 
-        # Define textos e cores do pop-up
+        status_atual = str(despesa[-1]).lower()
+        is_paga = status_atual in ("paga", "pago")
+
         if is_paga:
             titulo_janela = "Reverter Pagamento"
             texto_principal = "Esta conta já está marcada como PAGA."
@@ -1497,7 +956,6 @@ class TelaInicial(QWidget):
             texto_botao_confirmar = "Sim, pagar"
             cor_borda = "#22c55e"
 
-        # 2. Pop-up customizado e bonito
         caixa = QMessageBox(self)
         caixa.setWindowTitle(titulo_janela)
         caixa.setText(f"<b style='font-size: 15px; color: #ffffff;'>{texto_principal}</b>")
@@ -1518,30 +976,14 @@ class TelaInicial(QWidget):
         if caixa.clickedButton() == btn_nao:
             return
 
-        # 3. Executa a ação no Banco de Dados
-        import sqlite3
-        from servicos.configuracoes_app import CAMINHO_BANCO
-        caminho_db = CAMINHO_BANCO
-        
         if is_paga:
-            try:
-                conexao = sqlite3.connect(str(caminho_db))
-                cursor = conexao.cursor()
-                
-                # Deleta o registro gerado na tabela de pagamentos para sumir do histórico
-                cursor.execute("DELETE FROM pagamentos WHERE id_despesa = ?", (id_despesa,))
-                
-                # Devolve o status da despesa original para pendente
-                cursor.execute("UPDATE despesas SET status = 'aberta' WHERE id = ?", (id_despesa,))
-                
-                conexao.commit()
-                conexao.close()
-            except Exception as e:
-                print(f"Erro ao reverter pagamento: {e}")
+            sucesso, mensagem = reabrir_despesa(id_despesa)
+            if not sucesso:
+                QMessageBox.warning(self, "Pagamento não alterado", mensagem)
+                return
         else:
             pagar_despesa(id_despesa)
 
-        # 4. Recarrega as informações na tela
         if self.ao_salvar_despesa:
             self.ao_salvar_despesa()
         else:
@@ -1567,15 +1009,51 @@ class TelaInicial(QWidget):
         caixa.exec()
         return caixa.clickedButton() == btn_sim
 
+    def confirmar_exclusao_despesa_paga_home(self):
+        caixa = QMessageBox(self)
+        caixa.setWindowTitle("Excluir conta paga")
+        caixa.setText("<b style='font-size: 15px; color: #ffffff;'>Esta conta já foi paga.</b>")
+        caixa.setInformativeText(
+            "Escolha se deseja manter o valor no histórico ou estornar o pagamento mais recente."
+        )
+        caixa.setIcon(QMessageBox.Warning)
+
+        btn_manter = caixa.addButton("Manter no histórico", QMessageBox.YesRole)
+        btn_estornar = caixa.addButton("Estornar pagamento", QMessageBox.DestructiveRole)
+        btn_cancelar = caixa.addButton("Cancelar", QMessageBox.NoRole)
+
+        caixa.setStyleSheet("""
+            QMessageBox { background-color: #0f1117; border: 2px solid #1f2937; border-top: 4px solid #ef4444; border-radius: 10px; }
+            QLabel { color: #d7dcf0; font-family: 'Segoe UI'; font-size: 13px; padding-left: 6px; }
+            QPushButton { background-color: #1f2937; color: #ffffff; border: 1px solid #334155; border-radius: 6px; padding: 6px 16px; font-weight: bold; font-size: 12px; min-width: 170px; }
+            QPushButton:hover { background-color: #ef4444; border: 1px solid #ef4444; }
+        """)
+
+        caixa.exec()
+        if caixa.clickedButton() == btn_manter:
+            return "manter_saldo"
+        if caixa.clickedButton() == btn_estornar:
+            return "estornar"
+        if caixa.clickedButton() == btn_cancelar:
+            return "cancelar"
+        return "cancelar"
+
     def desfazer_pagamento_home(self, item):
         id_pagamento = item.get("id_pagamento")
         id_despesa = item.get("id_despesa")
         if not self.confirmar_acao_home("Desfazer pagamento", "Deseja desfazer este pagamento?", "Desfazer", "#3b82f6"):
             return
         if id_pagamento:
-            desfazer_pagamento(id_pagamento)
+            sucesso, mensagem = desfazer_pagamento(id_pagamento)
         elif id_despesa:
-            reabrir_despesa(id_despesa)
+            sucesso, mensagem = reabrir_despesa(id_despesa)
+        else:
+            return
+
+        if not sucesso:
+            QMessageBox.warning(self, "Pagamento não alterado", mensagem)
+            return
+
         if self.ao_salvar_despesa:
             self.ao_salvar_despesa()
         else:
@@ -1588,6 +1066,10 @@ class TelaInicial(QWidget):
             if not self.confirmar_acao_home("Excluir gasto", "Deseja excluir este gasto definitivamente?", "Excluir", "#ef4444"):
                 return
             excluir_gasto(item.get("id_gasto"))
+        elif origem == "despesa_aberta" and item.get("id_despesa"):
+            if not self.confirmar_acao_home("Excluir despesa", "Deseja excluir esta despesa definitivamente?", "Excluir", "#ef4444"):
+                return
+            excluir_despesa(item.get("id_despesa"))
         elif item.get("id_despesa"):
             escolha = self.confirmar_exclusao_despesa_paga_home()
             if escolha == "cancelar":

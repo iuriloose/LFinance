@@ -5,15 +5,13 @@ from dateutil.relativedelta import relativedelta
 from servicos.configuracoes_app import CAMINHO_BANCO, migrar_banco_antigo_se_necessario
 
 
-migrar_banco_antigo_se_necessario()
-
-
 def conectar():
     CAMINHO_BANCO.parent.mkdir(parents=True, exist_ok=True)
     return sqlite3.connect(CAMINHO_BANCO)
 
 
 def criar_tabelas():
+    migrar_banco_antigo_se_necessario()
     conexao = conectar()
     cursor = conexao.cursor()
 
@@ -90,6 +88,7 @@ def criar_tabelas():
             tipo TEXT NOT NULL,
             parcela_atual INTEGER,
             total_parcelas INTEGER,
+            vencimento_referencia TEXT,
             forma_pagamento TEXT DEFAULT 'Não informado',
             data_criacao TEXT DEFAULT CURRENT_TIMESTAMP
         )
@@ -100,9 +99,12 @@ def criar_tabelas():
     if "forma_pagamento" not in colunas_pagamentos:
         cursor.execute("ALTER TABLE pagamentos ADD COLUMN forma_pagamento TEXT DEFAULT 'Não informado'")
 
+    if "vencimento_referencia" not in colunas_pagamentos:
+        cursor.execute("ALTER TABLE pagamentos ADD COLUMN vencimento_referencia TEXT")
+
+    cursor.execute("PRAGMA user_version = 2")
     conexao.commit()
     conexao.close()
-    limpar_parcelamentos_pagos_duplicados()
 
 
 def inserir_despesa(
@@ -247,12 +249,12 @@ def pagar_despesa(id_despesa, forma_pagamento="Não informado"):
     cursor.execute("""
         INSERT INTO pagamentos (
             id_despesa, descricao, valor, data_pagamento, categoria, tipo,
-            parcela_atual, total_parcelas, forma_pagamento
+            parcela_atual, total_parcelas, vencimento_referencia, forma_pagamento
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     """, (
         id_despesa, descricao, valor, data_pagamento, categoria, tipo,
-        parcela_atual, total_parcelas, forma_pagamento
+        parcela_atual, total_parcelas, vencimento, forma_pagamento
     ))
 
     if tipo == "Conta fixa":
@@ -300,29 +302,6 @@ def pagar_despesa(id_despesa, forma_pagamento="Não informado"):
     conexao.close()
 
 
-def limpar_parcelamentos_pagos_duplicados():
-    conexao = conectar()
-    cursor = conexao.cursor()
-
-    cursor.execute("""
-        DELETE FROM despesas
-        WHERE status = 'paga'
-          AND tipo = 'Parcelamento'
-          AND EXISTS (
-              SELECT 1
-              FROM despesas AS aberta
-              WHERE aberta.status = 'aberta'
-                AND aberta.tipo = despesas.tipo
-                AND aberta.descricao = despesas.descricao
-                AND aberta.total_parcelas = despesas.total_parcelas
-                AND aberta.parcela_atual = despesas.parcela_atual + 1
-          )
-    """)
-
-    conexao.commit()
-    conexao.close()
-
-
 def excluir_despesa(id_despesa):
     conexao = conectar()
     cursor = conexao.cursor()
@@ -340,10 +319,6 @@ def reabrir_despesa(id_despesa):
     conexao = conectar()
     cursor = conexao.cursor()
 
-    # Ao reabrir uma despesa paga, o pagamento precisa ser estornado
-    # do histórico. Removemos apenas o pagamento mais recente ligado
-    # a esta despesa para não apagar histórico antigo de contas fixas
-    # ou parcelamentos que reutilizam o mesmo registro.
     cursor.execute("""
         SELECT id
         FROM pagamentos
@@ -352,21 +327,18 @@ def reabrir_despesa(id_despesa):
         LIMIT 1
     """, (id_despesa,))
     pagamento = cursor.fetchone()
+    conexao.close()
 
     if pagamento:
-        cursor.execute("""
-            DELETE FROM pagamentos
-            WHERE id = ?
-        """, (pagamento[0],))
+        return desfazer_pagamento(pagamento[0])
 
-    cursor.execute("""
-        UPDATE despesas
-        SET status = 'aberta'
-        WHERE id = ?
-    """, (id_despesa,))
+    conexao = conectar()
+    cursor = conexao.cursor()
+    cursor.execute("UPDATE despesas SET status = 'aberta' WHERE id = ?", (id_despesa,))
 
     conexao.commit()
     conexao.close()
+    return True, ""
 
 
 def atualizar_despesa(
@@ -624,7 +596,8 @@ def desfazer_pagamento(id_pagamento):
     cursor = conexao.cursor()
 
     cursor.execute("""
-        SELECT id_despesa
+        SELECT id_despesa, tipo, parcela_atual, total_parcelas,
+               vencimento_referencia
         FROM pagamentos
         WHERE id = ?
     """, (id_pagamento,))
@@ -632,33 +605,121 @@ def desfazer_pagamento(id_pagamento):
     registro = cursor.fetchone()
     if not registro:
         conexao.close()
-        return
+        return False, "O pagamento não foi encontrado."
 
-    id_despesa = registro[0]
+    (
+        id_despesa,
+        tipo_pagamento,
+        parcela_pagamento,
+        total_parcelas_pagamento,
+        vencimento_referencia,
+    ) = registro
+
+    if not id_despesa:
+        cursor.execute("DELETE FROM pagamentos WHERE id = ?", (id_pagamento,))
+        conexao.commit()
+        conexao.close()
+        return True, ""
 
     cursor.execute("""
-        DELETE FROM pagamentos
+        SELECT id, vencimento, tipo, parcela_atual, status
+        FROM despesas
         WHERE id = ?
-    """, (id_pagamento,))
+    """, (id_despesa,))
+    despesa = cursor.fetchone()
 
-    if id_despesa:
+    if not despesa:
+        cursor.execute("DELETE FROM pagamentos WHERE id = ?", (id_pagamento,))
+        conexao.commit()
+        conexao.close()
+        return True, ""
+
+    if tipo_pagamento in ("Conta fixa", "Parcelamento"):
+        cursor.execute("""
+            SELECT id
+            FROM pagamentos
+            WHERE id_despesa = ?
+            ORDER BY id DESC
+            LIMIT 1
+        """, (id_despesa,))
+        ultimo_pagamento = cursor.fetchone()
+
+        if ultimo_pagamento and ultimo_pagamento[0] != id_pagamento:
+            conexao.close()
+            return False, (
+                "Para proteger o histórico, desfaça primeiro o pagamento mais recente "
+                "desta conta ou parcelamento."
+            )
+
+    _, vencimento_atual, tipo_atual, _, status_atual = despesa
+    vencimento_anterior = vencimento_referencia
+
+    parcela_final_legada = (
+        tipo_atual == "Parcelamento"
+        and status_atual == "paga"
+        and parcela_pagamento is not None
+        and total_parcelas_pagamento is not None
+        and parcela_pagamento >= total_parcelas_pagamento
+    )
+
+    if (
+        not vencimento_anterior
+        and tipo_atual in ("Conta fixa", "Parcelamento")
+        and not parcela_final_legada
+    ):
+        data_atual = datetime.strptime(vencimento_atual, "%Y-%m-%d")
+        vencimento_anterior = (data_atual - relativedelta(months=1)).strftime("%Y-%m-%d")
+
+    if tipo_atual == "Conta fixa":
+        cursor.execute("""
+            UPDATE despesas
+            SET vencimento = ?, status = 'aberta'
+            WHERE id = ?
+        """, (vencimento_anterior or vencimento_atual, id_despesa))
+
+    elif tipo_atual == "Parcelamento":
+        cursor.execute("""
+            UPDATE despesas
+            SET vencimento = ?, parcela_atual = ?, status = 'aberta'
+            WHERE id = ?
+        """, (
+            vencimento_anterior or vencimento_atual,
+            parcela_pagamento,
+            id_despesa,
+        ))
+
+    else:
         cursor.execute("""
             UPDATE despesas
             SET status = 'aberta'
             WHERE id = ?
         """, (id_despesa,))
 
+    cursor.execute("DELETE FROM pagamentos WHERE id = ?", (id_pagamento,))
+
     conexao.commit()
     conexao.close()
+    return True, ""
 
 
 def excluir_despesa_com_historico(id_despesa):
+    """Exclui a despesa e estorna somente seu pagamento mais recente.
+
+    Pagamentos anteriores de contas recorrentes e parcelamentos permanecem no
+    histórico, pois representam saídas que realmente aconteceram.
+    """
     conexao = conectar()
     cursor = conexao.cursor()
 
     cursor.execute("""
         DELETE FROM pagamentos
-        WHERE id_despesa = ?
+        WHERE id = (
+            SELECT id
+            FROM pagamentos
+            WHERE id_despesa = ?
+            ORDER BY id DESC
+            LIMIT 1
+        )
     """, (id_despesa,))
 
     cursor.execute("""

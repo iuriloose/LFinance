@@ -387,10 +387,14 @@ class TelaRelatorios(QWidget):
                 if status == "aberta":
                     pendentes_mes.append(item)
 
-            if status == "aberta" and data < hoje:
+            if status == "aberta" and inicio_mes <= data <= fim_mes and data < hoje:
                 atrasadas.append(item)
 
-            if status == "aberta" and tipo == "Parcelamento":
+            if (
+                status == "aberta"
+                and tipo == "Parcelamento"
+                and inicio_mes <= data <= fim_mes
+            ):
                 parcelamentos_abertos.append(item)
 
         receitas_mes = []

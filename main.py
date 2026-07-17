@@ -1,10 +1,24 @@
 import sys
 
-from PySide6.QtWidgets import QApplication, QDialog, QVBoxLayout, QLabel, QLineEdit, QPushButton, QHBoxLayout
+from PySide6.QtWidgets import (
+    QApplication,
+    QDialog,
+    QHBoxLayout,
+    QLabel,
+    QLineEdit,
+    QMessageBox,
+    QPushButton,
+    QVBoxLayout,
+)
 
 from banco.banco import criar_tabelas
 from telas.principal import TelaPrincipal
-from servicos.configuracoes_app import nome_inicial_precisa_ser_configurado, salvar_nome_usuario, caminho_recurso
+from servicos.configuracoes_app import (
+    APP_VERSAO,
+    caminho_recurso,
+    nome_inicial_precisa_ser_configurado,
+    salvar_nome_usuario,
+)
 
 
 class JanelaBoasVindas(QDialog):
@@ -80,15 +94,31 @@ class JanelaBoasVindas(QDialog):
         self.accept()
 
 
-criar_tabelas()
+def main():
+    app = QApplication(sys.argv)
+    app.setApplicationName("LFinance")
+    app.setApplicationVersion(APP_VERSAO)
 
-app = QApplication(sys.argv)
+    try:
+        criar_tabelas()
+    except Exception as erro:
+        QMessageBox.critical(
+            None,
+            "Não foi possível iniciar o LFinance",
+            "O banco de dados não pôde ser preparado.\n\n"
+            f"Detalhes: {erro}",
+        )
+        return 1
 
-if nome_inicial_precisa_ser_configurado():
-    boas_vindas = JanelaBoasVindas()
-    boas_vindas.exec()
+    if nome_inicial_precisa_ser_configurado():
+        boas_vindas = JanelaBoasVindas()
+        boas_vindas.exec()
 
-janela = TelaPrincipal()
-janela.showMaximized()
+    janela = TelaPrincipal()
+    janela.showMaximized()
 
-sys.exit(app.exec())
+    return app.exec()
+
+
+if __name__ == "__main__":
+    sys.exit(main())

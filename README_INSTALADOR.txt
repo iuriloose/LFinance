@@ -1,4 +1,4 @@
-LFinance 1.0 - Instalador Windows
+LFinance 1.0.1 - Instalador Windows
 
 Como gerar o instalador final:
 
@@ -12,7 +12,7 @@ Como gerar o instalador final:
    Build > Compile
 
 4. O instalador será gerado em:
-   instalador\LFinance_Setup_v1.0.exe
+   instalador\LFinance_Setup_v1.0.1.exe
 
 O instalador final:
 - Instala o LFinance em C:\Program Files\LFinance.
@@ -21,7 +21,6 @@ O instalador final:
 - Registra o desinstalador no Windows.
 - Mantém os dados do usuário em %LOCALAPPDATA%\LFinance.
 - A desinstalação remove o programa, mas não apaga os dados financeiros do usuário.
-- Backups salvos pelo usuário nunca são carregados automaticamente; só são usados pela opção Restaurar backup.
 
 Observação importante:
 Se já existir um instalador antigo na pasta instalador, ele será substituído quando você compilar novamente.

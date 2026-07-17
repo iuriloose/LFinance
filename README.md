@@ -1,17 +1,15 @@
-# LFinance 1.0
+# LFinance 1.0.1
 
 Sistema financeiro pessoal para Windows.
 
 ## Situação do projeto
 
-Funcionalidades encerradas. Esta fase é focada apenas em distribuição:
+Versão de manutenção focada em estabilidade e segurança dos dados:
 
-- organização do projeto;
-- geração do EXE de teste;
-- correções encontradas em testes;
-- preparação do instalador profissional;
-- validação em outro computador;
-- lançamento da versão 1.0.
+- correções encontradas nos testes reais;
+- preservação do histórico de pagamentos;
+- backup e restauração validados;
+- geração do EXE e do instalador profissional.
 
 ## Banco de dados
 

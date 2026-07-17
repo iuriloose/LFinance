@@ -5,6 +5,7 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import QDate
 
 from banco.banco import inserir_gasto, atualizar_gasto
+from servicos.valores import converter_texto_moeda
 
 
 class NovoGasto(QDialog):
@@ -192,7 +193,6 @@ class NovoGasto(QDialog):
 
     def salvar_gasto(self):
         descricao = self.descricao.text().strip()
-        valor_texto = self.valor.text().strip().replace(".", "").replace(",", ".")
         data_texto = self.data_gasto.text().strip()
         categoria = self.categoria.currentText()
         observacao = self.observacao.text().strip()
@@ -203,9 +203,9 @@ class NovoGasto(QDialog):
             return
 
         try:
-            valor = float(valor_texto)
+            valor = converter_texto_moeda(self.valor.text())
         except ValueError:
-            QMessageBox.warning(self, "Atenção", "Informe um valor válido. Ex: 100,00")
+            QMessageBox.warning(self, "Atenção", "Informe um valor maior que zero. Ex: 100,00")
             self.valor.setFocus()
             return
 

@@ -5,6 +5,7 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import QDate
 
 from banco.banco import inserir_despesa, atualizar_despesa, pagar_despesa, excluir_despesa_com_historico, excluir_despesa
+from servicos.valores import converter_texto_moeda
 
 
 class NovaDespesa(QDialog):
@@ -294,7 +295,7 @@ class NovaDespesa(QDialog):
             return None
 
         try:
-            valor = float(self.valor.text().strip().replace(",", "."))
+            valor = converter_texto_moeda(self.valor.text())
             total_parcelas = int(self.total_parcelas.text().strip())
             return valor * total_parcelas
         except ValueError:
@@ -494,7 +495,6 @@ class NovaDespesa(QDialog):
 
     def salvar_despesa(self):
         descricao = self.descricao.text().strip()
-        valor_texto = self.valor.text().strip().replace(",", ".")
         data_texto = self.vencimento.text().strip()
         categoria = self.categoria.currentText()
         tipo = self.tipo.currentText()
@@ -509,9 +509,9 @@ class NovaDespesa(QDialog):
             return
 
         try:
-            valor = float(valor_texto)
+            valor = converter_texto_moeda(self.valor.text())
         except ValueError:
-            QMessageBox.warning(self, "Atenção", "Digite um valor válido. Ex: 129,90")
+            QMessageBox.warning(self, "Atenção", "Digite um valor maior que zero. Ex: 129,90")
             self.valor.setFocus()
             return
 
