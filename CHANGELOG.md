@@ -1,4 +1,11 @@
-# LFinance 1.0.1
+# LFinance 1.0.2
+
+## 1.0.2
+
+- Publicação oficial das correções de estabilidade, segurança, backup e consistência financeira.
+- Versão incrementada para preservar a tag 1.0.1 já publicada anteriormente.
+
+## 1.0.1
 
 - Corrigido o desfazer pagamento de contas fixas e parcelamentos.
 - Protegido o histórico ao excluir lançamentos recorrentes.
