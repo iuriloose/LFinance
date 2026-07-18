@@ -102,7 +102,25 @@ def criar_tabelas():
     if "vencimento_referencia" not in colunas_pagamentos:
         cursor.execute("ALTER TABLE pagamentos ADD COLUMN vencimento_referencia TEXT")
 
-    cursor.execute("PRAGMA user_version = 2")
+    if "valor_original" not in colunas_pagamentos:
+        cursor.execute("ALTER TABLE pagamentos ADD COLUMN valor_original REAL")
+
+    if "acrescimo" not in colunas_pagamentos:
+        cursor.execute("ALTER TABLE pagamentos ADD COLUMN acrescimo REAL DEFAULT 0")
+
+    if "desconto" not in colunas_pagamentos:
+        cursor.execute("ALTER TABLE pagamentos ADD COLUMN desconto REAL DEFAULT 0")
+
+    if "observacao" not in colunas_pagamentos:
+        cursor.execute("ALTER TABLE pagamentos ADD COLUMN observacao TEXT")
+
+    cursor.execute("""
+        UPDATE pagamentos
+        SET valor_original = valor
+        WHERE valor_original IS NULL
+    """)
+
+    cursor.execute("PRAGMA user_version = 3")
     conexao.commit()
     conexao.close()
 
@@ -211,7 +229,10 @@ def buscar_despesa_por_id(id_despesa):
     return despesa
 
 
-def pagar_despesa(id_despesa, forma_pagamento="Não informado"):
+def pagar_despesa(
+    id_despesa, forma_pagamento="Não informado", valor_pago=None,
+    data_pagamento=None, observacao=""
+):
     conexao = conectar()
     cursor = conexao.cursor()
 
@@ -226,7 +247,7 @@ def pagar_despesa(id_despesa, forma_pagamento="Não informado"):
 
     if not despesa:
         conexao.close()
-        return
+        return False, "A despesa não foi encontrada."
 
     (
         descricao,
@@ -242,19 +263,29 @@ def pagar_despesa(id_despesa, forma_pagamento="Não informado"):
 
     if status == "paga":
         conexao.close()
-        return
+        return False, "Esta despesa já está paga."
 
-    data_pagamento = datetime.now().strftime("%Y-%m-%d")
+    valor_original = round(float(valor), 2)
+    valor_pago = valor_original if valor_pago is None else round(float(valor_pago), 2)
+    if valor_pago < 0:
+        conexao.close()
+        return False, "O valor pago não pode ser negativo."
+
+    acrescimo = round(max(valor_pago - valor_original, 0), 2)
+    desconto = round(max(valor_original - valor_pago, 0), 2)
+    data_pagamento = data_pagamento or datetime.now().strftime("%Y-%m-%d")
 
     cursor.execute("""
         INSERT INTO pagamentos (
             id_despesa, descricao, valor, data_pagamento, categoria, tipo,
-            parcela_atual, total_parcelas, vencimento_referencia, forma_pagamento
+            parcela_atual, total_parcelas, vencimento_referencia, forma_pagamento,
+            valor_original, acrescimo, desconto, observacao
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     """, (
-        id_despesa, descricao, valor, data_pagamento, categoria, tipo,
-        parcela_atual, total_parcelas, vencimento, forma_pagamento
+        id_despesa, descricao, valor_pago, data_pagamento, categoria, tipo,
+        parcela_atual, total_parcelas, vencimento, forma_pagamento,
+        valor_original, acrescimo, desconto, observacao.strip()
     ))
 
     if tipo == "Conta fixa":
@@ -300,6 +331,7 @@ def pagar_despesa(id_despesa, forma_pagamento="Não informado"):
 
     conexao.commit()
     conexao.close()
+    return True, ""
 
 
 def excluir_despesa(id_despesa):
@@ -562,6 +594,39 @@ def listar_pagamentos():
     pagamentos = cursor.fetchall()
     conexao.close()
     return pagamentos
+
+
+def listar_pagamentos_detalhados():
+    conexao = conectar()
+    cursor = conexao.cursor()
+    cursor.execute("""
+        SELECT id, id_despesa, descricao, valor, data_pagamento, categoria,
+               tipo, parcela_atual, total_parcelas,
+               COALESCE(forma_pagamento, 'Não informado'),
+               COALESCE(valor_original, valor),
+               COALESCE(acrescimo, 0), COALESCE(desconto, 0),
+               COALESCE(observacao, '')
+        FROM pagamentos
+        ORDER BY data_pagamento DESC, id DESC
+    """)
+    pagamentos = cursor.fetchall()
+    conexao.close()
+    return pagamentos
+
+
+def buscar_ultimo_pagamento_da_despesa(id_despesa):
+    conexao = conectar()
+    cursor = conexao.cursor()
+    cursor.execute("""
+        SELECT id, valor, data_pagamento
+        FROM pagamentos
+        WHERE id_despesa = ?
+        ORDER BY id DESC
+        LIMIT 1
+    """, (id_despesa,))
+    pagamento = cursor.fetchone()
+    conexao.close()
+    return pagamento
 
 
 def excluir_pagamentos_da_despesa(id_despesa):

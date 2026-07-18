@@ -12,6 +12,7 @@ from componentes.tabela import TabelaFinanceira
 from telas.nova_despesa import NovaDespesa
 from telas.nova_receita import NovaReceita
 from telas.novo_gasto import NovoGasto
+from telas.pagamento import abrir_pagamento
 from servicos.configuracoes_app import obter_nome_usuario
 from banco.banco import (
     listar_despesas,
@@ -887,6 +888,8 @@ class TelaInicial(QWidget):
             parcela = "-"
             if despesa["tipo"] == "Parcelamento" and despesa["parcela_atual"] and despesa["total_parcelas"]:
                 parcela = f"{despesa['parcela_atual']}/{despesa['total_parcelas']}"
+            elif despesa["tipo"] == "Conta fixa":
+                parcela = "FIXA"
 
             tabela.adicionar_linha([
                 self.formatar_data(despesa["vencimento"]),
@@ -950,11 +953,13 @@ class TelaInicial(QWidget):
             texto_botao_confirmar = "Sim, reverter"
             cor_borda = "#ef4444"
         else:
-            titulo_janela = "Confirmar Pagamento"
-            texto_principal = "Confirmar pagamento desta conta?"
-            texto_informativo = "A despesa será movida para o histórico de contas pagas."
-            texto_botao_confirmar = "Sim, pagar"
-            cor_borda = "#22c55e"
+            if not abrir_pagamento(id_despesa, self):
+                return
+            if self.ao_salvar_despesa:
+                self.ao_salvar_despesa()
+            else:
+                self.montar_tela()
+            return
 
         caixa = QMessageBox(self)
         caixa.setWindowTitle(titulo_janela)
@@ -981,9 +986,6 @@ class TelaInicial(QWidget):
             if not sucesso:
                 QMessageBox.warning(self, "Pagamento não alterado", mensagem)
                 return
-        else:
-            pagar_despesa(id_despesa)
-
         if self.ao_salvar_despesa:
             self.ao_salvar_despesa()
         else:

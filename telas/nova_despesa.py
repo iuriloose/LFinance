@@ -6,6 +6,7 @@ from PySide6.QtCore import QDate
 
 from banco.banco import inserir_despesa, atualizar_despesa, pagar_despesa, excluir_despesa_com_historico, excluir_despesa
 from servicos.valores import converter_texto_moeda
+from telas.pagamento import abrir_pagamento
 
 
 class NovaDespesa(QDialog):
@@ -486,12 +487,9 @@ class NovaDespesa(QDialog):
         self.accept()
 
     def pagar(self):
-        if not self.confirmar_pagamento():
-            return
-
         id_despesa = self.despesa[0]
-        pagar_despesa(id_despesa)
-        self.accept()
+        if abrir_pagamento(id_despesa, self):
+            self.accept()
 
     def salvar_despesa(self):
         descricao = self.descricao.text().strip()

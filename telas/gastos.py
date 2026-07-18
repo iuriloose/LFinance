@@ -350,6 +350,11 @@ class TelaGastos(QWidget):
         resumo.setObjectName("cardInfo")
         painel_layout.addWidget(resumo)
 
+        total_gastos = sum(float(g[2] or 0) for g in gastos)
+        total = QLabel(f"Total dos gastos: {self.formatar_moeda(total_gastos)}")
+        total.setObjectName("cardInfo")
+        painel_layout.addWidget(total)
+
         area = QScrollArea()
         area.setObjectName("areaGastos")
         area.setWidgetResizable(True)

@@ -109,7 +109,7 @@ class MenuLateral(QFrame):
     def criar_logo(self, layout):
         logo_card = QFrame()
         logo_card.setObjectName("logoCard")
-        logo_card.setToolTip("LFinance\\n\\nControle financeiro pessoal para organizar receitas, gastos, despesas, contas fixas e parcelamentos.")
+        logo_card.setToolTip("LFinance\n\nControle financeiro pessoal para organizar receitas, gastos, despesas, contas fixas e parcelamentos.")
         logo_card.setFixedHeight(178)
 
         logo_layout = QVBoxLayout(logo_card)

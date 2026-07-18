@@ -1,4 +1,20 @@
-# LFinance 1.0.2
+# LFinance 1.0.3
+
+## 1.0.3
+
+- Adicionada janela para informar o valor e a data real do pagamento.
+- Adicionado cálculo automático de juros, multas e descontos.
+- Incluído resumo mensal de acréscimos e descontos nos relatórios.
+- Adicionados totais nas telas de gastos, despesas, contas e parcelamentos.
+- Mantido o valor original das contas fixas e parcelas futuras.
+- Adicionado botão para desfazer o último pagamento de uma conta fixa.
+- Adicionada escolha para manter ou estornar o pagamento ao excluir uma conta fixa.
+- Contas fixas agora são identificadas como FIXA na coluna Parcela da tela inicial.
+- Reorganizada a janela de pagamento para destacar juros, desconto e total sem sobreposição.
+- Cards de juros e descontos nos relatórios agora abrem os pagamentos detalhados.
+- Removidas as setas do campo de valor final pago.
+- Padronizadas as confirmações de estorno e exclusão de contas fixas.
+- Confirmações de contas fixas substituídas por janelas compactas e proporcionais.
 
 ## 1.0.2
 

@@ -9,7 +9,9 @@ from banco.banco import (
     pagar_despesa,
     excluir_despesa,
     reabrir_despesa,
+    listar_pagamentos,
 )
+from telas.pagamento import abrir_pagamento
 from telas.nova_despesa import NovaDespesa
 
 
@@ -492,6 +494,20 @@ class TelaParcelamentos(QWidget):
         resumo.setObjectName("cardInfo")
         painel_layout.addWidget(resumo)
 
+        saldo_restante = 0
+        for item in parcelamentos:
+            dados = self.separar_despesa(item)
+            if dados[9] != "paga":
+                restantes = max((dados[7] or 1) - (dados[6] or 1) + 1, 1)
+                saldo_restante += float(dados[2] or 0) * restantes
+        total_pago = sum(float(p[3] or 0) for p in listar_pagamentos() if p[6] == "Parcelamento")
+        totais = QLabel(
+            f"Saldo restante: {self.formatar_moeda(saldo_restante)}  •  "
+            f"Total pago: {self.formatar_moeda(total_pago)}"
+        )
+        totais.setObjectName("cardInfo")
+        painel_layout.addWidget(totais)
+
         area = QScrollArea()
         area.setObjectName("areaParcelamentos")
         area.setWidgetResizable(True)
@@ -529,10 +545,10 @@ class TelaParcelamentos(QWidget):
                 self.ao_alterar()
 
     def marcar_paga(self, id_despesa):
-        pagar_despesa(id_despesa)
-        self.montar_tela()
-        if self.ao_alterar:
-            self.ao_alterar()
+        if abrir_pagamento(id_despesa, self):
+            self.montar_tela()
+            if self.ao_alterar:
+                self.ao_alterar()
 
     def reabrir(self, id_despesa):
         reabrir_despesa(id_despesa)

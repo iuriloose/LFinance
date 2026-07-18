@@ -11,7 +11,9 @@ from banco.banco import (
     excluir_despesa_com_historico,
     buscar_despesa_por_id,
     reabrir_despesa,
+    listar_pagamentos,
 )
+from telas.pagamento import abrir_pagamento
 
 from telas.nova_despesa import NovaDespesa
 
@@ -475,6 +477,16 @@ class TelaDespesas(QWidget):
         resumo.setObjectName("cardInfo")
         painel_layout.addWidget(resumo)
 
+        total_aberto = sum(float(self.separar_despesa(d)[2] or 0) for d in despesas if self.separar_despesa(d)[9] != "paga")
+        total_pago = sum(float(p[3] or 0) for p in listar_pagamentos())
+        totais = QLabel(
+            f"Em aberto: {self.formatar_moeda(total_aberto)}  •  "
+            f"Pago no histórico: {self.formatar_moeda(total_pago)}  •  "
+            f"Total: {self.formatar_moeda(total_aberto + total_pago)}"
+        )
+        totais.setObjectName("cardInfo")
+        painel_layout.addWidget(totais)
+
         area = QScrollArea()
         area.setObjectName("areaDespesas")
         area.setWidgetResizable(True)
@@ -509,10 +521,10 @@ class TelaDespesas(QWidget):
                 self.ao_alterar()
 
     def marcar_paga(self, id_despesa):
-        pagar_despesa(id_despesa)
-        self.montar_tela()
-        if self.ao_alterar:
-            self.ao_alterar()
+        if abrir_pagamento(id_despesa, self):
+            self.montar_tela()
+            if self.ao_alterar:
+                self.ao_alterar()
 
     def reabrir(self, id_despesa):
         reabrir_despesa(id_despesa)

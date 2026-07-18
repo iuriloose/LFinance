@@ -1,6 +1,6 @@
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel,
-    QPushButton, QFrame, QScrollArea, QDialog
+    QPushButton, QFrame, QScrollArea, QDialog, QMessageBox
 )
 from PySide6.QtCore import QDate, Qt
 
@@ -9,7 +9,11 @@ from banco.banco import (
     pagar_despesa,
     excluir_despesa,
     reabrir_despesa,
+    listar_pagamentos,
+    buscar_ultimo_pagamento_da_despesa,
+    desfazer_pagamento,
 )
+from telas.pagamento import abrir_pagamento
 from telas.nova_despesa import NovaDespesa
 
 
@@ -116,6 +120,59 @@ class ConfirmacaoExclusaoContaFixa(QDialog):
         layout.addLayout(botoes)
 
 
+class ConfirmacaoAcaoContaFixa(QDialog):
+    def __init__(self, titulo, texto, informacao, opcoes, cor="#3b82f6", largura=540):
+        super().__init__()
+        self.escolha = "cancelar"
+        self.setWindowTitle(titulo)
+        self.setFixedSize(largura, 285)
+        self.setModal(True)
+        self.setStyleSheet(f"""
+            QDialog {{ background-color: #0f1726; }}
+            QFrame#faixaConfirmacao {{ background-color: {cor}; border: 0; }}
+            QLabel {{ color: #d7dcf0; background: transparent; font-family: 'Segoe UI'; }}
+            QLabel#tituloAcao {{ color: #ffffff; font-size: 21px; font-weight: 800; }}
+            QLabel#textoAcao {{ color: #ffffff; font-size: 14px; font-weight: 700; }}
+            QLabel#infoAcao {{ color: #a8b3c7; font-size: 12px; }}
+            QPushButton {{ min-height: 40px; border-radius: 8px; padding: 0 16px; color: #ffffff; font-weight: 700; font-size: 12px; }}
+            QPushButton#acaoPrincipal {{ background-color: #1d4ed8; border: 1px solid #3b82f6; }}
+            QPushButton#acaoPerigo {{ background-color: #b91c1c; border: 1px solid #ef4444; }}
+            QPushButton#acaoNeutra {{ background-color: #1f2937; border: 1px solid #475569; }}
+            QPushButton:hover {{ border-color: #ffffff; }}
+        """)
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(26, 20, 26, 22)
+        layout.setSpacing(11)
+
+        lbl_titulo = QLabel(titulo)
+        lbl_titulo.setObjectName("tituloAcao")
+        lbl_texto = QLabel(texto)
+        lbl_texto.setObjectName("textoAcao")
+        lbl_texto.setWordWrap(True)
+        lbl_info = QLabel(informacao)
+        lbl_info.setObjectName("infoAcao")
+        lbl_info.setWordWrap(True)
+        layout.addWidget(lbl_titulo)
+        layout.addWidget(lbl_texto)
+        layout.addWidget(lbl_info)
+        layout.addStretch()
+
+        botoes = QHBoxLayout()
+        botoes.setSpacing(10)
+        botoes.addStretch()
+        for chave, rotulo, estilo in opcoes:
+            botao = QPushButton(rotulo)
+            botao.setObjectName(estilo)
+            botao.clicked.connect(lambda _, valor=chave: self.selecionar(valor))
+            botoes.addWidget(botao)
+        layout.addLayout(botoes)
+
+    def selecionar(self, escolha):
+        self.escolha = escolha
+        self.accept() if escolha != "cancelar" else self.reject()
+
+
 class TelaContasFixas(QWidget):
     def __init__(self, ao_alterar=None):
         super().__init__()
@@ -128,6 +185,47 @@ class TelaContasFixas(QWidget):
 
         self.aplicar_estilo_local()
         self.montar_tela()
+
+    def estilizar_confirmacao(self, caixa, cor="#3b82f6"):
+        caixa.setStyleSheet(f"""
+            QMessageBox {{
+                background-color: #0f1726;
+                border: 1px solid #26364e;
+                border-top: 4px solid {cor};
+            }}
+            QMessageBox QLabel {{
+                color: #e5e7eb;
+                background-color: transparent;
+                font-family: 'Segoe UI';
+                font-size: 13px;
+                min-width: 430px;
+                padding: 6px;
+            }}
+            QMessageBox QPushButton {{
+                background-color: #1f2937;
+                color: #ffffff;
+                border: 1px solid #475569;
+                border-radius: 8px;
+                min-height: 38px;
+                min-width: 105px;
+                padding: 0 14px;
+                font-family: 'Segoe UI';
+                font-weight: 700;
+            }}
+            QMessageBox QPushButton:hover {{
+                background-color: #334155;
+                border-color: {cor};
+            }}
+        """)
+
+    def mostrar_aviso(self, titulo, texto):
+        caixa = QMessageBox(self)
+        caixa.setWindowTitle(titulo)
+        caixa.setIcon(QMessageBox.Warning)
+        caixa.setText(texto)
+        caixa.addButton("Entendi", QMessageBox.AcceptRole)
+        self.estilizar_confirmacao(caixa, "#f59e0b")
+        caixa.exec()
 
     def aplicar_estilo_local(self):
         self.setStyleSheet("""
@@ -429,6 +527,16 @@ class TelaContasFixas(QWidget):
 
         detalhes.addWidget(info, 1)
         detalhes.addWidget(status_label)
+        ultimo_pagamento = buscar_ultimo_pagamento_da_despesa(id_despesa)
+        if ultimo_pagamento and status != "paga":
+            btn_desfazer = QPushButton("↩  Último")
+            btn_desfazer.setObjectName("btnPagarContaFixaLista")
+            btn_desfazer.setToolTip("Desfazer último pagamento\n\nEstorna o pagamento mais recente e retorna ao vencimento anterior.")
+            btn_desfazer.setFixedSize(82, 24)
+            btn_desfazer.clicked.connect(
+                lambda _, id_pagamento=ultimo_pagamento[0]: self.desfazer_ultimo(id_pagamento)
+            )
+            detalhes.addWidget(btn_desfazer)
         detalhes.addWidget(btn_pago)
         detalhes.addWidget(btn_editar)
         detalhes.addWidget(btn_excluir)
@@ -484,6 +592,15 @@ class TelaContasFixas(QWidget):
         resumo.setObjectName("cardInfo")
         painel_layout.addWidget(resumo)
 
+        total_mensal = sum(float(self.separar_despesa(c)[2] or 0) for c in contas)
+        total_pago = sum(float(p[3] or 0) for p in listar_pagamentos() if p[6] == "Conta fixa")
+        totais = QLabel(
+            f"Total mensal: {self.formatar_moeda(total_mensal)}  •  "
+            f"Total pago no histórico: {self.formatar_moeda(total_pago)}"
+        )
+        totais.setObjectName("cardInfo")
+        painel_layout.addWidget(totais)
+
         area = QScrollArea()
         area.setObjectName("areaContasFixas")
         area.setWidgetResizable(True)
@@ -521,13 +638,36 @@ class TelaContasFixas(QWidget):
                 self.ao_alterar()
 
     def marcar_paga(self, id_despesa):
-        pagar_despesa(id_despesa)
+        if abrir_pagamento(id_despesa, self):
+            self.montar_tela()
+            if self.ao_alterar:
+                self.ao_alterar()
+
+    def reabrir(self, id_despesa):
+        reabrir_despesa(id_despesa)
         self.montar_tela()
         if self.ao_alterar:
             self.ao_alterar()
 
-    def reabrir(self, id_despesa):
-        reabrir_despesa(id_despesa)
+    def desfazer_ultimo(self, id_pagamento):
+        janela = ConfirmacaoAcaoContaFixa(
+            "Desfazer pagamento",
+            "Deseja estornar o último pagamento desta conta fixa?",
+            "O vencimento anterior será restaurado e o valor sairá do total pago.",
+            [
+                ("desfazer", "Desfazer pagamento", "acaoPrincipal"),
+                ("cancelar", "Cancelar", "acaoNeutra"),
+            ],
+            cor="#3b82f6",
+            largura=540,
+        )
+        janela.exec()
+        if janela.escolha != "desfazer":
+            return
+        sucesso, mensagem = desfazer_pagamento(id_pagamento)
+        if not sucesso:
+            self.mostrar_aviso("Pagamento não alterado", mensagem)
+            return
         self.montar_tela()
         if self.ao_alterar:
             self.ao_alterar()
@@ -541,6 +681,36 @@ class TelaContasFixas(QWidget):
                 self.ao_alterar()
 
     def excluir(self, id_despesa, descricao="esta conta fixa"):
+        ultimo_pagamento = buscar_ultimo_pagamento_da_despesa(id_despesa)
+        if ultimo_pagamento:
+            janela = ConfirmacaoAcaoContaFixa(
+                "Excluir conta fixa",
+                f"Excluir a conta fixa '{descricao}'?",
+                "Esta conta possui pagamentos no histórico. Escolha o que fazer com o pagamento mais recente.",
+                [
+                    ("manter", "Manter pagamento", "acaoPrincipal"),
+                    ("estornar", "Estornar e excluir", "acaoPerigo"),
+                    ("cancelar", "Cancelar", "acaoNeutra"),
+                ],
+                cor="#ef4444",
+                largura=650,
+            )
+            janela.exec()
+            if janela.escolha == "cancelar":
+                return
+            if janela.escolha == "estornar":
+                sucesso, mensagem = desfazer_pagamento(ultimo_pagamento[0])
+                if not sucesso:
+                    self.mostrar_aviso("Conta não excluída", mensagem)
+                    return
+            elif janela.escolha != "manter":
+                return
+            excluir_despesa(id_despesa)
+            self.montar_tela()
+            if self.ao_alterar:
+                self.ao_alterar()
+            return
+
         janela = ConfirmacaoExclusaoContaFixa(descricao)
 
         if janela.exec():

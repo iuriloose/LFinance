@@ -2,7 +2,8 @@ from datetime import date, datetime, timedelta
 
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QFrame,
-    QScrollArea, QGridLayout, QSizePolicy
+    QScrollArea, QGridLayout, QSizePolicy, QDialog, QTableWidget,
+    QTableWidgetItem, QHeaderView
 )
 from PySide6.QtCore import Qt
 
@@ -10,7 +11,7 @@ from banco.banco import (
     listar_despesas,
     listar_receitas,
     listar_gastos,
-    listar_pagamentos,
+    listar_pagamentos_detalhados,
 )
 
 
@@ -428,12 +429,13 @@ class TelaRelatorios(QWidget):
                 })
 
         pagamentos_mes = []
-        for pagamento in listar_pagamentos():
-            if len(pagamento) >= 10:
-                id_pagamento, id_despesa, descricao, valor, data_pagamento, categoria, tipo, parcela_atual, total_parcelas, forma_pagamento = pagamento
-            else:
-                id_pagamento, id_despesa, descricao, valor, data_pagamento, categoria, tipo, parcela_atual, total_parcelas = pagamento
-                forma_pagamento = "Não informado"
+        for pagamento in listar_pagamentos_detalhados():
+            (
+                id_pagamento, id_despesa, descricao, valor, data_pagamento,
+                categoria, tipo, parcela_atual, total_parcelas,
+                forma_pagamento, valor_original, acrescimo, desconto,
+                observacao,
+            ) = pagamento
             data = self.converter_data(data_pagamento)
             if data and inicio_mes <= data <= fim_mes:
                 pagamentos_mes.append({
@@ -448,11 +450,17 @@ class TelaRelatorios(QWidget):
                     "parcela_atual": parcela_atual,
                     "total_parcelas": total_parcelas,
                     "forma_pagamento": forma_pagamento,
+                    "valor_original": float(valor_original or valor or 0),
+                    "acrescimo": float(acrescimo or 0),
+                    "desconto": float(desconto or 0),
+                    "observacao": observacao,
                 })
 
         total_receitas = sum(item["valor"] for item in receitas_mes)
         total_gastos = sum(item["valor"] for item in gastos_mes)
         total_pagamentos = sum(item["valor"] for item in pagamentos_mes)
+        total_acrescimos = sum(item["acrescimo"] for item in pagamentos_mes)
+        total_descontos = sum(item["desconto"] for item in pagamentos_mes)
         total_pago = total_gastos + total_pagamentos
         total_pendente = sum(item["valor"] for item in pendentes_mes)
         total_atrasado = sum(item["valor"] for item in atrasadas)
@@ -471,6 +479,8 @@ class TelaRelatorios(QWidget):
             "total_receitas": total_receitas,
             "total_gastos": total_gastos,
             "total_pagamentos": total_pagamentos,
+            "total_acrescimos": total_acrescimos,
+            "total_descontos": total_descontos,
             "total_pago": total_pago,
             "total_pendente": total_pendente,
             "total_atrasado": total_atrasado,
@@ -541,6 +551,70 @@ class TelaRelatorios(QWidget):
         layout.addWidget(lbl_valor)
 
         return linha
+
+    def mostrar_detalhes_ajustes(self, itens, titulo, campo, rotulo_campo):
+        janela = QDialog(self)
+        janela.setWindowTitle(titulo)
+        janela.resize(900, 470)
+        janela.setModal(True)
+        janela.setStyleSheet("""
+            QDialog { background-color: #0f1726; }
+            QLabel { color: #ffffff; font-family: 'Segoe UI'; }
+            QLabel#tituloDetalhes { font-size: 22px; font-weight: 800; }
+            QLabel#resumoDetalhes { color: #a8b3c7; font-size: 13px; }
+            QTableWidget { background-color: #111c2e; color: #ffffff; border: 1px solid #26364e; gridline-color: #26364e; font-size: 12px; }
+            QHeaderView::section { background-color: #1e293b; color: #ffffff; border: 0; border-right: 1px solid #334155; padding: 8px; font-weight: 700; }
+            QPushButton { background-color: #1f2937; color: #ffffff; border: 1px solid #475569; border-radius: 8px; min-height: 38px; padding: 0 22px; font-weight: 700; }
+            QPushButton:hover { background-color: #334155; }
+        """)
+
+        layout = QVBoxLayout(janela)
+        layout.setContentsMargins(22, 20, 22, 20)
+        layout.setSpacing(12)
+
+        lbl_titulo = QLabel(titulo)
+        lbl_titulo.setObjectName("tituloDetalhes")
+        total = sum(float(item.get(campo, 0) or 0) for item in itens)
+        lbl_resumo = QLabel(
+            f"{len(itens)} pagamento(s)  •  Total: {self.formatar_moeda(total)}"
+        )
+        lbl_resumo.setObjectName("resumoDetalhes")
+        layout.addWidget(lbl_titulo)
+        layout.addWidget(lbl_resumo)
+
+        tabela = QTableWidget(len(itens), 6)
+        tabela.setHorizontalHeaderLabels([
+            "Data", "Conta", "Valor original", "Total pago",
+            rotulo_campo, "Observação"
+        ])
+        tabela.verticalHeader().setVisible(False)
+        tabela.setEditTriggers(QTableWidget.NoEditTriggers)
+        tabela.setSelectionBehavior(QTableWidget.SelectRows)
+        tabela.setAlternatingRowColors(True)
+        tabela.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeToContents)
+        tabela.horizontalHeader().setSectionResizeMode(1, QHeaderView.Stretch)
+        tabela.horizontalHeader().setSectionResizeMode(5, QHeaderView.Stretch)
+
+        for linha, item in enumerate(sorted(itens, key=lambda i: i["data"], reverse=True)):
+            valores = [
+                item.get("data_texto", ""),
+                item.get("descricao", ""),
+                self.formatar_moeda(item.get("valor_original", 0)),
+                self.formatar_moeda(item.get("valor", 0)),
+                self.formatar_moeda(item.get(campo, 0)),
+                item.get("observacao", "") or "—",
+            ]
+            for coluna, valor in enumerate(valores):
+                tabela.setItem(linha, coluna, QTableWidgetItem(str(valor)))
+
+        layout.addWidget(tabela, 1)
+        botoes = QHBoxLayout()
+        botoes.addStretch()
+        fechar = QPushButton("Fechar")
+        fechar.clicked.connect(janela.accept)
+        botoes.addWidget(fechar)
+        layout.addLayout(botoes)
+        janela.exec()
 
     def criar_item_lista(self, item, cor_valor="itemValor"):
         card = QFrame()
@@ -739,6 +813,32 @@ class TelaRelatorios(QWidget):
             "Receitas - valores já pagos"
         ), 0, 3)
 
+        pagamentos_com_acrescimo = [p for p in dados["pagamentos"] if p["acrescimo"] > 0]
+        card_acrescimos = self.criar_card_resumo(
+            "cardPendenteRelatorio", "⚠", "Juros e multas",
+            self.formatar_moeda(dados["total_acrescimos"]),
+            f"{len(pagamentos_com_acrescimo)} pagamento(s) com acréscimo"
+        )
+        card_acrescimos.setCursor(Qt.PointingHandCursor)
+        card_acrescimos.setToolTip("Clique para ver quais contas tiveram juros ou multa")
+        card_acrescimos.mousePressEvent = lambda evento, itens=pagamentos_com_acrescimo: self.mostrar_detalhes_ajustes(
+            itens, "Juros e multas pagos", "acrescimo", "Juros/multa"
+        )
+        cards.addWidget(card_acrescimos, 1, 0, 1, 2)
+
+        pagamentos_com_desconto = [p for p in dados["pagamentos"] if p["desconto"] > 0]
+        card_descontos = self.criar_card_resumo(
+            "cardReceitaRelatorio", "↓", "Descontos obtidos",
+            self.formatar_moeda(dados["total_descontos"]),
+            "Diferença economizada nos pagamentos"
+        )
+        card_descontos.setCursor(Qt.PointingHandCursor)
+        card_descontos.setToolTip("Clique para ver quais contas tiveram desconto")
+        card_descontos.mousePressEvent = lambda evento, itens=pagamentos_com_desconto: self.mostrar_detalhes_ajustes(
+            itens, "Descontos obtidos", "desconto", "Desconto"
+        )
+        cards.addWidget(card_descontos, 1, 2, 1, 2)
+
         layout.addLayout(cards)
 
         painel = QFrame()
@@ -762,6 +862,10 @@ class TelaRelatorios(QWidget):
         painel_layout.addWidget(self.criar_linha_resumo(
             "Ainda falta pagar", self.formatar_moeda(dados["total_pendente"]),
             "Contas em aberto com vencimento neste mês", "valorVermelho"
+        ))
+        painel_layout.addWidget(self.criar_linha_resumo(
+            "Juros e multas pagos", self.formatar_moeda(dados["total_acrescimos"]),
+            "Acréscimos registrados nos pagamentos do mês", "valorLaranja"
         ))
 
         total_compromisso = dados["total_pago"] + dados["total_pendente"]
@@ -811,6 +915,16 @@ class TelaRelatorios(QWidget):
         listas.addWidget(self.criar_secao_lista(
             "Parcelamentos em aberto", dados["parcelamentos"], "valorAzul", 4
         ), 2, 1)
+
+        itens_acrescimos = []
+        for item in pagamentos_com_acrescimo:
+            detalhe = dict(item)
+            detalhe["valor"] = item["acrescimo"]
+            detalhe["descricao"] = f"{item['descricao']} — acréscimo"
+            itens_acrescimos.append(detalhe)
+        listas.addWidget(self.criar_secao_lista(
+            "Juros e multas pagos", itens_acrescimos, "valorLaranja", 6
+        ), 3, 0, 1, 2)
 
         layout.addLayout(listas)
 
