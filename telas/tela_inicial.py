@@ -5,7 +5,7 @@ from PySide6.QtWidgets import (
     QDialog, QTableWidget, QTableWidgetItem, QHeaderView, QScrollArea,
     QGridLayout, QSizePolicy, QLineEdit, QMessageBox, QComboBox
 )
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QItemSelectionModel
 from PySide6.QtGui import QColor
 
 from componentes.tabela import TabelaFinanceira
@@ -874,16 +874,33 @@ class TelaInicial(QWidget):
 
     def mostrar_proximos_vencimentos(self):
         self.limpar_painel_home()
+        cabecalho_lista = QHBoxLayout()
+        cabecalho_lista.setContentsMargins(0, 0, 0, 0)
+        cabecalho_lista.setSpacing(6)
         titulo_lista = QLabel("📅 Próximos vencimentos")
         titulo_lista.setToolTip("Próximos vencimentos\n\nLista de contas, despesas e parcelas em aberto, ordenadas pela data de vencimento.")
-        titulo_lista.setStyleSheet("font-size: 16px; font-weight: bold; color: #ffffff;")
-        self.painel_home_layout.addWidget(titulo_lista)
+        titulo_lista.setStyleSheet("font-size: 15px; font-weight: bold; color: #ffffff;")
+        btn_proximo_mes = QPushButton("Selecionar próximo mês")
+        btn_proximo_mes.setFixedHeight(27)
+        btn_proximo_mes.setCursor(Qt.PointingHandCursor)
+        btn_proximo_mes.setToolTip("Seleciona automaticamente as contas com vencimento no próximo mês.")
+        btn_proximo_mes.setStyleSheet("""
+            QPushButton { background-color: #1f2937; color: #ffffff; border: 1px solid #3b82f6; border-radius: 7px; padding: 0 14px; font-size: 11px; font-weight: bold; }
+            QPushButton:hover { background-color: #2563eb; }
+        """)
+        cabecalho_lista.addWidget(titulo_lista)
+        cabecalho_lista.addStretch()
+        cabecalho_lista.addWidget(btn_proximo_mes)
+        self.painel_home_layout.addLayout(cabecalho_lista)
 
         tabela = TabelaFinanceira(["Data", "Descrição", "Valor", "Situação", "Parcela"])
+        tabela.setSelectionMode(QTableWidget.ExtendedSelection)
+        tabela.horizontalHeader().setFixedHeight(29)
         self.ajustar_tabela(tabela)
         tabela.cellDoubleClicked.connect(lambda l, c, t=tabela: self.editar_despesa_tabela(t, l))
 
         proximas = sorted(self.despesas, key=lambda d: d["data"])
+        despesas_por_id = {despesa["id"]: despesa for despesa in proximas}
         for despesa in proximas:
             parcela = "-"
             if despesa["tipo"] == "Parcelamento" and despesa["parcela_atual"] and despesa["total_parcelas"]:
@@ -898,8 +915,67 @@ class TelaInicial(QWidget):
                 self.status_vencimento(despesa["data"]),
                 parcela
             ], despesa["id"])
+            tabela.setRowHeight(tabela.rowCount() - 1, 28)
             self.aplicar_destaque_data_mes_atual(tabela, tabela.rowCount() - 1, despesa["data"])
         self.painel_home_layout.addWidget(tabela, 1)
+
+        rodape_selecao = QFrame()
+        rodape_selecao.setFixedHeight(48)
+        rodape_selecao.setStyleSheet("QFrame { background-color: #111c2e; border: 1px solid #26364e; border-radius: 9px; }")
+        layout_rodape = QHBoxLayout(rodape_selecao)
+        layout_rodape.setContentsMargins(12, 5, 10, 5)
+        layout_rodape.setSpacing(10)
+
+        dica = QLabel("Selecione as contas para calcular o total")
+        dica.setStyleSheet("color: #9aa2b8; font-size: 11px; border: 0;")
+        resumo_selecao = QLabel("0 contas selecionadas  •  Total: R$ 0,00")
+        resumo_selecao.setStyleSheet("color: #ffffff; font-size: 12px; font-weight: bold; border: 0;")
+        btn_limpar = QPushButton("Limpar seleção")
+        btn_limpar.setFixedHeight(25)
+        btn_limpar.setCursor(Qt.PointingHandCursor)
+        btn_limpar.setStyleSheet("""
+            QPushButton { background-color: #1f2937; color: #dbeafe; border: 1px solid #475569; border-radius: 6px; padding: 0 11px; font-size: 10px; font-weight: bold; }
+            QPushButton:hover { background-color: #334155; }
+        """)
+
+        layout_rodape.addWidget(dica)
+        layout_rodape.addStretch()
+        layout_rodape.addWidget(resumo_selecao)
+        layout_rodape.addWidget(btn_limpar)
+        self.painel_home_layout.addWidget(rodape_selecao)
+
+        def atualizar_total_selecionado():
+            ids = []
+            for indice in tabela.selectionModel().selectedRows(0):
+                item = tabela.item(indice.row(), 0)
+                if item is not None:
+                    ids.append(item.data(Qt.UserRole))
+            selecionadas = [despesas_por_id[id_] for id_ in ids if id_ in despesas_por_id]
+            total = sum(float(item.get("valor", 0) or 0) for item in selecionadas)
+            quantidade = len(selecionadas)
+            palavra = "conta selecionada" if quantidade == 1 else "contas selecionadas"
+            resumo_selecao.setText(
+                f"{quantidade} {palavra}  •  Total: {self.formatar_moeda(total)}"
+            )
+
+        def selecionar_proximo_mes():
+            hoje = date.today()
+            if hoje.month == 12:
+                ano, mes = hoje.year + 1, 1
+            else:
+                ano, mes = hoje.year, hoje.month + 1
+            tabela.clearSelection()
+            selecao = tabela.selectionModel()
+            for linha, despesa in enumerate(proximas):
+                data_vencimento = despesa.get("data")
+                if data_vencimento and data_vencimento.year == ano and data_vencimento.month == mes:
+                    indice = tabela.model().index(linha, 0)
+                    selecao.select(indice, QItemSelectionModel.Select | QItemSelectionModel.Rows)
+            atualizar_total_selecionado()
+
+        tabela.itemSelectionChanged.connect(atualizar_total_selecionado)
+        btn_limpar.clicked.connect(tabela.clearSelection)
+        btn_proximo_mes.clicked.connect(selecionar_proximo_mes)
 
     def buscar_rapido(self, texto):
         termo = texto.strip().lower()

@@ -1,4 +1,12 @@
-# LFinance 1.0.3
+# LFinance 1.0.4
+
+## 1.0.4
+
+- Adicionada soma dinâmica das contas selecionadas em Próximos vencimentos.
+- Adicionada seleção múltipla com Ctrl, Shift ou arraste.
+- Adicionado botão para selecionar automaticamente as contas do próximo mês.
+- Adicionado botão para limpar a seleção e zerar o total.
+- Compactada a lista inicial para exibir mais contas sem reduzir a legibilidade.
 
 ## 1.0.3
 
