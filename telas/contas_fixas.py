@@ -13,6 +13,7 @@ from banco.banco import (
     buscar_ultimo_pagamento_da_despesa,
     desfazer_pagamento,
 )
+from componentes.tabela_registros import TabelaRegistros, cor_status, criar_botao_acao
 from telas.pagamento import abrir_pagamento
 from telas.nova_despesa import NovaDespesa
 
@@ -601,31 +602,91 @@ class TelaContasFixas(QWidget):
         totais.setObjectName("cardInfo")
         painel_layout.addWidget(totais)
 
-        area = QScrollArea()
-        area.setObjectName("areaContasFixas")
-        area.setWidgetResizable(True)
-
-        conteudo = QWidget()
-        conteudo.setAttribute(Qt.WA_StyledBackground, True)
-        conteudo.setStyleSheet("background-color: transparent;")
-
-        lista_layout = QVBoxLayout(conteudo)
-        lista_layout.setContentsMargins(0, 0, 8, 0)
-        lista_layout.setSpacing(12)
-
+        tabela = TabelaRegistros(
+            ["Vencimento", "Descrição", "Categoria", "Recorrência", "Situação", "Valor mensal", "Ação"],
+            larguras={0: 105, 2: 125, 3: 105, 4: 95, 5: 120, 6: 215},
+            coluna_flexivel=1,
+        )
         if not contas:
-            vazio = QLabel("Nenhuma conta fixa cadastrada. Cadastre uma despesa com o tipo Conta fixa para ela aparecer aqui.")
-            vazio.setObjectName("cardInfo")
-            vazio.setWordWrap(True)
-            lista_layout.addWidget(vazio)
+            tabela.mostrar_vazio(
+                "Nenhuma conta fixa cadastrada. Adicione uma conta recorrente para ela aparecer aqui."
+            )
         else:
             for conta in contas:
-                lista_layout.addWidget(self.criar_card_conta(conta))
+                (
+                    id_despesa,
+                    descricao,
+                    valor,
+                    vencimento,
+                    categoria,
+                    _tipo,
+                    _parcela_atual,
+                    _total_parcelas,
+                    _valor_total,
+                    status,
+                ) = self.separar_despesa(conta)
+                status_texto, _ = self.texto_status(vencimento, status)
+                linha = tabela.adicionar_linha(
+                    [
+                        self.formatar_data(vencimento),
+                        descricao,
+                        categoria or "—",
+                        "Mensal",
+                        status_texto,
+                        self.formatar_moeda(valor),
+                        "",
+                    ],
+                    dados=conta,
+                    colunas_esquerda=(1,),
+                    cores={4: cor_status(status_texto)},
+                )
 
-        lista_layout.addStretch()
-        area.setWidget(conteudo)
+                botoes = []
+                ultimo_pagamento = buscar_ultimo_pagamento_da_despesa(id_despesa)
+                if ultimo_pagamento and status != "paga":
+                    botoes.append(criar_botao_acao(
+                        "Último",
+                        lambda _, id_pagamento=ultimo_pagamento[0]: self.desfazer_ultimo(id_pagamento),
+                        "#3b82f6",
+                        60,
+                        "Desfazer o pagamento mais recente",
+                    ))
+                if status == "paga":
+                    botoes.append(criar_botao_acao(
+                        "Reabrir",
+                        lambda _, id=id_despesa: self.reabrir(id),
+                        "#3b82f6",
+                        68,
+                        "Reabrir esta conta fixa",
+                    ))
+                else:
+                    botoes.append(criar_botao_acao(
+                        "Pagar",
+                        lambda _, id=id_despesa: self.marcar_paga(id),
+                        "#22c55e",
+                        62,
+                        "Registrar o pagamento desta conta fixa",
+                    ))
+                botoes.append(criar_botao_acao(
+                    "Editar",
+                    lambda _, d=conta: self.editar(d),
+                    "#3b82f6",
+                    62,
+                    "Editar esta conta fixa",
+                ))
+                botoes.append(criar_botao_acao(
+                    "🗑",
+                    lambda _, id=id_despesa, d=descricao: self.excluir(id, d),
+                    "#ef4444",
+                    34,
+                    "Excluir esta conta fixa",
+                ))
+                tabela.definir_acoes(linha, botoes)
+            tabela.cellDoubleClicked.connect(
+                lambda linha, _coluna: self.editar(tabela.item(linha, 0).data(Qt.UserRole))
+            )
 
-        painel_layout.addWidget(area, 1)
+        painel_layout.addWidget(tabela, 1)
         self.layout_principal.addWidget(painel, 1)
 
     def nova_conta_fixa(self):

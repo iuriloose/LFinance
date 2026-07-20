@@ -15,7 +15,7 @@ class NovoGasto(QDialog):
         self.gasto = gasto
         self.modo_edicao = gasto is not None
 
-        self.setWindowTitle("Editar gasto" if self.modo_edicao else "Novo gasto")
+        self.setWindowTitle("Editar gasto do dia" if self.modo_edicao else "Registrar gasto do dia")
         self.setFixedSize(520, 460)
 
         self.aplicar_estilo()
@@ -100,11 +100,11 @@ class NovoGasto(QDialog):
         layout.setContentsMargins(24, 22, 24, 20)
         layout.setSpacing(10)
 
-        titulo = QLabel("Editar gasto" if self.modo_edicao else "Novo gasto")
+        titulo = QLabel("Editar gasto do dia" if self.modo_edicao else "Registrar gasto do dia")
         titulo.setObjectName("titulo")
 
         subtitulo = QLabel(
-            "Altere os dados do gasto" if self.modo_edicao else "Cadastre um gasto já realizado, sem virar conta ativa"
+            "Altere os dados do gasto que já foi pago" if self.modo_edicao else "Para compras já pagas, como mercado, combustível ou farmácia"
         )
         subtitulo.setObjectName("subtitulo")
 

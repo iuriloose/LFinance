@@ -5,6 +5,7 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import Qt
 
 from banco.banco import listar_receitas, excluir_receita
+from componentes.tabela_registros import TabelaRegistros, criar_botao_acao
 from telas.nova_receita import NovaReceita
 
 
@@ -346,34 +347,56 @@ class TelaReceitas(QWidget):
         painel_layout.setContentsMargins(18, 16, 18, 16)
         painel_layout.setSpacing(12)
 
-        resumo = QLabel(f"{len(receitas)} receita(s) cadastrada(s)")
+        total_receitas = sum(float(receita[2] or 0) for receita in receitas)
+        resumo = QLabel(
+            f"{len(receitas)} receita(s) cadastrada(s)  •  "
+            f"Total recebido: {self.formatar_moeda(total_receitas)}"
+        )
         resumo.setObjectName("cardInfo")
         painel_layout.addWidget(resumo)
 
-        area = QScrollArea()
-        area.setObjectName("areaReceitas")
-        area.setWidgetResizable(True)
-
-        conteudo = QWidget()
-        conteudo.setAttribute(Qt.WA_StyledBackground, True)
-        conteudo.setStyleSheet("background-color: transparent;")
-
-        lista_layout = QVBoxLayout(conteudo)
-        lista_layout.setContentsMargins(0, 0, 8, 0)
-        lista_layout.setSpacing(12)
-
+        tabela = TabelaRegistros(
+            ["Data", "Descrição", "Categoria", "Observação", "Valor", "Ação"],
+            larguras={0: 105, 2: 150, 3: 220, 4: 135, 5: 165},
+            coluna_flexivel=1,
+        )
         if not receitas:
-            vazio = QLabel("Nenhuma receita cadastrada.")
-            vazio.setObjectName("cardInfo")
-            lista_layout.addWidget(vazio)
+            tabela.mostrar_vazio("Nenhuma receita cadastrada.")
         else:
             for receita in receitas:
-                lista_layout.addWidget(self.criar_card_receita(receita))
+                id_receita, descricao, valor, data_recebimento, categoria, observacao = receita
+                linha = tabela.adicionar_linha(
+                    [
+                        self.formatar_data(data_recebimento),
+                        descricao,
+                        categoria or "—",
+                        observacao or "—",
+                        self.formatar_moeda(valor),
+                        "",
+                    ],
+                    dados=receita,
+                    colunas_esquerda=(1, 3),
+                )
+                btn_editar = criar_botao_acao(
+                    "Editar",
+                    lambda _, r=receita: self.editar(r),
+                    "#3b82f6",
+                    72,
+                    "Editar esta receita",
+                )
+                btn_excluir = criar_botao_acao(
+                    "🗑",
+                    lambda _, id=id_receita, d=descricao: self.excluir(id, d),
+                    "#ef4444",
+                    36,
+                    "Excluir esta receita",
+                )
+                tabela.definir_acoes(linha, [btn_editar, btn_excluir])
+            tabela.cellDoubleClicked.connect(
+                lambda linha, _coluna: self.editar(tabela.item(linha, 0).data(Qt.UserRole))
+            )
 
-        lista_layout.addStretch()
-        area.setWidget(conteudo)
-
-        painel_layout.addWidget(area, 1)
+        painel_layout.addWidget(tabela, 1)
         self.layout_principal.addWidget(painel, 1)
 
     def nova_receita(self):

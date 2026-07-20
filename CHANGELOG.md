@@ -1,4 +1,16 @@
-# LFinance 1.0.4
+# LFinance 1.0.5
+
+## 1.0.5
+
+- Padronizadas as telas A pagar, Receitas, Gastos do dia, Contas a pagar, Contas fixas e Parcelamentos.
+- Substituídos os cartões grandes por tabelas compactas e consistentes.
+- Criada uma tela exclusiva de pesquisa para contas, gastos do dia e receitas.
+- Reorganizada a tela Pago no mês em uma lista única, compacta e mais legível.
+- Adicionadas a coluna Categoria e a seleção múltipla com somador dinâmico em Pago no mês.
+- Ajustado o aproveitamento de espaço nas telas Contas a pagar e Contas fixas.
+- Ajustadas as cores laterais dos cartões de saídas para vermelho.
+- Corrigido o tamanho da seta do filtro na tela Pesquisar.
+- Preservadas as ações de pagar, reabrir, desfazer, editar e excluir.
 
 ## 1.0.4
 

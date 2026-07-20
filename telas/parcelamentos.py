@@ -11,6 +11,7 @@ from banco.banco import (
     reabrir_despesa,
     listar_pagamentos,
 )
+from componentes.tabela_registros import TabelaRegistros, cor_status, criar_botao_acao
 from telas.pagamento import abrir_pagamento
 from telas.nova_despesa import NovaDespesa
 
@@ -508,31 +509,90 @@ class TelaParcelamentos(QWidget):
         totais.setObjectName("cardInfo")
         painel_layout.addWidget(totais)
 
-        area = QScrollArea()
-        area.setObjectName("areaParcelamentos")
-        area.setWidgetResizable(True)
-
-        conteudo = QWidget()
-        conteudo.setAttribute(Qt.WA_StyledBackground, True)
-        conteudo.setStyleSheet("background-color: transparent;")
-
-        lista_layout = QVBoxLayout(conteudo)
-        lista_layout.setContentsMargins(0, 0, 8, 0)
-        lista_layout.setSpacing(12)
-
+        tabela = TabelaRegistros(
+            ["Vencimento", "Descrição", "Categoria", "Parcela", "Situação", "Valor da parcela", "Ação"],
+            larguras={0: 110, 2: 140, 3: 105, 4: 105, 5: 145, 6: 250},
+            coluna_flexivel=1,
+        )
         if not parcelamentos:
-            vazio = QLabel("Nenhum parcelamento cadastrado. Cadastre uma despesa com o tipo Parcelamento para ela aparecer aqui.")
-            vazio.setObjectName("cardInfo")
-            vazio.setWordWrap(True)
-            lista_layout.addWidget(vazio)
+            tabela.mostrar_vazio(
+                "Nenhum parcelamento cadastrado. Adicione uma compra parcelada para ela aparecer aqui."
+            )
         else:
             for parcelamento in parcelamentos:
-                lista_layout.addWidget(self.criar_card_parcelamento(parcelamento))
+                (
+                    id_despesa,
+                    descricao,
+                    valor,
+                    vencimento,
+                    categoria,
+                    _tipo,
+                    parcela_atual,
+                    total_parcelas,
+                    valor_total,
+                    status,
+                ) = self.separar_despesa(parcelamento)
+                status_texto, _ = self.texto_status(vencimento, status)
+                parcela_texto = (
+                    f"{parcela_atual}/{total_parcelas}"
+                    if parcela_atual and total_parcelas else "—"
+                )
+                linha = tabela.adicionar_linha(
+                    [
+                        self.formatar_data(vencimento),
+                        descricao,
+                        categoria or "—",
+                        parcela_texto,
+                        status_texto,
+                        self.formatar_moeda(valor),
+                        "",
+                    ],
+                    dados=parcelamento,
+                    colunas_esquerda=(1,),
+                    cores={4: cor_status(status_texto)},
+                    tooltips={
+                        3: (
+                            f"Valor total: {self.formatar_moeda(valor_total)}"
+                            if valor_total else ""
+                        )
+                    },
+                )
+                if status == "paga":
+                    btn_pago = criar_botao_acao(
+                        "Reabrir",
+                        lambda _, id=id_despesa: self.reabrir(id),
+                        "#3b82f6",
+                        70,
+                        "Reabrir esta parcela",
+                    )
+                else:
+                    btn_pago = criar_botao_acao(
+                        "Pagar",
+                        lambda _, id=id_despesa: self.marcar_paga(id),
+                        "#22c55e",
+                        66,
+                        "Registrar o pagamento desta parcela",
+                    )
+                btn_editar = criar_botao_acao(
+                    "Editar",
+                    lambda _, d=parcelamento: self.editar(d),
+                    "#3b82f6",
+                    64,
+                    "Editar este parcelamento",
+                )
+                btn_excluir = criar_botao_acao(
+                    "🗑",
+                    lambda _, id=id_despesa, d=descricao: self.excluir(id, d),
+                    "#ef4444",
+                    34,
+                    "Excluir este parcelamento",
+                )
+                tabela.definir_acoes(linha, [btn_pago, btn_editar, btn_excluir])
+            tabela.cellDoubleClicked.connect(
+                lambda linha, _coluna: self.editar(tabela.item(linha, 0).data(Qt.UserRole))
+            )
 
-        lista_layout.addStretch()
-        area.setWidget(conteudo)
-
-        painel_layout.addWidget(area, 1)
+        painel_layout.addWidget(tabela, 1)
         self.layout_principal.addWidget(painel, 1)
 
     def novo_parcelamento(self):

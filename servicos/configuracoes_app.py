@@ -5,7 +5,7 @@ import sys
 from pathlib import Path
 
 APP_NOME = "LFinance"
-APP_VERSAO = "1.0.4"
+APP_VERSAO = "1.0.5"
 USUARIO_PADRAO = "Usuário"
 
 

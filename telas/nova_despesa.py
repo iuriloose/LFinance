@@ -16,7 +16,7 @@ class NovaDespesa(QDialog):
         self.despesa = despesa
         self.modo_edicao = despesa is not None
 
-        self.setWindowTitle("Editar despesa" if self.modo_edicao else "Nova despesa")
+        self.setWindowTitle("Editar conta a pagar" if self.modo_edicao else "Adicionar conta a pagar")
         self.setFixedSize(520, 460)
 
         self.aplicar_estilo()
@@ -164,11 +164,11 @@ class NovaDespesa(QDialog):
         layout.setContentsMargins(24, 22, 24, 20)
         layout.setSpacing(10)
 
-        titulo = QLabel("Editar despesa" if self.modo_edicao else "Nova despesa")
+        titulo = QLabel("Editar conta a pagar" if self.modo_edicao else "Adicionar conta a pagar")
         titulo.setObjectName("titulo")
 
         subtitulo = QLabel(
-            "Altere os dados da despesa" if self.modo_edicao else "Cadastre uma saída de dinheiro"
+            "Altere o compromisso e seu vencimento" if self.modo_edicao else "Para boletos, mensalidades ou compromissos que serão pagos depois"
         )
         subtitulo.setObjectName("subtitulo")
 
@@ -355,7 +355,7 @@ class NovaDespesa(QDialog):
     def confirmar_pagamento(self):
         janela = QDialog(self)
         janela.setObjectName("confirmacaoPagamento")
-        janela.setWindowTitle("Pagar despesa")
+        janela.setWindowTitle("Pagar conta")
         janela.setFixedSize(420, 230)
         janela.setModal(True)
         janela.setStyleSheet(self.styleSheet())
@@ -376,7 +376,7 @@ class NovaDespesa(QDialog):
         titulo = QLabel("Confirmar pagamento?")
         titulo.setObjectName("confirmacaoTitulo")
 
-        texto = QLabel("Esta despesa será marcada como paga.")
+        texto = QLabel("Esta conta será marcada como paga.")
         texto.setObjectName("confirmacaoTexto")
         texto.setWordWrap(True)
 
@@ -412,8 +412,8 @@ class NovaDespesa(QDialog):
 
     def confirmar_exclusao(self):
         caixa = QMessageBox(self)
-        caixa.setWindowTitle("Excluir despesa")
-        caixa.setText("Tem certeza que deseja excluir esta despesa?")
+        caixa.setWindowTitle("Excluir conta")
+        caixa.setText("Tem certeza que deseja excluir esta conta?")
         caixa.setInformativeText("Esta ação não poderá ser desfeita.")
         caixa.setIcon(QMessageBox.Warning)
 
@@ -432,8 +432,8 @@ class NovaDespesa(QDialog):
 
     def confirmar_exclusao_paga(self):
         caixa = QMessageBox(self)
-        caixa.setWindowTitle("Excluir despesa paga")
-        caixa.setText("Esta despesa já foi paga.")
+        caixa.setWindowTitle("Excluir conta paga")
+        caixa.setText("Esta conta já foi paga.")
         caixa.setInformativeText(
             "Ela já foi considerada no saldo do sistema.\n\n"
             "Escolha se deseja manter o saldo atual ou estornar este pagamento."

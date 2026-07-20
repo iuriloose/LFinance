@@ -13,6 +13,7 @@ from banco.banco import (
     reabrir_despesa,
     listar_pagamentos,
 )
+from componentes.tabela_registros import TabelaRegistros, cor_status, criar_botao_acao
 from telas.pagamento import abrir_pagamento
 
 from telas.nova_despesa import NovaDespesa
@@ -22,7 +23,7 @@ class ConfirmacaoExclusaoDespesa(QDialog):
     def __init__(self, descricao):
         super().__init__()
 
-        self.setWindowTitle("Excluir despesa")
+        self.setWindowTitle("Excluir conta a pagar")
         self.setFixedSize(430, 230)
         self.setModal(True)
 
@@ -90,10 +91,10 @@ class ConfirmacaoExclusaoDespesa(QDialog):
         layout.setContentsMargins(28, 24, 28, 22)
         layout.setSpacing(14)
 
-        titulo = QLabel("Excluir despesa")
+        titulo = QLabel("Excluir conta a pagar")
         titulo.setObjectName("tituloConfirmacao")
 
-        texto = QLabel("Tem certeza que deseja excluir esta despesa?")
+        texto = QLabel("Tem certeza que deseja excluir esta conta?")
         texto.setObjectName("textoConfirmacao")
 
         item = QLabel(descricao)
@@ -405,18 +406,18 @@ class TelaDespesas(QWidget):
             btn_pago.clicked.connect(lambda _, id=id_despesa: self.marcar_paga(id))
 
         btn_pago.setObjectName("btnPagarDespesaLista")
-        btn_pago.setToolTip("Pagar ou reabrir\n\nMarca a despesa como paga ou desfaz o pagamento, voltando a conta para aberto.")
+        btn_pago.setToolTip("Pagar ou reabrir\n\nMarca a conta como paga ou desfaz o pagamento, voltando a conta para aberto.")
         btn_pago.setFixedSize(82, 24)
 
         btn_editar = QPushButton("✏  Editar")
         btn_editar.setObjectName("btnEditarDespesaLista")
-        btn_editar.setToolTip("Editar despesa\n\nAltera descrição, valor, vencimento ou outras informações desta despesa.")
+        btn_editar.setToolTip("Editar conta\n\nAltera descrição, valor, vencimento ou outras informações desta conta.")
         btn_editar.setFixedSize(82, 24)
         btn_editar.clicked.connect(lambda _, d=despesa: self.editar(d))
 
         btn_excluir = QPushButton("🗑")
         btn_excluir.setObjectName("btnExcluirDespesaLista")
-        btn_excluir.setToolTip("Excluir despesa\n\nRemove esta despesa do LFinance após confirmação.")
+        btn_excluir.setToolTip("Excluir conta\n\nRemove esta conta do LFinance após confirmação.")
         btn_excluir.setFixedSize(36, 24)
         btn_excluir.clicked.connect(lambda _, id=id_despesa, d=descricao: self.excluir(id, d))
 
@@ -430,7 +431,7 @@ class TelaDespesas(QWidget):
         card_layout.addLayout(detalhes)
 
         card.mouseDoubleClickEvent = lambda evento, d=despesa: self.editar(d)
-        card.setToolTip("Dê dois cliques para editar esta despesa")
+        card.setToolTip("Dê dois cliques para editar esta conta")
 
         return card
 
@@ -443,18 +444,18 @@ class TelaDespesas(QWidget):
         textos = QVBoxLayout()
         textos.setSpacing(4)
 
-        titulo = QLabel("Despesas")
+        titulo = QLabel("Contas a pagar")
         titulo.setObjectName("titulo")
 
-        subtitulo = QLabel("Veja, edite, pague ou exclua suas despesas")
+        subtitulo = QLabel("Boletos, mensalidades e outros compromissos com vencimento")
         subtitulo.setObjectName("subtitulo")
 
         textos.addWidget(titulo)
         textos.addWidget(subtitulo)
 
-        btn_nova = QPushButton("↓  Nova despesa")
+        btn_nova = QPushButton("↓  Adicionar conta a pagar")
         btn_nova.setObjectName("btnDespesa")
-        btn_nova.setToolTip("Nova despesa\\n\\nCadastre uma conta a pagar, boleto ou compromisso futuro. Ela ficará pendente até ser marcada como paga.")
+        btn_nova.setToolTip("Nova conta a pagar\\n\\nCadastre um boleto, mensalidade ou compromisso futuro. Ele ficará pendente até ser marcado como pago.")
         btn_nova.clicked.connect(self.nova_despesa)
 
         topo.addLayout(textos)
@@ -473,44 +474,100 @@ class TelaDespesas(QWidget):
 
         abertas = sum(1 for d in despesas if self.separar_despesa(d)[9] != "paga")
         pagas = sum(1 for d in despesas if self.separar_despesa(d)[9] == "paga")
-        resumo = QLabel(f"{len(despesas)} despesa(s) cadastrada(s)  •  {abertas} em aberto  •  {pagas} paga(s)")
-        resumo.setObjectName("cardInfo")
-        painel_layout.addWidget(resumo)
-
         total_aberto = sum(float(self.separar_despesa(d)[2] or 0) for d in despesas if self.separar_despesa(d)[9] != "paga")
         total_pago = sum(float(p[3] or 0) for p in listar_pagamentos())
-        totais = QLabel(
+
+        resumo = QLabel(
+            f"{len(despesas)} contas  •  {abertas} em aberto  •  {pagas} pagas  •  "
             f"Em aberto: {self.formatar_moeda(total_aberto)}  •  "
-            f"Pago no histórico: {self.formatar_moeda(total_pago)}  •  "
+            f"Pago: {self.formatar_moeda(total_pago)}  •  "
             f"Total: {self.formatar_moeda(total_aberto + total_pago)}"
         )
-        totais.setObjectName("cardInfo")
-        painel_layout.addWidget(totais)
+        resumo.setObjectName("cardInfo")
+        resumo.setWordWrap(False)
+        painel_layout.addWidget(resumo)
 
-        area = QScrollArea()
-        area.setObjectName("areaDespesas")
-        area.setWidgetResizable(True)
-
-        conteudo = QWidget()
-        conteudo.setAttribute(Qt.WA_StyledBackground, True)
-        conteudo.setStyleSheet("background-color: transparent;")
-
-        lista_layout = QVBoxLayout(conteudo)
-        lista_layout.setContentsMargins(0, 0, 8, 0)
-        lista_layout.setSpacing(12)
-
+        tabela = TabelaRegistros(
+            ["Vencimento", "Descrição", "Categoria", "Tipo / parcela", "Situação", "Valor", "Ação"],
+            larguras={0: 100, 2: 100, 3: 135, 4: 90, 5: 105, 6: 205},
+            coluna_flexivel=1,
+        )
         if not despesas:
-            vazio = QLabel("Nenhuma despesa cadastrada.")
-            vazio.setObjectName("cardInfo")
-            lista_layout.addWidget(vazio)
+            tabela.mostrar_vazio("Nenhuma conta a pagar cadastrada.")
         else:
             for despesa in despesas:
-                lista_layout.addWidget(self.criar_card_despesa(despesa))
+                (
+                    id_despesa,
+                    descricao,
+                    valor,
+                    vencimento,
+                    categoria,
+                    tipo,
+                    parcela_atual,
+                    total_parcelas,
+                    valor_total,
+                    status,
+                ) = self.separar_despesa(despesa)
+                status_texto, _ = self.texto_status(vencimento, status)
+                detalhe_tipo = tipo
+                if tipo == "Parcelamento" and parcela_atual and total_parcelas:
+                    detalhe_tipo = f"Parcela {parcela_atual}/{total_parcelas}"
+                linha = tabela.adicionar_linha(
+                    [
+                        self.formatar_data(vencimento),
+                        descricao,
+                        categoria or "—",
+                        detalhe_tipo or "—",
+                        status_texto,
+                        self.formatar_moeda(valor),
+                        "",
+                    ],
+                    dados=despesa,
+                    colunas_esquerda=(1,),
+                    cores={4: cor_status(status_texto)},
+                    tooltips={
+                        3: (
+                            f"Valor total: {self.formatar_moeda(valor_total)}"
+                            if valor_total else ""
+                        )
+                    },
+                )
+                if status == "paga":
+                    btn_pago = criar_botao_acao(
+                        "Reabrir",
+                        lambda _, id=id_despesa: self.reabrir(id),
+                        "#3b82f6",
+                        62,
+                        "Desfazer o pagamento desta conta",
+                    )
+                else:
+                    btn_pago = criar_botao_acao(
+                        "Pagar",
+                        lambda _, id=id_despesa: self.marcar_paga(id),
+                        "#22c55e",
+                        60,
+                        "Registrar o pagamento desta conta",
+                    )
+                btn_editar = criar_botao_acao(
+                    "Editar",
+                    lambda _, d=despesa: self.editar(d),
+                    "#3b82f6",
+                    58,
+                    "Editar esta conta",
+                )
+                btn_excluir = criar_botao_acao(
+                    "🗑",
+                    lambda _, id=id_despesa, d=descricao: self.excluir(id, d),
+                    "#ef4444",
+                    32,
+                    "Excluir esta conta",
+                )
+                tabela.definir_acoes(linha, [btn_pago, btn_editar, btn_excluir])
+            tabela.cellDoubleClicked.connect(
+                lambda linha, _coluna: self.editar(tabela.item(linha, 0).data(Qt.UserRole))
+            )
 
-        lista_layout.addStretch()
-        area.setWidget(conteudo)
-
-        painel_layout.addWidget(area, 1)
+        painel_layout.addWidget(tabela, 1)
         self.layout_principal.addWidget(painel, 1)
 
     def nova_despesa(self):
@@ -544,8 +601,8 @@ class TelaDespesas(QWidget):
         from PySide6.QtWidgets import QMessageBox
 
         caixa = QMessageBox(self)
-        caixa.setWindowTitle("Excluir despesa paga")
-        caixa.setText("Esta despesa já foi paga.")
+        caixa.setWindowTitle("Excluir conta paga")
+        caixa.setText("Esta conta já foi paga.")
         caixa.setInformativeText(
             "Ela já foi considerada no saldo do sistema.\n\n"
             "Escolha se deseja manter o saldo atual ou estornar este pagamento."

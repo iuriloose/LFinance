@@ -11,6 +11,7 @@ from telas.configuracoes import TelaConfiguracoes
 from telas.contas_fixas import TelaContasFixas
 from telas.parcelamentos import TelaParcelamentos
 from telas.relatorios import TelaRelatorios
+from telas.pesquisa import TelaPesquisa
 from servicos.configuracoes_app import APP_VERSAO, caminho_recurso
 
 
@@ -351,6 +352,7 @@ class TelaPrincipal(QMainWindow):
         self.paginas = QStackedWidget()
 
         self.pagina_inicial = TelaInicial(self.recarregar_home)
+        self.pagina_pesquisa = TelaPesquisa(lambda: self.recarregar_home(preservar_pagina=True))
         self.pagina_receitas = TelaReceitas(self.recarregar_home)
         self.pagina_gastos = TelaGastos(self.recarregar_home)
         self.pagina_despesas = TelaDespesas()
@@ -360,6 +362,7 @@ class TelaPrincipal(QMainWindow):
         self.pagina_configuracoes = TelaConfiguracoes(lambda: self.recarregar_home(preservar_pagina=True))
 
         self.paginas.addWidget(self.pagina_inicial)
+        self.paginas.addWidget(self.pagina_pesquisa)
         self.paginas.addWidget(self.pagina_receitas)
         self.paginas.addWidget(self.pagina_gastos)
         self.paginas.addWidget(self.pagina_despesas)
@@ -378,6 +381,10 @@ class TelaPrincipal(QMainWindow):
     def menu_clicado(self, tela):
         if tela == "tela_inicial":
             self.recarregar_home()
+
+        elif tela == "pesquisar":
+            self.pagina_pesquisa.recarregar()
+            self.paginas.setCurrentWidget(self.pagina_pesquisa)
 
         elif tela == "receitas":
             self.pagina_receitas.recarregar()

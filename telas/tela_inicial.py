@@ -9,6 +9,7 @@ from PySide6.QtCore import Qt, QItemSelectionModel
 from PySide6.QtGui import QColor
 
 from componentes.tabela import TabelaFinanceira
+from componentes.tabela_registros import TabelaRegistros, cor_status, criar_botao_acao
 from telas.nova_despesa import NovaDespesa
 from telas.nova_receita import NovaReceita
 from telas.novo_gasto import NovoGasto
@@ -403,7 +404,20 @@ class TelaInicial(QWidget):
     def ajustar_tabela(self, tabela):
         tabela.horizontalHeader().setStretchLastSection(False)
 
-    def item_detalhe(self, data, descricao, valor, tipo, situacao, id_despesa=None, origem="", id_pagamento=None, id_gasto=None, forma_pagamento=None):
+    def item_detalhe(
+        self,
+        data,
+        descricao,
+        valor,
+        tipo,
+        situacao,
+        id_despesa=None,
+        origem="",
+        id_pagamento=None,
+        id_gasto=None,
+        forma_pagamento=None,
+        categoria=None,
+    ):
         return {
             "data": self.formatar_data(data),
             "descricao": descricao,
@@ -415,11 +429,18 @@ class TelaInicial(QWidget):
             "id_gasto": id_gasto,
             "origem": origem,
             "forma_pagamento": forma_pagamento,
+            "categoria": categoria or "Sem categoria",
         }
     def montar_tela(self):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(24, 14, 24, 10)
         layout.setSpacing(10)
+
+        self.bloco_home_superior = QWidget()
+        self.bloco_home_superior.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        self.bloco_home_layout = QVBoxLayout(self.bloco_home_superior)
+        self.bloco_home_layout.setContentsMargins(0, 0, 0, 0)
+        self.bloco_home_layout.setSpacing(10)
 
         hoje = date.today()
         inicio_mes = hoje.replace(day=1)
@@ -471,6 +492,7 @@ class TelaInicial(QWidget):
                 p.get("id"),
                 None,
                 p.get("forma_pagamento", "Não informado"),
+                p.get("categoria"),
             )
             for p in pagamentos_mes
         ]
@@ -484,6 +506,7 @@ class TelaInicial(QWidget):
                 "Paga",
                 d.get("id"),
                 "despesa_paga",  # Corrigido origem para identificar como paga
+                categoria=d.get("categoria"),
             )
             for d in despesas_pagas_mes_sem_historico
         ])
@@ -499,6 +522,7 @@ class TelaInicial(QWidget):
                 "gasto",
                 None,
                 g.get("id"),
+                categoria=g.get("categoria"),
             )
             for g in gastos_mes
         ]
@@ -512,6 +536,7 @@ class TelaInicial(QWidget):
                 self.status_vencimento(d["data"]),
                 d.get("id"),
                 "despesa_aberta",
+                categoria=d.get("categoria"),
             )
             for d in sorted(despesas_pendentes_mes, key=lambda item: item["data"])
         ]
@@ -538,14 +563,14 @@ class TelaInicial(QWidget):
         textos.addWidget(titulo)
         textos.addWidget(subtitulo)
 
-        btn_despesa = QPushButton("↓  Nova despesa")
+        btn_despesa = QPushButton("↓  Nova conta a pagar")
         btn_despesa.setObjectName("btnDespesa")
-        btn_despesa.setToolTip("Nova despesa\n\nUse para contas a pagar, boletos, mensalidades ou compromissos futuros.\nA despesa ficará pendente até ser marcada como paga.")
+        btn_despesa.setToolTip("Nova conta a pagar\n\nUse para boletos, mensalidades ou outros compromissos futuros.\nA conta ficará pendente até ser marcada como paga.")
         btn_despesa.clicked.connect(self.abrir_nova_despesa)
 
-        btn_gasto = QPushButton("🛒  Novo gasto")
+        btn_gasto = QPushButton("🛒  Registrar gasto do dia")
         btn_gasto.setObjectName("btnDespesa")
-        btn_gasto.setToolTip("Novo gasto\n\nUse para compras pagas na hora, como mercado, combustível, farmácia ou lazer.\nO valor entra como pago imediatamente no mês atual.")
+        btn_gasto.setToolTip("Gasto do dia\n\nUse para compras pagas na hora, como mercado, combustível, farmácia ou lazer.\nO valor entra como pago imediatamente no mês atual.")
         btn_gasto.clicked.connect(self.abrir_novo_gasto)
 
         btn_receita = QPushButton("↑  Nova receita")
@@ -559,7 +584,7 @@ class TelaInicial(QWidget):
         topo.addWidget(btn_despesa)
         topo.addWidget(btn_receita)
 
-        layout.addLayout(topo)
+        self.bloco_home_layout.addLayout(topo)
 
         resumo = QHBoxLayout()
         resumo.setSpacing(12)
@@ -588,20 +613,8 @@ class TelaInicial(QWidget):
             "A pagar\n\nSoma das contas, despesas e parcelas que ainda estão pendentes no mês atual.\nClique para ver os detalhes.",
         ))
 
-        layout.addLayout(resumo)
-
-        busca_layout = QHBoxLayout()
-        busca_layout.setSpacing(10)
-
-        self.caixa_busca = QLineEdit()
-        self.caixa_busca.setObjectName("campoBusca")
-        self.caixa_busca.setPlaceholderText("Pesquisar conta, gasto ou receita...")
-        self.caixa_busca.setToolTip("Busca rápida\n\nDigite parte do nome, valor, tipo ou observação para localizar receitas, gastos, despesas e pagamentos.")
-        self.caixa_busca.setClearButtonEnabled(True)
-        self.caixa_busca.textChanged.connect(self.buscar_rapido)
-
-        busca_layout.addWidget(self.caixa_busca, 1)
-        layout.addLayout(busca_layout)
+        self.bloco_home_layout.addLayout(resumo)
+        layout.addWidget(self.bloco_home_superior)
 
         self.painel_home = QFrame()
         self.painel_home.setObjectName("card")
@@ -791,6 +804,7 @@ class TelaInicial(QWidget):
         return card
 
     def mostrar_detalhes_inline(self, titulo, subtitulo, secoes, cor, mostrar_voltar=True, compacto=False, ocultar_resumo=False):
+        self.bloco_home_superior.setVisible(False)
         self.limpar_painel_home()
         cabecalho = QHBoxLayout()
 
@@ -873,6 +887,7 @@ class TelaInicial(QWidget):
         self.painel_home_layout.addWidget(area, 1)
 
     def mostrar_proximos_vencimentos(self):
+        self.bloco_home_superior.setVisible(True)
         self.limpar_painel_home()
         cabecalho_lista = QHBoxLayout()
         cabecalho_lista.setContentsMargins(0, 0, 0, 0)
@@ -1163,10 +1178,292 @@ class TelaInicial(QWidget):
             self.montar_tela()
 
     def abrir_detalhes_pagos(self):
-        self.mostrar_detalhes_inline("✅ Pago no mês", "Contas e gastos efetuados.", self.detalhes_pagos, "#ef4444")
+        self.mostrar_pagos_compacto("todos")
+
+    def criar_botao_filtro_pago(self, texto, filtro_ativo, filtro_destino):
+        botao = QPushButton(texto)
+        botao.setCheckable(True)
+        botao.setChecked(filtro_ativo == filtro_destino)
+        botao.setFixedHeight(30)
+        botao.setCursor(Qt.PointingHandCursor)
+        botao.setStyleSheet("""
+            QPushButton {
+                background-color: #182235;
+                color: #cbd5e1;
+                border: 1px solid #334155;
+                border-radius: 7px;
+                padding: 0 14px;
+                font-size: 11px;
+                font-weight: bold;
+            }
+            QPushButton:hover { background-color: #24324a; color: #ffffff; }
+            QPushButton:checked {
+                background-color: #2563eb;
+                color: #ffffff;
+                border-color: #3b82f6;
+            }
+        """)
+        botao.clicked.connect(lambda _marcado=False: self.mostrar_pagos_compacto(filtro_destino))
+        return botao
+
+    def criar_acao_item_pago(self, item):
+        container = QWidget()
+        layout = QHBoxLayout(container)
+        layout.setContentsMargins(4, 2, 4, 2)
+        layout.setSpacing(6)
+        layout.setAlignment(Qt.AlignCenter)
+
+        if item.get("origem") == "despesa_paga" and item.get("id_despesa"):
+            botao = QPushButton("↩  Desfazer")
+            botao.setToolTip("Desfazer este pagamento")
+            cor = "#3b82f6"
+            botao.clicked.connect(lambda _, registro=item: self.desfazer_pagamento_home(registro))
+        elif item.get("origem") == "gasto" and item.get("id_gasto"):
+            botao = QPushButton("🗑  Excluir")
+            botao.setToolTip("Excluir este gasto")
+            cor = "#ef4444"
+            botao.clicked.connect(lambda _, registro=item: self.excluir_item_pago_home(registro))
+        else:
+            label = QLabel("—")
+            label.setAlignment(Qt.AlignCenter)
+            label.setStyleSheet("color: #64748b;")
+            layout.addWidget(label)
+            return container
+
+        botao.setFixedHeight(25)
+        botao.setMinimumWidth(86)
+        botao.setCursor(Qt.PointingHandCursor)
+        botao.setStyleSheet(f"""
+            QPushButton {{
+                background-color: #182235;
+                color: #e2e8f0;
+                border: 1px solid {cor};
+                border-radius: 6px;
+                padding: 0 9px;
+                font-size: 10px;
+                font-weight: bold;
+            }}
+            QPushButton:hover {{ background-color: {cor}; color: #ffffff; }}
+        """)
+        layout.addWidget(botao)
+        return container
+
+    def mostrar_pagos_compacto(self, filtro="todos"):
+        self.bloco_home_superior.setVisible(False)
+        self.limpar_painel_home()
+
+        contas = self.detalhes_pagos[0].get("itens", []) if self.detalhes_pagos else []
+        gastos = self.detalhes_pagos[1].get("itens", []) if len(self.detalhes_pagos) > 1 else []
+        total_contas = sum(float(item.get("valor", 0) or 0) for item in contas)
+        total_gastos = sum(float(item.get("valor", 0) or 0) for item in gastos)
+
+        cabecalho = QHBoxLayout()
+        textos = QVBoxLayout()
+        textos.setSpacing(1)
+        titulo = QLabel("✅ Pago no mês")
+        titulo.setStyleSheet("font-size: 18px; font-weight: bold; color: #ffffff;")
+        subtitulo = QLabel("Tudo que já saiu do seu dinheiro neste mês.")
+        subtitulo.setStyleSheet("font-size: 12px; color: #9aa2b8;")
+        textos.addWidget(titulo)
+        textos.addWidget(subtitulo)
+        cabecalho.addLayout(textos)
+        cabecalho.addStretch()
+        cabecalho.addWidget(self.criar_botao_voltar())
+        self.painel_home_layout.addLayout(cabecalho)
+
+        resumo = QHBoxLayout()
+        resumo.setSpacing(8)
+        resumo.addWidget(self.criar_resumo_detalhe("Total pago", total_contas + total_gastos, f"{len(contas) + len(gastos)} lançamento(s)", "#f59e0b"))
+        resumo.addWidget(self.criar_resumo_detalhe("Contas pagas", total_contas, f"{len(contas)} conta(s)", "#ef4444"))
+        resumo.addWidget(self.criar_resumo_detalhe("Gastos do dia", total_gastos, f"{len(gastos)} gasto(s)", "#ef4444"))
+        self.painel_home_layout.addLayout(resumo)
+
+        filtros = QHBoxLayout()
+        filtros.setSpacing(7)
+        rotulo = QLabel("Mostrar:")
+        rotulo.setStyleSheet("font-size: 11px; color: #94a3b8;")
+        filtros.addWidget(rotulo)
+        filtros.addWidget(self.criar_botao_filtro_pago("Todos", filtro, "todos"))
+        filtros.addWidget(self.criar_botao_filtro_pago("Contas pagas", filtro, "contas"))
+        filtros.addWidget(self.criar_botao_filtro_pago("Gastos do dia", filtro, "gastos"))
+        filtros.addStretch()
+        self.painel_home_layout.addLayout(filtros)
+
+        if filtro == "contas":
+            itens = list(contas)
+        elif filtro == "gastos":
+            itens = list(gastos)
+        else:
+            itens = list(contas) + list(gastos)
+
+        itens.sort(key=lambda item: (item.get("data", ""), item.get("descricao", "").lower()))
+
+        tabela = TabelaRegistros(
+            ["Data", "Descrição", "Categoria", "Tipo", "Valor pago", "Ação"],
+            larguras={0: 92, 2: 145, 3: 125, 4: 130, 5: 120},
+            coluna_flexivel=1,
+            selecao_multipla=True,
+            altura_linha=36,
+        )
+
+        if not itens:
+            tabela.mostrar_vazio("Nenhum lançamento encontrado neste filtro.")
+        else:
+            for item in itens:
+                tipo = "Conta paga" if item.get("origem") == "despesa_paga" else "Gasto do dia"
+                linha = tabela.adicionar_linha(
+                    [
+                        item.get("data", ""),
+                        item.get("descricao", ""),
+                        item.get("categoria", "Sem categoria"),
+                        tipo,
+                        self.formatar_moeda(item.get("valor", 0)),
+                        "",
+                    ],
+                    dados=item,
+                    colunas_esquerda=(1,),
+                )
+                tabela.setCellWidget(linha, 5, self.criar_acao_item_pago(item))
+
+        self.painel_home_layout.addWidget(tabela, 1)
+
+        rodape_selecao = QFrame()
+        rodape_selecao.setFixedHeight(48)
+        rodape_selecao.setStyleSheet(
+            "QFrame { background-color: #111c2e; border: 1px solid #26364e; border-radius: 9px; }"
+        )
+        layout_rodape = QHBoxLayout(rodape_selecao)
+        layout_rodape.setContentsMargins(12, 5, 10, 5)
+        layout_rodape.setSpacing(10)
+
+        dica = QLabel("Clique nos lançamentos para somar apenas o que deseja")
+        dica.setStyleSheet("color: #9aa2b8; font-size: 11px; border: 0;")
+        resumo_selecao = QLabel("0 lançamentos selecionados  •  Total: R$ 0,00")
+        resumo_selecao.setStyleSheet(
+            "color: #ffffff; font-size: 12px; font-weight: bold; border: 0;"
+        )
+        btn_limpar = QPushButton("Limpar seleção")
+        btn_limpar.setFixedHeight(25)
+        btn_limpar.setCursor(Qt.PointingHandCursor)
+        btn_limpar.setStyleSheet("""
+            QPushButton { background-color: #1f2937; color: #dbeafe; border: 1px solid #475569; border-radius: 6px; padding: 0 11px; font-size: 10px; font-weight: bold; }
+            QPushButton:hover { background-color: #334155; }
+        """)
+        layout_rodape.addWidget(dica)
+        layout_rodape.addStretch()
+        layout_rodape.addWidget(resumo_selecao)
+        layout_rodape.addWidget(btn_limpar)
+        self.painel_home_layout.addWidget(rodape_selecao)
+
+        def atualizar_total_selecionado():
+            linhas = {indice.row() for indice in tabela.selectionModel().selectedRows()}
+            selecionados = []
+            for linha in linhas:
+                celula = tabela.item(linha, 0)
+                registro = celula.data(Qt.UserRole) if celula is not None else None
+                if isinstance(registro, dict):
+                    selecionados.append(registro)
+            total = sum(float(item.get("valor", 0) or 0) for item in selecionados)
+            quantidade = len(selecionados)
+            palavra = "lançamento selecionado" if quantidade == 1 else "lançamentos selecionados"
+            resumo_selecao.setText(
+                f"{quantidade} {palavra}  •  Total: {self.formatar_moeda(total)}"
+            )
+
+        tabela.itemSelectionChanged.connect(atualizar_total_selecionado)
+        btn_limpar.clicked.connect(tabela.clearSelection)
+
+    def editar_item_pendente_home(self, item):
+        id_despesa = item.get("id_despesa")
+        despesa = buscar_despesa_por_id(id_despesa) if id_despesa else None
+        if not despesa:
+            return
+        janela = NovaDespesa(despesa)
+        if janela.exec():
+            if self.ao_salvar_despesa:
+                self.ao_salvar_despesa()
+            else:
+                self.montar_tela()
+
+    def mostrar_pendentes_compacto(self):
+        self.bloco_home_superior.setVisible(False)
+        self.limpar_painel_home()
+        itens = self.detalhes_pendentes[0].get("itens", []) if self.detalhes_pendentes else []
+        itens = sorted(itens, key=lambda item: (item.get("data", ""), item.get("descricao", "").lower()))
+
+        cabecalho = QHBoxLayout()
+        textos = QVBoxLayout()
+        textos.setSpacing(1)
+        titulo = QLabel("📌 A pagar")
+        titulo.setStyleSheet("font-size: 18px; font-weight: bold; color: #ffffff;")
+        subtitulo = QLabel("Contas pendentes do mês atual.")
+        subtitulo.setStyleSheet("font-size: 12px; color: #9aa2b8;")
+        textos.addWidget(titulo)
+        textos.addWidget(subtitulo)
+        cabecalho.addLayout(textos)
+        cabecalho.addStretch()
+        cabecalho.addWidget(self.criar_botao_voltar())
+        self.painel_home_layout.addLayout(cabecalho)
+
+        atrasadas = [item for item in itens if item.get("situacao") == "Atrasada"]
+        total = sum(float(item.get("valor", 0) or 0) for item in itens)
+        total_atrasado = sum(float(item.get("valor", 0) or 0) for item in atrasadas)
+        resumo = QHBoxLayout()
+        resumo.setSpacing(8)
+        resumo.addWidget(self.criar_resumo_detalhe("Total a pagar", total, f"{len(itens)} conta(s)", "#ef4444"))
+        resumo.addWidget(self.criar_resumo_detalhe("Em atraso", total_atrasado, f"{len(atrasadas)} conta(s)", "#f59e0b"))
+        self.painel_home_layout.addLayout(resumo)
+
+        tabela = TabelaRegistros(
+            ["Data", "Descrição", "Categoria", "Tipo", "Situação", "Valor", "Ação"],
+            larguras={0: 92, 2: 140, 3: 135, 4: 105, 5: 125, 6: 250},
+            coluna_flexivel=1,
+            altura_linha=38,
+        )
+        if not itens:
+            tabela.mostrar_vazio("Nenhuma conta pendente neste mês.")
+        else:
+            for item in itens:
+                linha = tabela.adicionar_linha(
+                    [
+                        item.get("data", ""),
+                        item.get("descricao", ""),
+                        item.get("categoria", "Sem categoria"),
+                        item.get("tipo", ""),
+                        item.get("situacao", ""),
+                        self.formatar_moeda(item.get("valor", 0)),
+                        "",
+                    ],
+                    dados=item,
+                    colunas_esquerda=(1,),
+                    cores={4: cor_status(item.get("situacao", ""))},
+                )
+                btn_pagar = criar_botao_acao(
+                    "Pagar",
+                    lambda _, id=item.get("id_despesa"): self.marcar_despesa_home(id),
+                    "#22c55e",
+                    66,
+                    "Registrar o pagamento desta conta",
+                )
+                btn_editar = criar_botao_acao(
+                    "Editar",
+                    lambda _, registro=item: self.editar_item_pendente_home(registro),
+                    "#3b82f6",
+                    64,
+                    "Editar esta conta",
+                )
+                btn_excluir = criar_botao_acao(
+                    "🗑",
+                    lambda _, registro=item: self.excluir_item_pago_home(registro),
+                    "#ef4444",
+                    34,
+                    "Excluir esta conta",
+                )
+                tabela.definir_acoes(linha, [btn_pagar, btn_editar, btn_excluir])
+        self.painel_home_layout.addWidget(tabela, 1)
 
     def abrir_detalhes_pendentes(self):
-        self.mostrar_detalhes_inline("📌 A pagar", "Contas pendentes.", self.detalhes_pendentes, "#ef4444", compacto=True, ocultar_resumo=True)
+        self.mostrar_pendentes_compacto()
 
     def editar_despesa_tabela(self, tabela, linha):
         item = tabela.item(linha, 0)

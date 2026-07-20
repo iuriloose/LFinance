@@ -5,6 +5,7 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import Qt
 
 from banco.banco import listar_gastos, excluir_gasto
+from componentes.tabela_registros import TabelaRegistros, criar_botao_acao
 from telas.novo_gasto import NovoGasto
 
 
@@ -318,18 +319,18 @@ class TelaGastos(QWidget):
         textos = QVBoxLayout()
         textos.setSpacing(4)
 
-        titulo = QLabel("Gastos")
+        titulo = QLabel("Gastos do dia a dia")
         titulo.setObjectName("titulo")
 
-        subtitulo = QLabel("Gastos já pagos, como mercado, gasolina e compras do dia")
+        subtitulo = QLabel("Compras e saídas que já foram pagas")
         subtitulo.setObjectName("subtitulo")
 
         textos.addWidget(titulo)
         textos.addWidget(subtitulo)
 
-        btn_novo = QPushButton("🛒  Novo gasto")
+        btn_novo = QPushButton("🛒  Registrar gasto do dia")
         btn_novo.setObjectName("btnDespesa")
-        btn_novo.setToolTip("Novo gasto\\n\\nRegistre uma saída paga na hora, como mercado, combustível, farmácia ou lazer.")
+        btn_novo.setToolTip("Gasto do dia\\n\\nRegistre uma saída paga na hora, como mercado, combustível, farmácia ou lazer.")
         btn_novo.clicked.connect(self.novo_gasto)
 
         topo.addLayout(textos)
@@ -355,30 +356,48 @@ class TelaGastos(QWidget):
         total.setObjectName("cardInfo")
         painel_layout.addWidget(total)
 
-        area = QScrollArea()
-        area.setObjectName("areaGastos")
-        area.setWidgetResizable(True)
-
-        conteudo = QWidget()
-        conteudo.setAttribute(Qt.WA_StyledBackground, True)
-        conteudo.setStyleSheet("background-color: transparent;")
-
-        lista_layout = QVBoxLayout(conteudo)
-        lista_layout.setContentsMargins(0, 0, 8, 0)
-        lista_layout.setSpacing(12)
-
+        tabela = TabelaRegistros(
+            ["Data", "Descrição", "Categoria", "Observação", "Valor", "Ação"],
+            larguras={0: 105, 2: 150, 3: 220, 4: 135, 5: 165},
+            coluna_flexivel=1,
+        )
         if not gastos:
-            vazio = QLabel("Nenhum gasto cadastrado.")
-            vazio.setObjectName("cardInfo")
-            lista_layout.addWidget(vazio)
+            tabela.mostrar_vazio("Nenhum gasto cadastrado.")
         else:
             for gasto in gastos:
-                lista_layout.addWidget(self.criar_card_gasto(gasto))
+                id_gasto, descricao, valor, data_gasto, categoria, observacao = gasto
+                linha = tabela.adicionar_linha(
+                    [
+                        self.formatar_data(data_gasto),
+                        descricao,
+                        categoria or "—",
+                        observacao or "—",
+                        self.formatar_moeda(valor),
+                        "",
+                    ],
+                    dados=gasto,
+                    colunas_esquerda=(1, 3),
+                )
+                btn_editar = criar_botao_acao(
+                    "Editar",
+                    lambda _, g=gasto: self.editar(g),
+                    "#3b82f6",
+                    72,
+                    "Editar este gasto",
+                )
+                btn_excluir = criar_botao_acao(
+                    "🗑",
+                    lambda _, id=id_gasto, d=descricao: self.excluir(id, d),
+                    "#ef4444",
+                    36,
+                    "Excluir este gasto",
+                )
+                tabela.definir_acoes(linha, [btn_editar, btn_excluir])
+            tabela.cellDoubleClicked.connect(
+                lambda linha, _coluna: self.editar(tabela.item(linha, 0).data(Qt.UserRole))
+            )
 
-        lista_layout.addStretch()
-        area.setWidget(conteudo)
-
-        painel_layout.addWidget(area, 1)
+        painel_layout.addWidget(tabela, 1)
         self.layout_principal.addWidget(painel, 1)
 
     def novo_gasto(self):

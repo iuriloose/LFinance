@@ -1,4 +1,4 @@
-LFinance 1.0.4 - Geração do EXE de teste
+LFinance 1.0.5 - Geração do EXE de teste
 
 1. Extraia o ZIP do projeto.
 2. Abra a pasta LFinance.
