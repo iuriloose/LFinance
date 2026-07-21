@@ -9,6 +9,8 @@
 - Salvamento das configurações agora protege contra arquivos parcialmente gravados.
 - Melhorados o tratamento de bloqueios do SQLite e a acessibilidade do menu.
 - Tabelas de contas e parcelamentos agora adaptam colunas em janelas estreitas sem cortar os botões de ação.
+- O roteiro do instalador agora aceita caminhos separados para builds beta sem sobrescrever os artefatos atuais.
+- O instalador não cria dados no perfil administrativo e abre o aplicativo no perfil normal do usuário.
 
 ## 1.0.5
 

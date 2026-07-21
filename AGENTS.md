@@ -77,7 +77,9 @@ Nunca use `gerar_exe.bat` como comando de teste rotineiro: ele atualiza o `pip`,
 
 - EXE: `python -m PyInstaller --clean --noconfirm LFinance.spec`.
 - Instalador: compilar `LFinance.iss` no Inno Setup após validar o EXE.
+- Builds beta podem definir `MyAppSourceExe` e `MyOutputDir` no Inno Setup para não sobrescrever `dist/` nem `instalador/`.
 - O build Windows deve ser feito no Windows; PyInstaller não é cross-compiler.
+- Em testes do EXE `onefile`, encerre toda a árvore de processos cujo caminho corresponda exatamente ao artefato beta antes de desinstalar ou limpar a pasta temporária.
 - Antes de publicar, sincronizar versão em `VERSION.txt`, `APP_VERSAO`, `LFinance.iss`, `version_info.txt`, README e CHANGELOG.
 - Validar assinatura digital, hash SHA-256, instalação limpa, atualização sobre versão anterior, preservação do banco e desinstalação.
 - Publicação é uma etapa separada e exige autorização explícita. Não criar release, tag, instalador público ou upload sem essa autorização.

@@ -8,6 +8,7 @@ from pathlib import Path
 from unittest import mock
 
 
+PROJETO = Path(__file__).resolve().parent.parent
 LOCALAPPDATA_REAL = Path(os.environ.get("LOCALAPPDATA", ""))
 BANCO_REAL = LOCALAPPDATA_REAL / "LFinance" / "lfinance.db"
 PERFIL_TEMPORARIO = tempfile.TemporaryDirectory(
@@ -161,6 +162,13 @@ class TesteLFinanceIsolado(unittest.TestCase):
         with CAMINHO_CONFIG.open("r", encoding="utf-8") as arquivo:
             salvo = json.load(arquivo)
         self.assertEqual(salvo["nome_usuario"], "Pessoa de teste")
+
+    def test_instalador_inicia_no_perfil_normal_do_usuario(self):
+        roteiro = (PROJETO / "LFinance.iss").read_text(encoding="utf-8-sig")
+        self.assertNotIn('Name: "{localappdata}\\LFinance"', roteiro)
+        self.assertIn(
+            "Flags: nowait postinstall skipifsilent runasoriginaluser", roteiro
+        )
 
     def test_as_nove_telas_sao_construidas(self):
         from PySide6.QtWidgets import QApplication
