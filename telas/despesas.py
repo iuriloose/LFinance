@@ -489,8 +489,9 @@ class TelaDespesas(QWidget):
 
         tabela = TabelaRegistros(
             ["Vencimento", "Descrição", "Categoria", "Tipo / parcela", "Situação", "Valor", "Ação"],
-            larguras={0: 100, 2: 100, 3: 135, 4: 90, 5: 105, 6: 205},
+            larguras={0: 90, 2: 90, 3: 110, 4: 80, 5: 90, 6: 185},
             coluna_flexivel=1,
+            colunas_ocultar_compacto=(2,),
         )
         if not despesas:
             tabela.mostrar_vazio("Nenhuma conta a pagar cadastrada.")

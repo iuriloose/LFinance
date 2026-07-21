@@ -164,6 +164,8 @@ class TesteLFinanceIsolado(unittest.TestCase):
 
     def test_as_nove_telas_sao_construidas(self):
         from PySide6.QtWidgets import QApplication
+        from PySide6.QtTest import QTest
+        from componentes.tabela_registros import TabelaRegistros
         from main import TelaPrincipal
 
         app = QApplication.instance() or QApplication([])
@@ -179,6 +181,31 @@ class TesteLFinanceIsolado(unittest.TestCase):
         for botao in janela.menu.botoes.values():
             self.assertTrue(botao.accessibleName())
             self.assertTrue(botao.accessibleDescription())
+
+        janela.resize(1000, 620)
+        janela.show()
+        QTest.qWait(30)
+        tabelas_compactas = (
+            ("despesas", janela.pagina_despesas, (2,)),
+            ("contas_fixas", janela.pagina_contas, (2, 3)),
+            ("parcelamentos", janela.pagina_parcelamentos, (2,)),
+        )
+        for chave, pagina, colunas_ocultas in tabelas_compactas:
+            janela.menu_clicado(chave)
+            QTest.qWait(30)
+            tabela = pagina.findChild(TabelaRegistros)
+            self.assertIsNotNone(tabela)
+            for coluna in colunas_ocultas:
+                self.assertTrue(tabela.isColumnHidden(coluna))
+
+        janela.resize(1440, 900)
+        QTest.qWait(30)
+        for chave, pagina, colunas_ocultas in tabelas_compactas:
+            janela.menu_clicado(chave)
+            QTest.qWait(30)
+            tabela = pagina.findChild(TabelaRegistros)
+            for coluna in colunas_ocultas:
+                self.assertFalse(tabela.isColumnHidden(coluna))
         janela.close()
         janela.deleteLater()
         app.processEvents()

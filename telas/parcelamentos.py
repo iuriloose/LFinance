@@ -511,8 +511,9 @@ class TelaParcelamentos(QWidget):
 
         tabela = TabelaRegistros(
             ["Vencimento", "Descrição", "Categoria", "Parcela", "Situação", "Valor da parcela", "Ação"],
-            larguras={0: 110, 2: 140, 3: 105, 4: 105, 5: 145, 6: 250},
+            larguras={0: 90, 2: 100, 3: 80, 4: 85, 5: 115, 6: 205},
             coluna_flexivel=1,
+            colunas_ocultar_compacto=(2,),
         )
         if not parcelamentos:
             tabela.mostrar_vazio(

@@ -50,6 +50,7 @@ Stack atual: Python, PySide6, SQLite, python-dateutil, PyInstaller e Inno Setup.
 - Toda ação destrutiva deve explicar o impacto e exigir confirmação clara.
 - Manter navegação por teclado, foco visível, nomes acessíveis e tooltips úteis.
 - Validar em pelo menos 1000×620 e na janela maximizada.
+- Em larguras estreitas, preserve sempre os botões de ação; oculte apenas colunas secundárias e restaure-as ao ampliar.
 
 ## Como executar com segurança
 

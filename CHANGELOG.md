@@ -8,6 +8,7 @@
 - Validação de backup agora verifica integridade, tabelas e colunas essenciais.
 - Salvamento das configurações agora protege contra arquivos parcialmente gravados.
 - Melhorados o tratamento de bloqueios do SQLite e a acessibilidade do menu.
+- Tabelas de contas e parcelamentos agora adaptam colunas em janelas estreitas sem cortar os botões de ação.
 
 ## 1.0.5
 
