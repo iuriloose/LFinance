@@ -489,7 +489,7 @@ class TelaDespesas(QWidget):
 
         tabela = TabelaRegistros(
             ["Vencimento", "Descrição", "Categoria", "Tipo / parcela", "Situação", "Valor", "Ação"],
-            larguras={0: 90, 2: 90, 3: 110, 4: 80, 5: 90, 6: 185},
+            larguras={0: 90, 2: 90, 3: 110, 4: 85, 5: 90, 6: 185},
             coluna_flexivel=1,
             colunas_ocultar_compacto=(2,),
         )
@@ -524,7 +524,7 @@ class TelaDespesas(QWidget):
                         "",
                     ],
                     dados=despesa,
-                    colunas_esquerda=(1,),
+                    colunas_esquerda=(),
                     cores={4: cor_status(status_texto)},
                     tooltips={
                         3: (

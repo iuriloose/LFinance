@@ -111,7 +111,7 @@ class TabelaRegistros(QTableWidget):
         self,
         valores,
         dados=None,
-        colunas_esquerda=(1,),
+        colunas_esquerda=(),
         cores=None,
         tooltips=None,
     ):

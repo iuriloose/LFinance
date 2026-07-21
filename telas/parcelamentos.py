@@ -549,7 +549,7 @@ class TelaParcelamentos(QWidget):
                         "",
                     ],
                     dados=parcelamento,
-                    colunas_esquerda=(1,),
+                    colunas_esquerda=(),
                     cores={4: cor_status(status_texto)},
                     tooltips={
                         3: (

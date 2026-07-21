@@ -376,7 +376,7 @@ class TelaGastos(QWidget):
                         "",
                     ],
                     dados=gasto,
-                    colunas_esquerda=(1, 3),
+                    colunas_esquerda=(),
                 )
                 btn_editar = criar_botao_acao(
                     "Editar",

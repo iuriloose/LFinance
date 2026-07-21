@@ -219,5 +219,86 @@ class TesteLFinanceIsolado(unittest.TestCase):
         app.processEvents()
 
 
+    def test_tabelas_mantem_conteudo_centralizado(self):
+        from PySide6.QtCore import Qt
+        from PySide6.QtTest import QTest
+        from PySide6.QtWidgets import QApplication
+
+        from componentes.tabela_registros import TabelaRegistros
+        from main import TelaPrincipal
+
+        banco.inserir_receita(
+            "Receita visual de teste", 100, "2026-07-21", "Teste", "Observa??o visual"
+        )
+        banco.inserir_gasto(
+            "Gasto visual de teste", 20, "2026-07-21", "Teste", "Observa??o visual"
+        )
+        banco.inserir_despesa(
+            "Conta visual de teste", 30, "2026-07-25", "Teste", "Despesa ?nica"
+        )
+        banco.inserir_despesa(
+            "Fixa visual de teste", 40, "2026-07-26", "Teste", "Conta fixa"
+        )
+        banco.inserir_despesa(
+            "Parcela visual de teste",
+            50,
+            "2026-07-27",
+            "Teste",
+            "Parcelamento",
+            parcela_atual=1,
+            total_parcelas=3,
+            valor_total=150,
+        )
+
+        app = QApplication.instance() or QApplication([])
+        janela = TelaPrincipal()
+        try:
+            janela.resize(1440, 900)
+            janela.show()
+            QTest.qWait(30)
+
+            telas_e_colunas = (
+                ("receitas", janela.pagina_receitas, (1, 3)),
+                ("gastos", janela.pagina_gastos, (1, 3)),
+                ("despesas", janela.pagina_despesas, (1,)),
+                ("contas_fixas", janela.pagina_contas, (1,)),
+                ("parcelamentos", janela.pagina_parcelamentos, (1,)),
+            )
+            for chave, pagina, colunas in telas_e_colunas:
+                janela.menu_clicado(chave)
+                QTest.qWait(30)
+                tabela = pagina.findChild(TabelaRegistros)
+                self.assertIsNotNone(tabela)
+                self.assertGreater(tabela.rowCount(), 0)
+                for coluna in colunas:
+                    self.assertEqual(
+                        tabela.item(0, coluna).textAlignment(), int(Qt.AlignCenter)
+                    )
+
+            larguras_situacao = []
+            for chave, pagina in (
+                ("despesas", janela.pagina_despesas),
+                ("contas_fixas", janela.pagina_contas),
+                ("parcelamentos", janela.pagina_parcelamentos),
+            ):
+                janela.menu_clicado(chave)
+                QTest.qWait(30)
+                tabela = pagina.findChild(TabelaRegistros)
+                larguras_situacao.append(tabela.columnWidth(4))
+            self.assertEqual(larguras_situacao, [85, 85, 85])
+
+            janela.menu_clicado("pesquisar")
+            QTest.qWait(30)
+            self.assertGreater(janela.pagina_pesquisa.tabela.rowCount(), 0)
+            self.assertEqual(
+                janela.pagina_pesquisa.tabela.item(0, 1).textAlignment(),
+                int(Qt.AlignCenter),
+            )
+        finally:
+            janela.close()
+            janela.deleteLater()
+            app.processEvents()
+
+
 if __name__ == "__main__":
     unittest.main()
