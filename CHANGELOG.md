@@ -1,5 +1,14 @@
 # LFinance 1.0.5
 
+## Não publicado
+
+- Adicionados testes automatizados que usam somente banco temporário.
+- Restauração de backup agora usa troca atômica e recuperação automática em caso de falha.
+- Limpeza total agora cria e valida um backup automático antes de apagar dados.
+- Validação de backup agora verifica integridade, tabelas e colunas essenciais.
+- Salvamento das configurações agora protege contra arquivos parcialmente gravados.
+- Melhorados o tratamento de bloqueios do SQLite e a acessibilidade do menu.
+
 ## 1.0.5
 
 - Padronizadas as telas A pagar, Receitas, Gastos do dia, Contas a pagar, Contas fixas e Parcelamentos.
