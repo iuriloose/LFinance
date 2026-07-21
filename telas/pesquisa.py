@@ -285,7 +285,7 @@ class TelaPesquisa(QWidget):
             ]
             for coluna, texto in enumerate(valores):
                 celula = QTableWidgetItem(str(texto))
-                alinhamento = Qt.AlignVCenter | Qt.AlignLeft if coluna == 1 else Qt.AlignCenter
+                alinhamento = Qt.AlignCenter
                 celula.setTextAlignment(alinhamento)
                 if coluna == 0:
                     celula.setData(Qt.UserRole, item)

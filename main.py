@@ -1,5 +1,7 @@
 import sys
 
+from PySide6.QtCore import QTimer
+
 from PySide6.QtWidgets import (
     QApplication,
     QDialog,
@@ -116,6 +118,7 @@ def main():
 
     janela = TelaPrincipal()
     janela.showMaximized()
+    QTimer.singleShot(1200, janela.verificar_atualizacoes_automaticamente)
 
     return app.exec()
 

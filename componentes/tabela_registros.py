@@ -61,9 +61,13 @@ class TabelaRegistros(QTableWidget):
         coluna_flexivel=1,
         selecao_multipla=False,
         altura_linha=38,
+        colunas_ocultar_compacto=(),
+        limite_compacto=850,
     ):
         super().__init__()
         self.altura_linha = altura_linha
+        self.colunas_ocultar_compacto = tuple(colunas_ocultar_compacto)
+        self.limite_compacto = limite_compacto
         self.setObjectName("tabelaRegistros")
         self.setColumnCount(len(colunas))
         self.setHorizontalHeaderLabels(colunas)
@@ -78,7 +82,7 @@ class TabelaRegistros(QTableWidget):
             else QAbstractItemView.SingleSelection
         )
         self.setFocusPolicy(Qt.NoFocus)
-        self.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
         self.horizontalHeader().setFixedHeight(34)
         self.horizontalHeader().setStretchLastSection(False)
         self.setStyleSheet(ESTILO_TABELA_REGISTROS)
@@ -91,11 +95,23 @@ class TabelaRegistros(QTableWidget):
                 self.horizontalHeader().setSectionResizeMode(indice, QHeaderView.Fixed)
                 self.setColumnWidth(indice, larguras.get(indice, 120))
 
+        self._atualizar_modo_compacto()
+
+    def resizeEvent(self, evento):
+        super().resizeEvent(evento)
+        self._atualizar_modo_compacto()
+
+    def _atualizar_modo_compacto(self):
+        compacto = self.viewport().width() < self.limite_compacto
+        for coluna in self.colunas_ocultar_compacto:
+            if 0 <= coluna < self.columnCount():
+                self.setColumnHidden(coluna, compacto)
+
     def adicionar_linha(
         self,
         valores,
         dados=None,
-        colunas_esquerda=(1,),
+        colunas_esquerda=(),
         cores=None,
         tooltips=None,
     ):

@@ -1,7 +1,10 @@
+import re
 from PySide6.QtWidgets import (
-    QMainWindow, QWidget, QHBoxLayout, QStackedWidget, QLabel, QVBoxLayout
+    QMainWindow, QWidget, QHBoxLayout, QStackedWidget, QLabel, QVBoxLayout,
+    QMessageBox, QPushButton, QDialog, QCheckBox
 )
-from PySide6.QtGui import QIcon
+from PySide6.QtGui import QIcon, QDesktopServices
+from PySide6.QtCore import QUrl, Signal
 from componentes.menu_lateral import MenuLateral
 from telas.despesas import TelaDespesas
 from telas.receitas import TelaReceitas
@@ -12,10 +15,16 @@ from telas.contas_fixas import TelaContasFixas
 from telas.parcelamentos import TelaParcelamentos
 from telas.relatorios import TelaRelatorios
 from telas.pesquisa import TelaPesquisa
-from servicos.configuracoes_app import APP_VERSAO, caminho_recurso
+from servicos.configuracoes_app import (
+    APP_VERSAO, caminho_recurso, carregar_configuracoes, salvar_configuracoes
+)
+from servicos.atualizacoes import consultar_ultima_versao
 
 
 class TelaPrincipal(QMainWindow):
+    atualizacao_concluida = Signal(object)
+    atualizacao_falhou = Signal(str)
+
     def __init__(self):
         super().__init__()
 
@@ -26,6 +35,10 @@ class TelaPrincipal(QMainWindow):
         self.resize(1200, 720)
         self.setMinimumSize(1000, 620)
 
+        self._verificacao_atualizacao_em_andamento = False
+        self._mostrar_sem_atualizacao = False
+        self.atualizacao_concluida.connect(self._finalizar_verificacao_atualizacao)
+        self.atualizacao_falhou.connect(self._falha_verificacao_atualizacao)
         self.aplicar_estilo()
         self.montar_tela()
 
@@ -428,3 +441,215 @@ class TelaPrincipal(QMainWindow):
             self.paginas.setCurrentWidget(pagina_atual)
         else:
             self.paginas.setCurrentWidget(self.pagina_inicial)
+
+    def verificar_atualizacoes_automaticamente(self):
+        self.verificar_atualizacoes(mostrar_sem_atualizacao=False)
+
+    def verificar_atualizacoes(self, mostrar_sem_atualizacao=True):
+        if self._verificacao_atualizacao_em_andamento:
+            return
+
+        self._mostrar_sem_atualizacao = mostrar_sem_atualizacao
+        self._verificacao_atualizacao_em_andamento = True
+
+        # A consulta roda em uma thread Python daemon. Isso evita bloquear a
+        # interface e também evita que o encerramento da thread feche a janela
+        # principal do programa.
+        import threading
+
+        def consultar():
+            try:
+                resultado = consultar_ultima_versao(timeout=8)
+                self.atualizacao_concluida.emit(resultado)
+            except Exception as erro:
+                self.atualizacao_falhou.emit(str(erro))
+
+        threading.Thread(
+            target=consultar,
+            name="LFinance-VerificadorAtualizacoes",
+            daemon=True,
+        ).start()
+
+    def _mostrar_dialogo_atualizacao(self, titulo, mensagem, detalhes="", permitir_download=False, versao_disponivel=""):
+        dialogo = QDialog(self)
+        dialogo.setWindowTitle(titulo)
+        dialogo.setModal(True)
+        dialogo.setMinimumWidth(500)
+        dialogo.setStyleSheet("""
+            QDialog {
+                background-color: #0b1220;
+            }
+            QLabel {
+                color: #f8fafc;
+                background: transparent;
+                font-family: Segoe UI;
+            }
+            QLabel#tituloAtualizacao {
+                font-size: 19px;
+                font-weight: 700;
+                color: #ffffff;
+            }
+            QLabel#detalhesAtualizacao {
+                font-size: 13px;
+                color: #cbd5e1;
+            }
+            QCheckBox {
+                color: #cbd5e1;
+                font-size: 13px;
+                spacing: 9px;
+            }
+            QCheckBox::indicator {
+                width: 18px;
+                height: 18px;
+            }
+            QPushButton {
+                min-height: 38px;
+                padding: 0 18px;
+                border-radius: 9px;
+                border: 1px solid #334155;
+                background-color: #172033;
+                color: #f8fafc;
+                font-weight: 700;
+            }
+            QPushButton:hover {
+                background-color: #22304a;
+            }
+            QPushButton#principalAtualizacao {
+                background-color: #2563eb;
+                border-color: #3b82f6;
+                color: #ffffff;
+            }
+            QPushButton#principalAtualizacao:hover {
+                background-color: #1d4ed8;
+            }
+        """)
+
+        layout = QVBoxLayout(dialogo)
+        layout.setContentsMargins(26, 24, 26, 22)
+        layout.setSpacing(14)
+
+        lbl_titulo = QLabel(mensagem)
+        lbl_titulo.setObjectName("tituloAtualizacao")
+        lbl_titulo.setWordWrap(True)
+        layout.addWidget(lbl_titulo)
+
+        if detalhes:
+            lbl_detalhes = QLabel(detalhes)
+            lbl_detalhes.setObjectName("detalhesAtualizacao")
+            lbl_detalhes.setWordWrap(True)
+            layout.addWidget(lbl_detalhes)
+
+        chk_nao_avisar = None
+        if permitir_download and versao_disponivel:
+            chk_nao_avisar = QCheckBox(f"Não avisar novamente sobre a versão {versao_disponivel}")
+            layout.addWidget(chk_nao_avisar)
+
+        botoes = QHBoxLayout()
+        botoes.addStretch()
+
+        if permitir_download:
+            btn_depois = QPushButton("Lembrar depois")
+            btn_depois.clicked.connect(dialogo.reject)
+            botoes.addWidget(btn_depois)
+
+            btn_principal = QPushButton("Baixar atualização")
+            btn_principal.setObjectName("principalAtualizacao")
+            btn_principal.clicked.connect(dialogo.accept)
+            botoes.addWidget(btn_principal)
+        else:
+            btn_principal = QPushButton("OK")
+            btn_principal.setObjectName("principalAtualizacao")
+            btn_principal.clicked.connect(dialogo.accept)
+            botoes.addWidget(btn_principal)
+
+        layout.addLayout(botoes)
+        aceitou = dialogo.exec() == QDialog.Accepted
+        nao_avisar = bool(chk_nao_avisar and chk_nao_avisar.isChecked())
+        return aceitou, nao_avisar
+
+    def _formatar_descricao_atualizacao(self, descricao):
+        """Converte a descrição em Markdown da Release para texto limpo na janela."""
+        texto = str(descricao or "").strip()
+        if not texto:
+            return ""
+
+        linhas = []
+        for linha in texto.splitlines():
+            linha = linha.strip()
+            if not linha:
+                if linhas and linhas[-1] != "":
+                    linhas.append("")
+                continue
+
+            # Remove títulos e formatações simples do Markdown do GitHub.
+            linha = re.sub(r"^#{1,6}\s*", "", linha)
+            linha = re.sub(r"\*\*(.*?)\*\*", r"\1", linha)
+            linha = re.sub(r"__(.*?)__", r"\1", linha)
+            linha = re.sub(r"`([^`]*)`", r"\1", linha)
+            linha = re.sub(r"^[-*+]\s+", "• ", linha)
+            linha = re.sub(r"^\d+[.)]\s+", "• ", linha)
+            linhas.append(linha)
+
+        while linhas and linhas[-1] == "":
+            linhas.pop()
+
+        texto_limpo = "\n".join(linhas).strip()
+        if len(texto_limpo) > 1400:
+            texto_limpo = texto_limpo[:1397].rstrip() + "..."
+        return texto_limpo
+
+    def _finalizar_verificacao_atualizacao(self, resultado):
+        self._verificacao_atualizacao_em_andamento = False
+        mostrar_sem_atualizacao = self._mostrar_sem_atualizacao
+
+        if not resultado.disponivel:
+            if mostrar_sem_atualizacao:
+                self._mostrar_dialogo_atualizacao(
+                    "Atualizações",
+                    "Você já está usando a versão mais recente do LFinance.",
+                    f"Versão instalada: {APP_VERSAO}\n\nNenhuma atualização disponível no momento.",
+                )
+            return
+
+        # A opção de ignorar vale somente para a verificação automática.
+        # A verificação manual em Configurações continua mostrando a versão disponível.
+        config = carregar_configuracoes()
+        versao_ignorada = str(config.get("atualizacao_ignorada") or "").strip()
+        if not mostrar_sem_atualizacao and versao_ignorada == resultado.nova_versao:
+            return
+
+        descricao_release = self._formatar_descricao_atualizacao(resultado.descricao)
+        detalhes = (
+            f"Sua versão: {resultado.versao_atual}\n"
+            f"Nova versão: {resultado.nova_versao}"
+        )
+        if descricao_release:
+            detalhes += f"\n\nNovidades desta versão:\n{descricao_release}"
+        detalhes += "\n\nClique em Baixar atualização para abrir o instalador."
+
+        baixar, nao_avisar = self._mostrar_dialogo_atualizacao(
+            "Nova versão disponível",
+            f"LFinance {resultado.nova_versao} está disponível!",
+            detalhes,
+            permitir_download=True,
+            versao_disponivel=resultado.nova_versao,
+        )
+
+        if nao_avisar:
+            salvar_configuracoes({"atualizacao_ignorada": resultado.nova_versao})
+        elif versao_ignorada:
+            # Ao desmarcar em uma verificação manual, volta a avisar automaticamente.
+            salvar_configuracoes({"atualizacao_ignorada": ""})
+
+        if baixar:
+            destino = resultado.url_download or resultado.url_release
+            QDesktopServices.openUrl(QUrl(destino))
+
+    def _falha_verificacao_atualizacao(self, erro):
+        self._verificacao_atualizacao_em_andamento = False
+        if self._mostrar_sem_atualizacao:
+            self._mostrar_dialogo_atualizacao(
+                "Não foi possível verificar",
+                "O LFinance não conseguiu consultar as atualizações agora.",
+                "Verifique sua conexão com a internet e tente novamente.",
+            )

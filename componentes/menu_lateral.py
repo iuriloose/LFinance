@@ -120,6 +120,7 @@ class MenuLateral(QFrame):
 
         lbl_logo = QLabel()
         lbl_logo.setAlignment(Qt.AlignCenter)
+        lbl_logo.setAccessibleName("Logotipo do LFinance")
         lbl_logo.setStyleSheet("background: transparent; padding: 0px; margin: 0px;")
 
         if self.logo_path.exists():
@@ -141,7 +142,10 @@ class MenuLateral(QFrame):
         botao.setCheckable(True)
         botao.setCursor(Qt.PointingHandCursor)
         botao.setIconSize(QSize(28, 28))
-        botao.setToolTip(self.tooltips_menu.get(chave, texto))
+        descricao = self.tooltips_menu.get(chave, texto)
+        botao.setToolTip(descricao)
+        botao.setAccessibleName(texto.replace("🔎", "").strip())
+        botao.setAccessibleDescription(descricao.replace("\n\n", ". "))
 
         icone_path = self.assets_path / icone_arquivo
         if icone_path.exists():

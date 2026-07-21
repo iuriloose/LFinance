@@ -16,7 +16,12 @@ from servicos.configuracoes_app import (
     APP_VERSAO, PASTA_DADOS, carregar_configuracoes,
     salvar_configuracoes, salvar_nome_usuario, executando_como_exe
 )
-from servicos.backup import copiar_banco_sqlite, validar_backup_lfinance
+from servicos.backup import (
+    copiar_banco_sqlite,
+    criar_backup_automatico,
+    restaurar_banco_sqlite,
+    validar_backup_lfinance,
+)
 
 
 class TelaConfiguracoes(QWidget):
@@ -333,7 +338,24 @@ class TelaConfiguracoes(QWidget):
         linha_sobre.addWidget(info_autor, 2)
         card_layout.addLayout(linha_sobre)
 
+        botoes_atualizacao = QHBoxLayout()
+        botoes_atualizacao.addStretch()
+        btn_atualizar = QPushButton("🔄 Verificar atualizações")
+        btn_atualizar.setStyleSheet(self.estilo_botao_config("azul"))
+        btn_atualizar.setMinimumWidth(190)
+        btn_atualizar.setToolTip(
+            "Verificar atualizações\n\nConsulta no GitHub se existe uma versão mais recente do LFinance."
+        )
+        btn_atualizar.clicked.connect(self.verificar_atualizacoes)
+        botoes_atualizacao.addWidget(btn_atualizar)
+        card_layout.addLayout(botoes_atualizacao)
+
         return card
+
+    def verificar_atualizacoes(self):
+        janela = self.window()
+        if hasattr(janela, "verificar_atualizacoes"):
+            janela.verificar_atualizacoes(mostrar_sem_atualizacao=True)
 
     def salvar_nome_usuario(self):
         nome = (self.campo_nome_usuario.text() if self.campo_nome_usuario else "").strip()
@@ -866,25 +888,37 @@ class TelaConfiguracoes(QWidget):
         if not confirmar:
             return
 
+        destino_auto = None
         try:
             CAMINHO_BANCO.parent.mkdir(parents=True, exist_ok=True)
 
             if CAMINHO_BANCO.exists():
-                pasta_backup_auto = CAMINHO_BANCO.parent / "backups_automaticos"
-                pasta_backup_auto.mkdir(parents=True, exist_ok=True)
-                data_hora = datetime.now().strftime("%d-%m-%Y_%H-%M-%S")
-                destino_auto = pasta_backup_auto / f"antes_restauracao_{data_hora}.db"
-                copiar_banco_sqlite(CAMINHO_BANCO, destino_auto)
+                destino_auto = criar_backup_automatico(
+                    CAMINHO_BANCO, "antes_restauracao"
+                )
 
-            copiar_banco_sqlite(origem, CAMINHO_BANCO)
+            restaurar_banco_sqlite(
+                origem, CAMINHO_BANCO, backup_seguranca=destino_auto
+            )
             criar_tabelas()
         except Exception as erro:
+            detalhe_rollback = ""
+            if destino_auto and destino_auto.exists():
+                try:
+                    restaurar_banco_sqlite(destino_auto, CAMINHO_BANCO)
+                    criar_tabelas()
+                    detalhe_rollback = "\n\nO banco anterior foi recuperado automaticamente."
+                except Exception as erro_rollback:
+                    detalhe_rollback = (
+                        "\n\nNão foi possível recuperar automaticamente o banco anterior: "
+                        f"{erro_rollback}"
+                    )
             self.dialogo_lfinance(
                 titulo_janela="Erro ao restaurar backup",
                 icone="⚠️",
                 titulo="Não foi possível restaurar o backup",
                 mensagem="Ocorreu um erro ao substituir o banco de dados atual.",
-                detalhes=str(erro),
+                detalhes=f"{erro}{detalhe_rollback}",
                 tipo="perigo",
                 texto_confirmar="OK",
                 perigo=True,
@@ -949,13 +983,35 @@ class TelaConfiguracoes(QWidget):
         if not confirmar_final:
             return
 
-        limpar_todos_os_dados()
+        try:
+            backup_seguranca = criar_backup_automatico(
+                CAMINHO_BANCO, "antes_limpeza_total"
+            )
+            limpar_todos_os_dados()
+        except Exception as erro:
+            self.dialogo_lfinance(
+                titulo_janela="Limpeza não realizada",
+                icone="⚠️",
+                titulo="Não foi possível proteger os dados atuais",
+                mensagem=(
+                    "O LFinance não apagou nenhum dado porque não conseguiu criar "
+                    "e validar o backup de segurança."
+                ),
+                detalhes=str(erro),
+                tipo="perigo",
+                texto_confirmar="OK",
+                perigo=True,
+            )
+            return
 
         self.dialogo_lfinance(
             titulo_janela="Dados apagados",
             icone="✅",
             titulo="Dados apagados com sucesso!",
-            mensagem="O LFinance foi limpo e está pronto para receber novos lançamentos.",
+            mensagem=(
+                "O LFinance foi limpo e está pronto para receber novos lançamentos.\n\n"
+                f"Backup automático criado em:\n{backup_seguranca}"
+            ),
             tipo="sucesso",
             texto_confirmar="OK",
         )

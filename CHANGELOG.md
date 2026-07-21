@@ -1,4 +1,21 @@
-# LFinance 1.0.5
+# LFinance 1.0.6
+
+## 1.0.6
+
+- Adicionados testes automatizados que usam somente banco temporário.
+- Restauração de backup agora usa troca atômica e recuperação automática em caso de falha.
+- Limpeza total agora cria e valida um backup automático antes de apagar dados.
+- Validação de backup agora verifica integridade, tabelas e colunas essenciais.
+- Salvamento das configurações agora protege contra arquivos parcialmente gravados.
+- A inicialização repetida não regrava um banco já atualizado, preservando o arquivo quando nenhum dado mudou.
+- Melhorados o tratamento de bloqueios do SQLite e a acessibilidade do menu.
+- Tabelas de contas e parcelamentos agora adaptam colunas em janelas estreitas sem cortar os botões de ação.
+- O roteiro do instalador agora aceita caminhos separados para builds beta sem sobrescrever os artefatos atuais.
+- O instalador não cria dados no perfil administrativo e abre o aplicativo no perfil normal do usuário.
+- Centralizado o conteúdo das tabelas de receitas, gastos, contas, contas fixas, parcelamentos e pesquisa.
+- Padronizada a largura da coluna Situação para manter Em aberto em uma linha.
+- Reforçada a atualização automática para aceitar somente o instalador HTTPS oficial da Release correspondente.
+- Adicionados testes para versões, seleção segura do instalador e acionamento automático da verificação.
 
 ## 1.0.5
 
@@ -50,3 +67,12 @@
 - Adicionada validação dos arquivos de backup antes da restauração.
 - Padronizada a leitura de valores monetários e bloqueados valores inválidos.
 - Atualizada a identificação da versão e fixadas as dependências de geração.
+
+### Verificação automática de atualizações
+
+- Adicionada a opção "Não avisar novamente para esta versão" no aviso automático.
+- A verificação manual continua disponível em Configurações mesmo quando uma versão foi ignorada.
+- O LFinance consulta a última Release publicada no GitHub ao iniciar.
+- Quando existe uma versão mais nova, exibe um aviso com botão para baixar o instalador.
+- Adicionado botão "Verificar atualizações" em Configurações > Sobre o LFinance.
+- Falhas de conexão durante a verificação automática não interrompem a abertura do programa.

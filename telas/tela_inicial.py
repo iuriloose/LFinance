@@ -1321,7 +1321,7 @@ class TelaInicial(QWidget):
                         "",
                     ],
                     dados=item,
-                    colunas_esquerda=(1,),
+                    colunas_esquerda=(),
                 )
                 tabela.setCellWidget(linha, 5, self.criar_acao_item_pago(item))
 
@@ -1435,7 +1435,7 @@ class TelaInicial(QWidget):
                         "",
                     ],
                     dados=item,
-                    colunas_esquerda=(1,),
+                    colunas_esquerda=(),
                     cores={4: cor_status(item.get("situacao", ""))},
                 )
                 btn_pagar = criar_botao_acao(

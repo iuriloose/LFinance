@@ -604,8 +604,9 @@ class TelaContasFixas(QWidget):
 
         tabela = TabelaRegistros(
             ["Vencimento", "Descrição", "Categoria", "Recorrência", "Situação", "Valor mensal", "Ação"],
-            larguras={0: 105, 2: 125, 3: 105, 4: 95, 5: 120, 6: 215},
+            larguras={0: 90, 2: 100, 3: 85, 4: 85, 5: 105, 6: 250},
             coluna_flexivel=1,
+            colunas_ocultar_compacto=(2, 3),
         )
         if not contas:
             tabela.mostrar_vazio(
@@ -637,7 +638,7 @@ class TelaContasFixas(QWidget):
                         "",
                     ],
                     dados=conta,
-                    colunas_esquerda=(1,),
+                    colunas_esquerda=(),
                     cores={4: cor_status(status_texto)},
                 )
 
