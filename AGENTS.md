@@ -92,6 +92,7 @@ Nunca use `gerar_exe.bat` como comando de teste rotineiro: ele atualiza o `pip`,
 
 ## Estado do repositório
 
-- O projeto possui histórico Git local desde 21/07/2026. Não há remoto oficial configurado.
+- Repositório oficial público: `https://github.com/iuriloose/LFinance`, com branch principal `main`.
+- A branch local `main` acompanha `origin/main`; compare, teste e obtenha autorização explícita antes de enviar mudanças.
 - Mantenha commits pequenos e descritivos; não envie o projeto a serviços externos sem autorização específica.
 - Nunca presuma que os artefatos em `build/`, `dist/` e `instalador/` correspondem exatamente ao código-fonte atual sem um build reproduzível.
