@@ -116,13 +116,20 @@ def criar_tabelas():
     if "observacao" not in colunas_pagamentos:
         cursor.execute("ALTER TABLE pagamentos ADD COLUMN observacao TEXT")
 
-    cursor.execute("""
-        UPDATE pagamentos
-        SET valor_original = valor
-        WHERE valor_original IS NULL
-    """)
+    pagamento_sem_valor_original = cursor.execute(
+        "SELECT 1 FROM pagamentos WHERE valor_original IS NULL LIMIT 1"
+    ).fetchone()
+    if pagamento_sem_valor_original:
+        cursor.execute("""
+            UPDATE pagamentos
+            SET valor_original = valor
+            WHERE valor_original IS NULL
+        """)
 
-    cursor.execute("PRAGMA user_version = 3")
+    versao_esquema = cursor.execute("PRAGMA user_version").fetchone()[0]
+    if versao_esquema != 3:
+        cursor.execute("PRAGMA user_version = 3")
+
     conexao.commit()
     conexao.close()
 

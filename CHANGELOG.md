@@ -7,6 +7,7 @@
 - Limpeza total agora cria e valida um backup automático antes de apagar dados.
 - Validação de backup agora verifica integridade, tabelas e colunas essenciais.
 - Salvamento das configurações agora protege contra arquivos parcialmente gravados.
+- A inicialização repetida não regrava um banco já atualizado, preservando o arquivo quando nenhum dado mudou.
 - Melhorados o tratamento de bloqueios do SQLite e a acessibilidade do menu.
 - Tabelas de contas e parcelamentos agora adaptam colunas em janelas estreitas sem cortar os botões de ação.
 - O roteiro do instalador agora aceita caminhos separados para builds beta sem sobrescrever os artefatos atuais.

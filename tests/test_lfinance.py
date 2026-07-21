@@ -1,3 +1,4 @@
+import hashlib
 import json
 import os
 import sqlite3
@@ -69,6 +70,17 @@ class TesteLFinanceIsolado(unittest.TestCase):
             with self.subTest(valor=invalido):
                 with self.assertRaises(ValueError):
                     converter_texto_moeda(invalido)
+
+    def test_inicializacao_repetida_nao_regrava_banco_pronto(self):
+        conteudo_antes = CAMINHO_BANCO.read_bytes()
+        hash_antes = hashlib.sha256(conteudo_antes).hexdigest()
+        data_antes = CAMINHO_BANCO.stat().st_mtime_ns
+
+        banco.criar_tabelas()
+
+        conteudo_depois = CAMINHO_BANCO.read_bytes()
+        self.assertEqual(hashlib.sha256(conteudo_depois).hexdigest(), hash_antes)
+        self.assertEqual(CAMINHO_BANCO.stat().st_mtime_ns, data_antes)
 
     def test_fluxos_financeiros_e_desfazer_pagamento(self):
         banco.inserir_receita("Receita de teste", 1000.0, "2026-07-01", "Teste")
