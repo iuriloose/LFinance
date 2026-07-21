@@ -653,4 +653,3 @@ class TelaPrincipal(QMainWindow):
                 "O LFinance não conseguiu consultar as atualizações agora.",
                 "Verifique sua conexão com a internet e tente novamente.",
             )
-
