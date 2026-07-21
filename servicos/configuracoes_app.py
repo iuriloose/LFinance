@@ -2,6 +2,7 @@ import json
 import os
 import shutil
 import sys
+import tempfile
 from pathlib import Path
 
 APP_NOME = "LFinance"
@@ -105,8 +106,22 @@ def salvar_configuracoes(dados):
     config_atual.update(dados or {})
     config_atual["versao"] = APP_VERSAO
 
-    with open(CAMINHO_CONFIG, "w", encoding="utf-8") as arquivo:
-        json.dump(config_atual, arquivo, ensure_ascii=False, indent=4)
+    descritor, caminho_temporario = tempfile.mkstemp(
+        prefix=".lfinance-config-", suffix=".json", dir=PASTA_DADOS
+    )
+    try:
+        with os.fdopen(descritor, "w", encoding="utf-8") as arquivo:
+            json.dump(config_atual, arquivo, ensure_ascii=False, indent=4)
+            arquivo.flush()
+            os.fsync(arquivo.fileno())
+        os.replace(caminho_temporario, CAMINHO_CONFIG)
+    except Exception:
+        try:
+            os.close(descritor)
+        except OSError:
+            pass
+        Path(caminho_temporario).unlink(missing_ok=True)
+        raise
 
     return config_atual
 

@@ -7,7 +7,9 @@ from servicos.configuracoes_app import CAMINHO_BANCO, migrar_banco_antigo_se_nec
 
 def conectar():
     CAMINHO_BANCO.parent.mkdir(parents=True, exist_ok=True)
-    return sqlite3.connect(CAMINHO_BANCO)
+    conexao = sqlite3.connect(CAMINHO_BANCO, timeout=15)
+    conexao.execute("PRAGMA busy_timeout = 5000")
+    return conexao
 
 
 def criar_tabelas():

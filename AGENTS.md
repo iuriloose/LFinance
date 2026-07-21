@@ -89,4 +89,6 @@ Nunca use `gerar_exe.bat` como comando de teste rotineiro: ele atualiza o `pip`,
 
 ## Estado do repositório
 
-A cópia analisada em `D:\LFinance` não contém metadados Git. Antes de trabalho contínuo, confirmar qual é o repositório oficial e estabelecer versionamento/backup. Nunca presumir que os artefatos em `build/`, `dist/` e `instalador/` correspondem exatamente ao código-fonte atual sem um build reproduzível.
+- O projeto possui histórico Git local desde 21/07/2026. Não há remoto oficial configurado.
+- Mantenha commits pequenos e descritivos; não envie o projeto a serviços externos sem autorização específica.
+- Nunca presuma que os artefatos em `build/`, `dist/` e `instalador/` correspondem exatamente ao código-fonte atual sem um build reproduzível.

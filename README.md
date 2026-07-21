@@ -31,6 +31,12 @@ O arquivo final será criado em:
 
 `dist\LFinance.exe`
 
+## Testes seguros
+
+Os testes usam um perfil temporário e nunca apontam para o banco real do usuário:
+
+`python -m unittest discover -s tests -v`
+
 
 Desenvolvido por Iuri Loose.
 © 2026 Iuri Loose. Todos os direitos reservados.
