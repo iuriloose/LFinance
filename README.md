@@ -1,4 +1,4 @@
-# LFinance 1.0.5
+# LFinance 1.0.6
 
 Sistema financeiro pessoal para Windows.
 
@@ -21,11 +21,17 @@ No Windows, o LFinance usa:
 
 Isso evita perda de dados ao atualizar ou substituir o executável.
 
+## Atualizações
+
+Ao iniciar, o LFinance consulta automaticamente a Release mais recente no repositório oficial.
+Se houver uma versão nova, mostra as novidades e oferece o instalador oficial somente após confirmação do usuário.
+A verificação manual continua disponível em Configurações > Sobre o LFinance.
+
 ## Gerar EXE
 
-Execute:
+Execute sem atualizar dependências implicitamente:
 
-`gerar_exe.bat`
+`python -m PyInstaller --clean --noconfirm LFinance.spec`
 
 O arquivo final será criado em:
 

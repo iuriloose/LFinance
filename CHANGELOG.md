@@ -1,6 +1,6 @@
-# LFinance 1.0.5
+# LFinance 1.0.6
 
-## Não publicado
+## 1.0.6
 
 - Adicionados testes automatizados que usam somente banco temporário.
 - Restauração de backup agora usa troca atômica e recuperação automática em caso de falha.
@@ -11,6 +11,10 @@
 - Tabelas de contas e parcelamentos agora adaptam colunas em janelas estreitas sem cortar os botões de ação.
 - O roteiro do instalador agora aceita caminhos separados para builds beta sem sobrescrever os artefatos atuais.
 - O instalador não cria dados no perfil administrativo e abre o aplicativo no perfil normal do usuário.
+- Centralizado o conteúdo das tabelas de receitas, gastos, contas, contas fixas, parcelamentos e pesquisa.
+- Padronizada a largura da coluna Situação para manter Em aberto em uma linha.
+- Reforçada a atualização automática para aceitar somente o instalador HTTPS oficial da Release correspondente.
+- Adicionados testes para versões, seleção segura do instalador e acionamento automático da verificação.
 
 ## 1.0.5
 

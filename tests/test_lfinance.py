@@ -25,6 +25,12 @@ from servicos.backup import (
     validar_backup_lfinance,
 )
 from servicos.configuracoes_app import CAMINHO_BANCO, CAMINHO_CONFIG, salvar_configuracoes
+from servicos.atualizacoes import (
+    URL_RELEASES,
+    _extrair_versao_publicada,
+    _versao_mais_nova,
+    consultar_ultima_versao,
+)
 from servicos.valores import converter_texto_moeda
 
 
@@ -298,6 +304,107 @@ class TesteLFinanceIsolado(unittest.TestCase):
             janela.close()
             janela.deleteLater()
             app.processEvents()
+
+
+    def test_atualizador_compara_versoes_e_rejeita_tag_invalida(self):
+        self.assertTrue(_versao_mais_nova("1.0.7", "1.0.6"))
+        self.assertTrue(_versao_mais_nova("v2.0.0", "1.9.9"))
+        self.assertFalse(_versao_mais_nova("1.0.6", "1.0.6"))
+        self.assertFalse(_versao_mais_nova("1.0.5", "1.0.6"))
+        self.assertEqual(_extrair_versao_publicada("v1.0.7"), "1.0.7")
+        with self.assertRaises(ValueError):
+            _extrair_versao_publicada("release-main")
+
+    def test_atualizador_aceita_somente_instalador_oficial_da_versao(self):
+        class RespostaFake:
+            def __init__(self, dados):
+                self.dados = dados
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *argumentos):
+                return False
+
+            def read(self):
+                return json.dumps(self.dados).encode("utf-8")
+
+        hash_esperado = "a" * 64
+        nome_esperado = "LFinance_Setup_v1.0.7.exe"
+        url_esperada = (
+            "https://github.com/iuriloose/LFinance/releases/download/"
+            f"v1.0.7/{nome_esperado}"
+        )
+        release = {
+            "tag_name": "v1.0.7",
+            "name": "LFinance 1.0.7",
+            "body": "Melhorias de teste",
+            "html_url": "https://github.com/iuriloose/LFinance/releases/tag/v1.0.7",
+            "assets": [
+                {
+                    "name": nome_esperado,
+                    "browser_download_url": f"https://exemplo.invalid/{nome_esperado}",
+                    "digest": f"sha256:{'b' * 64}",
+                },
+                {
+                    "name": "outro_programa.exe",
+                    "browser_download_url": "https://github.com/iuriloose/LFinance/releases/download/v1.0.7/outro_programa.exe",
+                },
+                {
+                    "name": nome_esperado,
+                    "browser_download_url": url_esperada,
+                    "digest": f"sha256:{hash_esperado}",
+                },
+            ],
+        }
+
+        with mock.patch(
+            "servicos.atualizacoes.urllib.request.urlopen",
+            return_value=RespostaFake(release),
+        ):
+            resultado = consultar_ultima_versao(timeout=1)
+
+        self.assertTrue(resultado.disponivel)
+        self.assertEqual(resultado.nova_versao, "1.0.7")
+        self.assertEqual(resultado.url_download, url_esperada)
+        self.assertEqual(resultado.nome_arquivo, nome_esperado)
+        self.assertEqual(resultado.hash_sha256, hash_esperado)
+
+    def test_atualizador_descarta_links_nao_oficiais(self):
+        class RespostaFake:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *argumentos):
+                return False
+
+            def read(self):
+                return json.dumps({
+                    "tag_name": "v1.0.7",
+                    "html_url": "https://exemplo.invalid/release",
+                    "assets": [{
+                        "name": "LFinance_Setup_v1.0.7.exe",
+                        "browser_download_url": "http://github.com/iuriloose/LFinance/releases/download/v1.0.7/LFinance_Setup_v1.0.7.exe",
+                    }],
+                }).encode("utf-8")
+
+        with mock.patch(
+            "servicos.atualizacoes.urllib.request.urlopen",
+            return_value=RespostaFake(),
+        ):
+            resultado = consultar_ultima_versao(timeout=1)
+
+        self.assertEqual(resultado.url_download, "")
+        self.assertEqual(resultado.url_release, URL_RELEASES)
+
+    def test_verificacao_automatica_e_acionada_sem_mensagem_de_sucesso(self):
+        from main import TelaPrincipal
+
+        janela_falsa = mock.Mock()
+        TelaPrincipal.verificar_atualizacoes_automaticamente(janela_falsa)
+        janela_falsa.verificar_atualizacoes.assert_called_once_with(
+            mostrar_sem_atualizacao=False
+        )
 
 
 if __name__ == "__main__":
