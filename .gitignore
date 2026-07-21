@@ -1,0 +1,51 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyo
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Build / distribution
+build/
+dist/
+*.spec.bak
+*.manifest
+*.log
+
+# PyInstaller
+*.toc
+*.pkg
+*.pyz
+
+# Local database and user data
+banco/lfinance.db
+banco/*.db
+banco/backups_automaticos/*.db
+*.sqlite
+*.sqlite3
+
+# IDE / editor
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Temporary files
+*.tmp
+*.bak
+~$*
+
+# Installer output
+instalador/
+Output/
+*.iss.bak
