@@ -391,11 +391,15 @@ class TelaRelatorios(QWidget):
             if status == "aberta" and inicio_mes <= data <= fim_mes and data < hoje:
                 atrasadas.append(item)
 
-            if (
-                status == "aberta"
-                and tipo == "Parcelamento"
-                and inicio_mes <= data <= fim_mes
-            ):
+            if status == "aberta" and tipo == "Parcelamento":
+                atual = int(parcela_atual or 1)
+                total = int(total_parcelas or atual)
+                restantes = max(total - atual + 1, 1)
+                valor_parcela = float(valor or 0)
+                item["parcelas_restantes"] = restantes
+                item["valor_restante"] = round(valor_parcela * restantes, 2)
+                item["valor_exibicao"] = item["valor_restante"]
+                item["info_extra"] = f"Parcela {atual}/{total} • {restantes} restante(s) • próxima em {item['data_texto']}"
                 parcelamentos_abertos.append(item)
 
         receitas_mes = []
@@ -631,11 +635,14 @@ class TelaRelatorios(QWidget):
         titulo = QLabel(item.get("descricao", "-"))
         titulo.setObjectName("itemTitulo")
 
-        detalhes = QLabel(f"📅 {item.get('data_texto', '-')}   •   📂 {item.get('categoria', '-')}   •   {item.get('tipo', '-')}")
+        detalhe_base = f"📅 {item.get('data_texto', '-')}   •   📂 {item.get('categoria', '-')}   •   {item.get('tipo', '-')}"
+        if item.get("info_extra"):
+            detalhe_base = item["info_extra"]
+        detalhes = QLabel(detalhe_base)
         detalhes.setObjectName("itemInfo")
         detalhes.setWordWrap(True)
 
-        valor = QLabel(self.formatar_moeda(item.get("valor", 0)))
+        valor = QLabel(self.formatar_moeda(item.get("valor_exibicao", item.get("valor", 0))))
         valor.setObjectName(cor_valor)
         valor.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
         valor.setMinimumWidth(110)
@@ -661,7 +668,7 @@ class TelaRelatorios(QWidget):
         lbl_titulo = QLabel(titulo)
         lbl_titulo.setObjectName("secaoRelatorio")
 
-        total = sum(float(item.get("valor", 0) or 0) for item in itens)
+        total = sum(float(item.get("valor_exibicao", item.get("valor", 0)) or 0) for item in itens)
         lbl_resumo = QLabel(f"{len(itens)} item(ns) • {self.formatar_moeda(total)}")
         lbl_resumo.setObjectName("textoSuave")
         lbl_resumo.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
@@ -672,7 +679,7 @@ class TelaRelatorios(QWidget):
         layout.addLayout(linha_titulo)
 
         if not itens:
-            vazio = QLabel("Nenhum lançamento neste mês.")
+            vazio = QLabel("Nenhum registro para exibir.")
             vazio.setObjectName("textoSuave")
             layout.addWidget(vazio)
         else:
@@ -913,7 +920,7 @@ class TelaRelatorios(QWidget):
             "Contas atrasadas", dados["atrasadas"], "valorVermelho", 4
         ), 2, 0)
         listas.addWidget(self.criar_secao_lista(
-            "Parcelamentos em aberto", dados["parcelamentos"], "valorAzul", 4
+            "Parcelamentos em aberto", dados["parcelamentos"], "valorAzul", 8
         ), 2, 1)
 
         itens_acrescimos = []

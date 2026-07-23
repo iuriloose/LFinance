@@ -12,7 +12,7 @@ class MenuLateral(QFrame):
         self.ao_clicar = ao_clicar
         self.botoes = {}
         self.assets_path = caminho_recurso("assets")
-        self.logo_path = self.assets_path / "lfinance_brand.png"
+        self.logo_path = self.assets_path / "logo.png"
         self.tooltips_menu = {
             "tela_inicial": "Tela inicial\n\nResumo do mês, saldo, receitas, valores pagos, contas a pagar e próximos vencimentos.",
             "pesquisar": "Pesquisar\n\nEncontre contas, gastos do dia e receitas em uma tela própria.",

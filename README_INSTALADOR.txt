@@ -1,4 +1,4 @@
-LFinance 1.0.6 - Instalador Windows
+LFinance 1.0.7 - Instalador Windows
 
 Como gerar o instalador final:
 
@@ -12,7 +12,7 @@ Como gerar o instalador final:
    Build > Compile
 
 4. O instalador será gerado em:
-   instalador\LFinance_Setup_v1.0.6.exe
+   instalador\LFinance_Setup_v1.0.7.exe
 
 O instalador final:
 - Instala o LFinance em C:\Program Files\LFinance.

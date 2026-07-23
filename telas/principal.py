@@ -29,7 +29,7 @@ class TelaPrincipal(QMainWindow):
         super().__init__()
 
         self.setWindowTitle(f"LFinance {APP_VERSAO}")
-        icone = caminho_recurso("assets", "lfinance_logo.ico")
+        icone = caminho_recurso("assets", "logo.ico")
         if icone.exists():
             self.setWindowIcon(QIcon(str(icone)))
         self.resize(1200, 720)

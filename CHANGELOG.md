@@ -1,4 +1,13 @@
-# LFinance 1.0.6
+# LFinance 1.0.7
+
+## 1.0.7
+
+- Aplicada a nova identidade visual oficial no programa, no executável e no instalador.
+- Padronizados os arquivos de logo usados pela janela, menu lateral, PyInstaller e Inno Setup.
+- Reorganizada a apresentação da tela Relatórios para exibir informações mais úteis e consistentes.
+- Corrigida a seção Parcelamentos em aberto para considerar todos os parcelamentos ativos, mesmo quando a próxima parcela vence fora do mês selecionado.
+- Adicionados parcela atual, quantidade restante, próximo vencimento e valor total restante aos parcelamentos exibidos nos relatórios.
+- Melhorados os textos de estados vazios e os totais das listas do relatório.
 
 ## 1.0.6
 

@@ -28,7 +28,7 @@ class JanelaBoasVindas(QDialog):
         super().__init__()
         self.setWindowTitle("Bem-vindo ao LFinance")
         self.setFixedSize(440, 260)
-        icone = caminho_recurso("assets", "lfinance_logo.ico")
+        icone = caminho_recurso("assets", "logo.ico")
         if icone.exists():
             from PySide6.QtGui import QIcon
             self.setWindowIcon(QIcon(str(icone)))

@@ -43,6 +43,6 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    icon='assets/lfinance_logo.ico',
+    icon='assets/logo.ico',
     version='version_info.txt',
 )
