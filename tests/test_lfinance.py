@@ -188,7 +188,7 @@ class TesteLFinanceIsolado(unittest.TestCase):
             "Flags: nowait postinstall skipifsilent runasoriginaluser", roteiro
         )
 
-    def test_as_nove_telas_sao_construidas(self):
+    def test_as_oito_telas_sao_construidas(self):
         from PySide6.QtWidgets import QApplication
         from PySide6.QtTest import QTest
         from componentes.tabela_registros import TabelaRegistros
@@ -196,12 +196,12 @@ class TesteLFinanceIsolado(unittest.TestCase):
 
         app = QApplication.instance() or QApplication([])
         janela = TelaPrincipal()
-        self.assertEqual(janela.paginas.count(), 9)
+        self.assertEqual(janela.paginas.count(), 8)
         self.assertEqual(
             set(janela.menu.botoes),
             {
                 "tela_inicial", "pesquisar", "receitas", "gastos", "despesas",
-                "contas_fixas", "parcelamentos", "relatorios", "configuracoes",
+                "contas_fixas", "parcelamentos", "configuracoes",
             },
         )
         for botao in janela.menu.botoes.values():

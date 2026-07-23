@@ -469,6 +469,8 @@ class TelaRelatorios(QWidget):
         total_pendente = sum(item["valor"] for item in pendentes_mes)
         total_atrasado = sum(item["valor"] for item in atrasadas)
         saldo_mes = total_receitas - total_pago
+        total_parcelamentos = sum(item.get("valor_restante", 0) for item in parcelamentos_abertos)
+        resultado_previsto = total_receitas - (total_pago + total_pendente)
 
         return {
             "inicio_mes": inicio_mes,
@@ -489,20 +491,22 @@ class TelaRelatorios(QWidget):
             "total_pendente": total_pendente,
             "total_atrasado": total_atrasado,
             "saldo_mes": saldo_mes,
+            "total_parcelamentos": total_parcelamentos,
+            "resultado_previsto": resultado_previsto,
         }
 
     def criar_card_resumo(self, objeto, icone, titulo, valor, info):
         card = QFrame()
         card.setObjectName(objeto)
-        card.setMinimumHeight(96)
+        card.setMinimumHeight(84)
 
         layout = QHBoxLayout(card)
-        layout.setContentsMargins(18, 12, 18, 12)
+        layout.setContentsMargins(16, 10, 16, 10)
         layout.setSpacing(14)
 
         lbl_icone = QLabel(icone)
         lbl_icone.setObjectName("cardValorRelatorio")
-        lbl_icone.setFixedWidth(42)
+        lbl_icone.setFixedWidth(36)
         lbl_icone.setAlignment(Qt.AlignCenter)
 
         textos = QVBoxLayout()
@@ -795,11 +799,13 @@ class TelaRelatorios(QWidget):
 
         cards = QGridLayout()
         cards.setSpacing(12)
+        for coluna in range(3):
+            cards.setColumnStretch(coluna, 1)
 
         cards.addWidget(self.criar_card_resumo(
             "cardReceitaRelatorio", "💵", "Receitas do mês",
             self.formatar_moeda(dados["total_receitas"]),
-            f"{len(dados['receitas'])} entrada(s)"
+            f"{len(dados['receitas'])} entrada(s) registrada(s)"
         ), 0, 0)
 
         cards.addWidget(self.criar_card_resumo(
@@ -809,97 +815,78 @@ class TelaRelatorios(QWidget):
         ), 0, 1)
 
         cards.addWidget(self.criar_card_resumo(
-            "cardPendenteRelatorio", "📌", "A pagar",
+            "cardPendenteRelatorio", "📌", "Ainda a pagar",
             self.formatar_moeda(dados["total_pendente"]),
-            f"{len(dados['pendentes'])} pendente(s) • {len(dados['atrasadas'])} atrasada(s)"
+            f"{len(dados['pendentes'])} conta(s) neste mês"
         ), 0, 2)
 
         cards.addWidget(self.criar_card_resumo(
-            "cardSaldoRelatorio", "💰", "Saldo do mês",
+            "cardSaldoRelatorio", "💰", "Saldo realizado",
             self.formatar_moeda(dados["saldo_mes"]),
-            "Receitas - valores já pagos"
-        ), 0, 3)
+            "Receitas menos valores já pagos"
+        ), 1, 0)
 
-        pagamentos_com_acrescimo = [p for p in dados["pagamentos"] if p["acrescimo"] > 0]
-        card_acrescimos = self.criar_card_resumo(
-            "cardPendenteRelatorio", "⚠", "Juros e multas",
-            self.formatar_moeda(dados["total_acrescimos"]),
-            f"{len(pagamentos_com_acrescimo)} pagamento(s) com acréscimo"
-        )
-        card_acrescimos.setCursor(Qt.PointingHandCursor)
-        card_acrescimos.setToolTip("Clique para ver quais contas tiveram juros ou multa")
-        card_acrescimos.mousePressEvent = lambda evento, itens=pagamentos_com_acrescimo: self.mostrar_detalhes_ajustes(
-            itens, "Juros e multas pagos", "acrescimo", "Juros/multa"
-        )
-        cards.addWidget(card_acrescimos, 1, 0, 1, 2)
+        cards.addWidget(self.criar_card_resumo(
+            "cardSaldoRelatorio" if dados["resultado_previsto"] >= 0 else "cardPendenteRelatorio",
+            "📈" if dados["resultado_previsto"] >= 0 else "📉",
+            "Resultado previsto",
+            self.formatar_moeda(dados["resultado_previsto"]),
+            "Após pagar todas as contas deste mês"
+        ), 1, 1)
 
-        pagamentos_com_desconto = [p for p in dados["pagamentos"] if p["desconto"] > 0]
-        card_descontos = self.criar_card_resumo(
-            "cardReceitaRelatorio", "↓", "Descontos obtidos",
-            self.formatar_moeda(dados["total_descontos"]),
-            "Diferença economizada nos pagamentos"
-        )
-        card_descontos.setCursor(Qt.PointingHandCursor)
-        card_descontos.setToolTip("Clique para ver quais contas tiveram desconto")
-        card_descontos.mousePressEvent = lambda evento, itens=pagamentos_com_desconto: self.mostrar_detalhes_ajustes(
-            itens, "Descontos obtidos", "desconto", "Desconto"
-        )
-        cards.addWidget(card_descontos, 1, 2, 1, 2)
+        cards.addWidget(self.criar_card_resumo(
+            "cardPendenteRelatorio" if dados["total_atrasado"] > 0 else "cardBase",
+            "⚠", "Contas atrasadas",
+            self.formatar_moeda(dados["total_atrasado"]),
+            f"{len(dados['atrasadas'])} conta(s) vencida(s)"
+        ), 1, 2)
 
         layout.addLayout(cards)
 
-        painel = QFrame()
-        painel.setObjectName("cardBase")
-        painel_layout = QVBoxLayout(painel)
-        painel_layout.setContentsMargins(18, 16, 18, 18)
-        painel_layout.setSpacing(12)
+        panorama = QFrame()
+        panorama.setObjectName("cardBase")
+        panorama_layout = QVBoxLayout(panorama)
+        panorama_layout.setContentsMargins(18, 14, 18, 16)
+        panorama_layout.setSpacing(10)
 
-        secao = QLabel("Resumo do mês")
-        secao.setObjectName("secaoRelatorio")
-        painel_layout.addWidget(secao)
-
-        painel_layout.addWidget(self.criar_linha_resumo(
-            "Entradas", self.formatar_moeda(dados["total_receitas"]),
-            "Total recebido no mês", "valorVerde"
-        ))
-        painel_layout.addWidget(self.criar_linha_resumo(
-            "Valores já pagos", self.formatar_moeda(dados["total_pago"]),
-            "Contas pagas + gastos realizados", "valorLaranja"
-        ))
-        painel_layout.addWidget(self.criar_linha_resumo(
-            "Ainda falta pagar", self.formatar_moeda(dados["total_pendente"]),
-            "Contas em aberto com vencimento neste mês", "valorVermelho"
-        ))
-        painel_layout.addWidget(self.criar_linha_resumo(
-            "Juros e multas pagos", self.formatar_moeda(dados["total_acrescimos"]),
-            "Acréscimos registrados nos pagamentos do mês", "valorLaranja"
-        ))
+        linha_panorama = QHBoxLayout()
+        titulo_panorama = QLabel("Panorama do mês")
+        titulo_panorama.setObjectName("secaoRelatorio")
+        resumo_panorama = QLabel(
+            f"Compromissos: {self.formatar_moeda(dados['total_pago'] + dados['total_pendente'])}  •  "
+            f"Parcelamentos futuros: {self.formatar_moeda(dados['total_parcelamentos'])}"
+        )
+        resumo_panorama.setObjectName("textoSuave")
+        resumo_panorama.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        linha_panorama.addWidget(titulo_panorama)
+        linha_panorama.addStretch()
+        linha_panorama.addWidget(resumo_panorama)
+        panorama_layout.addLayout(linha_panorama)
 
         total_compromisso = dados["total_pago"] + dados["total_pendente"]
-        resultado_previsto = dados["total_receitas"] - total_compromisso
-        painel_layout.addWidget(self.criar_linha_resumo(
-            "Resultado previsto", self.formatar_moeda(resultado_previsto),
-            "Receitas menos valores pagos e pendentes do mês",
-            "valorVerde" if resultado_previsto >= 0 else "valorVermelho"
-        ))
-
-        resultado_previsto = dados["total_receitas"] - total_compromisso
         percentual_pago = 0 if total_compromisso <= 0 else (dados["total_pago"] / total_compromisso) * 100
         percentual_pendente = 0 if total_compromisso <= 0 else (dados["total_pendente"] / total_compromisso) * 100
 
-        lbl_andamento = QLabel("Andamento dos compromissos do mês")
-        lbl_andamento.setObjectName("textoNormal")
-        painel_layout.addWidget(lbl_andamento)
-
-        painel_layout.addWidget(self.criar_barra(percentual_pago, "barraVerde"))
-
-        info_andamento = QLabel(
-            f"Pago: {int(percentual_pago)}%   •   Pendente: {int(percentual_pendente)}%   •   Total previsto: {self.formatar_moeda(total_compromisso)}"
+        panorama_layout.addWidget(self.criar_barra(percentual_pago, "barraVerde"))
+        andamento = QLabel(
+            f"{int(percentual_pago)}% dos compromissos já pagos  •  "
+            f"{int(percentual_pendente)}% ainda pendentes"
         )
-        info_andamento.setObjectName("textoSuave")
-        painel_layout.addWidget(info_andamento)
+        andamento.setObjectName("textoSuave")
+        panorama_layout.addWidget(andamento)
 
-        layout.addWidget(painel)
+        ajustes = QHBoxLayout()
+        ajustes.setSpacing(12)
+        ajustes.addWidget(self.criar_linha_resumo(
+            "Juros e multas", self.formatar_moeda(dados["total_acrescimos"]),
+            "Acréscimos pagos no mês", "valorLaranja"
+        ), 1)
+        ajustes.addWidget(self.criar_linha_resumo(
+            "Descontos obtidos", self.formatar_moeda(dados["total_descontos"]),
+            "Economia registrada nos pagamentos", "valorVerde"
+        ), 1)
+        panorama_layout.addLayout(ajustes)
+        layout.addWidget(panorama)
 
         listas = QGridLayout()
         listas.setSpacing(12)
@@ -924,7 +911,9 @@ class TelaRelatorios(QWidget):
         ), 2, 1)
 
         itens_acrescimos = []
-        for item in pagamentos_com_acrescimo:
+        for item in dados["pagamentos"]:
+            if item.get("acrescimo", 0) <= 0:
+                continue
             detalhe = dict(item)
             detalhe["valor"] = item["acrescimo"]
             detalhe["descricao"] = f"{item['descricao']} — acréscimo"
@@ -940,6 +929,7 @@ class TelaRelatorios(QWidget):
         layout.addWidget(rodape)
 
         area.setWidget(conteudo)
+        area.verticalScrollBar().setValue(0)
         principal.addWidget(area, 1)
 
     def mes_anterior(self):
