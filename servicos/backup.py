@@ -13,6 +13,10 @@ COLUNAS_OBRIGATORIAS = {
     "gastos": {"id", "descricao", "valor", "data_gasto", "categoria"},
     "pagamentos": {"id", "descricao", "valor", "data_pagamento", "categoria", "tipo"},
 }
+COLUNAS_OPCIONAIS = {
+    "valores_receber": {"id", "pagador", "descricao", "valor", "data_prevista", "status"},
+    "recebimentos": {"id", "valor_receber_id", "receita_id", "valor", "data_recebimento"},
+}
 
 
 def copiar_banco_sqlite(origem, destino):
@@ -107,7 +111,11 @@ def validar_backup_lfinance(arquivo):
             if not TABELAS_OBRIGATORIAS.issubset(tabelas):
                 return False, "O arquivo não possui a estrutura de um backup do LFinance."
 
-            for tabela, obrigatorias in COLUNAS_OBRIGATORIAS.items():
+            colunas_validar = dict(COLUNAS_OBRIGATORIAS)
+            colunas_validar.update({
+                tabela: colunas for tabela, colunas in COLUNAS_OPCIONAIS.items() if tabela in tabelas
+            })
+            for tabela, obrigatorias in colunas_validar.items():
                 colunas = {
                     linha[1]
                     for linha in conexao.execute(f"PRAGMA table_info({tabela})")

@@ -2,7 +2,7 @@
 
 ## Produto
 
-O LFinance é um aplicativo desktop de finanças pessoais para Windows. Ele organiza receitas, gastos pagos no dia, contas a pagar, contas fixas, parcelamentos e pagamentos.
+O LFinance é um aplicativo desktop de finanças pessoais para Windows. Ele organiza receitas, valores a receber, gastos pagos no dia, contas a pagar, contas fixas, parcelamentos e pagamentos.
 
 Trate os dados financeiros como sensíveis. Preserve o comportamento existente e prefira mudanças pequenas, reversíveis e verificáveis.
 
@@ -40,6 +40,9 @@ Stack atual: Python, PySide6, SQLite, python-dateutil, PyInstaller e Inno Setup.
 - Contas fixas avançam um mês após pagamento.
 - Parcelamentos avançam parcela e vencimento; a última parcela é encerrada.
 - Ao desfazer pagamento recorrente, preservar a ordem histórica e desfazer primeiro o registro mais recente.
+- Valores pendentes em Valores a receber nunca entram no saldo ou nas Receitas.
+- Cada recebimento confirmado cria uma Receita vinculada; desfazer deve remover os dois registros juntos.
+- Recebimentos mensais só criam a próxima competência depois da quitação total.
 - Não inventar categorias, valores, datas, regras comerciais ou dados financeiros.
 
 ## Interface
@@ -70,7 +73,7 @@ Nunca use `gerar_exe.bat` como comando de teste rotineiro: ele atualiza o `pip`,
 - `PRAGMA quick_check` no banco temporário.
 - Fluxos fictícios: receita, gasto, conta simples, conta fixa, parcelamento, pagamento e desfazer pagamento.
 - Backup e restauração somente entre arquivos temporários.
-- Abertura e navegação das oito telas: inicial, pesquisar, receitas, gastos, contas a pagar, contas fixas, parcelamentos e configurações.
+- Abertura e navegação das nove telas: inicial, pesquisar, receitas, valores a receber, gastos, contas a pagar, contas fixas, parcelamentos e configurações.
 - Confirmar que o banco real não mudou comparando caminho e data de modificação antes/depois.
 
 ## Build e publicação

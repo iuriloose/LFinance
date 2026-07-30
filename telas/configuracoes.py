@@ -455,13 +455,13 @@ class TelaConfiguracoes(QWidget):
         btn_limpar = QPushButton("🗑️ Limpar todos os dados")
         btn_limpar.setStyleSheet(self.estilo_botao_config("vermelho"))
         btn_limpar.setMinimumWidth(220)
-        btn_limpar.setToolTip("Limpar todos os dados\n\nApaga receitas, gastos, despesas, contas, parcelamentos e histórico.")
+        btn_limpar.setToolTip("Limpar todos os dados\n\nApaga receitas, valores a receber, gastos, despesas, contas, parcelamentos e histórico.")
         btn_limpar.clicked.connect(self.confirmar_limpeza)
 
         botoes.addWidget(btn_limpar)
 
         card_layout.addWidget(self.criar_label(
-            "Isso remove receitas, gastos, despesas, contas, parcelamentos e histórico de pagamentos.",
+            "Isso remove receitas, valores a receber, gastos, despesas, contas, parcelamentos e históricos.",
             "configTexto",
             True
         ))
@@ -952,6 +952,7 @@ class TelaConfiguracoes(QWidget):
             detalhes=(
                 "Serão apagados:\n"
                 "• Receitas\n"
+                "• Valores a receber e recebimentos vinculados\n"
                 "• Gastos\n"
                 "• Despesas\n"
                 "• Contas fixas\n"

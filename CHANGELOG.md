@@ -1,4 +1,16 @@
-# LFinance 1.0.7
+# LFinance 2.0.0
+
+## 2.0.0
+
+- Adicionada a tela Valores a receber, acessível pelo menu abaixo de Receitas.
+- Criado cadastro de salários, comissões, vendas, empréstimos e outros valores previstos.
+- Adicionados recebimentos totais e parciais com histórico por pessoa ou empresa.
+- Cada recebimento confirmado gera automaticamente uma Receita vinculada.
+- Valores pendentes não alteram o saldo nem os cálculos da Tela inicial.
+- Adicionada recorrência mensal com criação automática da próxima competência.
+- Adicionados estados Em aberto, Parcial, Atrasado, Recebido e Cancelado.
+- Incluídos Valores a receber na pesquisa global e na limpeza total protegida.
+- Mantida compatibilidade com backups criados pela versão 1.0.7.
 
 ## 1.0.7
 

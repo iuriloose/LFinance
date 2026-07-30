@@ -1,10 +1,11 @@
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel,
-    QPushButton, QFrame, QScrollArea, QDialog
+    QPushButton, QFrame, QScrollArea, QDialog, QMessageBox
 )
 from PySide6.QtCore import Qt
 
 from banco.banco import listar_receitas, excluir_receita
+from banco.valores_receber import listar_ids_receitas_vinculadas
 from componentes.tabela_registros import TabelaRegistros, criar_botao_acao
 from telas.nova_receita import NovaReceita
 
@@ -340,6 +341,7 @@ class TelaReceitas(QWidget):
         self.layout_principal.addLayout(topo)
 
         receitas = listar_receitas()
+        receitas_vinculadas = listar_ids_receitas_vinculadas()
 
         painel = QFrame()
         painel.setObjectName("card")
@@ -377,27 +379,54 @@ class TelaReceitas(QWidget):
                     dados=receita,
                     colunas_esquerda=(),
                 )
-                btn_editar = criar_botao_acao(
-                    "Editar",
-                    lambda _, r=receita: self.editar(r),
-                    "#3b82f6",
-                    72,
-                    "Editar esta receita",
-                )
-                btn_excluir = criar_botao_acao(
-                    "🗑",
-                    lambda _, id=id_receita, d=descricao: self.excluir(id, d),
-                    "#ef4444",
-                    36,
-                    "Excluir esta receita",
-                )
-                tabela.definir_acoes(linha, [btn_editar, btn_excluir])
+                if id_receita in receitas_vinculadas:
+                    btn_vinculada = criar_botao_acao(
+                        "A receber",
+                        lambda _: self.mostrar_vinculada(),
+                        "#38bdf8",
+                        92,
+                        "Esta entrada é gerenciada na tela A receber",
+                    )
+                    tabela.definir_acoes(linha, [btn_vinculada])
+                else:
+                    btn_editar = criar_botao_acao(
+                        "Editar",
+                        lambda _, r=receita: self.editar(r),
+                        "#3b82f6",
+                        72,
+                        "Editar esta receita",
+                    )
+                    btn_excluir = criar_botao_acao(
+                        "🗑",
+                        lambda _, id=id_receita, d=descricao: self.excluir(id, d),
+                        "#ef4444",
+                        36,
+                        "Excluir esta receita",
+                    )
+                    tabela.definir_acoes(linha, [btn_editar, btn_excluir])
             tabela.cellDoubleClicked.connect(
-                lambda linha, _coluna: self.editar(tabela.item(linha, 0).data(Qt.UserRole))
+                lambda linha, _coluna: self.abrir_receita(
+                    tabela.item(linha, 0).data(Qt.UserRole),
+                    receitas_vinculadas,
+                )
             )
 
         painel_layout.addWidget(tabela, 1)
         self.layout_principal.addWidget(painel, 1)
+
+    def abrir_receita(self, receita, receitas_vinculadas):
+        if receita[0] in receitas_vinculadas:
+            self.mostrar_vinculada()
+            return
+        self.editar(receita)
+
+    def mostrar_vinculada(self):
+        QMessageBox.information(
+            self,
+            "Receita vinculada",
+            "Esta entrada foi criada por Valores a receber.\n\n"
+            "Use a tela A receber para consultar ou desfazer o recebimento.",
+        )
 
     def nova_receita(self):
         janela = NovaReceita()

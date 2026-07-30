@@ -62,7 +62,7 @@ class TesteLFinanceIsolado(unittest.TestCase):
         self.assertEqual(CAMINHO_BANCO.parent, Path(PERFIL_TEMPORARIO.name) / "LFinance")
         with closing(sqlite3.connect(CAMINHO_BANCO)) as conexao:
             self.assertEqual(conexao.execute("PRAGMA quick_check").fetchone()[0], "ok")
-            self.assertEqual(conexao.execute("PRAGMA user_version").fetchone()[0], 3)
+            self.assertEqual(conexao.execute("PRAGMA user_version").fetchone()[0], 4)
 
         self.assertEqual(converter_texto_moeda("1.234,56"), 1234.56)
         self.assertEqual(converter_texto_moeda("1234.56"), 1234.56)
@@ -188,7 +188,7 @@ class TesteLFinanceIsolado(unittest.TestCase):
             "Flags: nowait postinstall skipifsilent runasoriginaluser", roteiro
         )
 
-    def test_as_oito_telas_sao_construidas(self):
+    def test_as_nove_telas_sao_construidas(self):
         from PySide6.QtWidgets import QApplication
         from PySide6.QtTest import QTest
         from componentes.tabela_registros import TabelaRegistros
@@ -196,11 +196,11 @@ class TesteLFinanceIsolado(unittest.TestCase):
 
         app = QApplication.instance() or QApplication([])
         janela = TelaPrincipal()
-        self.assertEqual(janela.paginas.count(), 8)
+        self.assertEqual(janela.paginas.count(), 9)
         self.assertEqual(
             set(janela.menu.botoes),
             {
-                "tela_inicial", "pesquisar", "receitas", "gastos", "despesas",
+                "tela_inicial", "pesquisar", "receitas", "a_receber", "gastos", "despesas",
                 "contas_fixas", "parcelamentos", "configuracoes",
             },
         )
@@ -342,16 +342,16 @@ class TesteLFinanceIsolado(unittest.TestCase):
                 return json.dumps(self.dados).encode("utf-8")
 
         hash_esperado = "a" * 64
-        nome_esperado = "LFinance_Setup_v1.0.7.exe"
+        nome_esperado = "LFinance_Setup_v2.0.1.exe"
         url_esperada = (
             "https://github.com/iuriloose/LFinance/releases/download/"
-            f"v1.0.7/{nome_esperado}"
+            f"v2.0.1/{nome_esperado}"
         )
         release = {
-            "tag_name": "v1.0.7",
-            "name": "LFinance 1.0.7",
+            "tag_name": "v2.0.1",
+            "name": "LFinance 2.0.1",
             "body": "Melhorias de teste",
-            "html_url": "https://github.com/iuriloose/LFinance/releases/tag/v1.0.7",
+            "html_url": "https://github.com/iuriloose/LFinance/releases/tag/v2.0.1",
             "assets": [
                 {
                     "name": nome_esperado,
@@ -360,7 +360,7 @@ class TesteLFinanceIsolado(unittest.TestCase):
                 },
                 {
                     "name": "outro_programa.exe",
-                    "browser_download_url": "https://github.com/iuriloose/LFinance/releases/download/v1.0.7/outro_programa.exe",
+                    "browser_download_url": "https://github.com/iuriloose/LFinance/releases/download/v2.0.1/outro_programa.exe",
                 },
                 {
                     "name": nome_esperado,
@@ -377,7 +377,7 @@ class TesteLFinanceIsolado(unittest.TestCase):
             resultado = consultar_ultima_versao(timeout=1)
 
         self.assertTrue(resultado.disponivel)
-        self.assertEqual(resultado.nova_versao, "1.0.7")
+        self.assertEqual(resultado.nova_versao, "2.0.1")
         self.assertEqual(resultado.url_download, url_esperada)
         self.assertEqual(resultado.nome_arquivo, nome_esperado)
         self.assertEqual(resultado.hash_sha256, hash_esperado)
@@ -392,11 +392,11 @@ class TesteLFinanceIsolado(unittest.TestCase):
 
             def read(self):
                 return json.dumps({
-                    "tag_name": "v1.0.7",
+                    "tag_name": "v2.0.1",
                     "html_url": "https://exemplo.invalid/release",
                     "assets": [{
-                        "name": "LFinance_Setup_v1.0.7.exe",
-                        "browser_download_url": "http://github.com/iuriloose/LFinance/releases/download/v1.0.7/LFinance_Setup_v1.0.7.exe",
+                        "name": "LFinance_Setup_v2.0.1.exe",
+                        "browser_download_url": "http://github.com/iuriloose/LFinance/releases/download/v2.0.1/LFinance_Setup_v2.0.1.exe",
                     }],
                 }).encode("utf-8")
 

@@ -8,6 +8,7 @@ from PySide6.QtCore import QUrl, Signal
 from componentes.menu_lateral import MenuLateral
 from telas.despesas import TelaDespesas
 from telas.receitas import TelaReceitas
+from telas.valores_receber import TelaValoresReceber
 from telas.gastos import TelaGastos
 from telas.tela_inicial import TelaInicial
 from telas.configuracoes import TelaConfiguracoes
@@ -366,6 +367,7 @@ class TelaPrincipal(QMainWindow):
         self.pagina_inicial = TelaInicial(self.recarregar_home)
         self.pagina_pesquisa = TelaPesquisa(lambda: self.recarregar_home(preservar_pagina=True))
         self.pagina_receitas = TelaReceitas(self.recarregar_home)
+        self.pagina_valores_receber = TelaValoresReceber(self.pagina_receitas.recarregar)
         self.pagina_gastos = TelaGastos(self.recarregar_home)
         self.pagina_despesas = TelaDespesas()
         self.pagina_contas = TelaContasFixas(self.recarregar_home)
@@ -375,6 +377,7 @@ class TelaPrincipal(QMainWindow):
         self.paginas.addWidget(self.pagina_inicial)
         self.paginas.addWidget(self.pagina_pesquisa)
         self.paginas.addWidget(self.pagina_receitas)
+        self.paginas.addWidget(self.pagina_valores_receber)
         self.paginas.addWidget(self.pagina_gastos)
         self.paginas.addWidget(self.pagina_despesas)
         self.paginas.addWidget(self.pagina_contas)
@@ -399,6 +402,10 @@ class TelaPrincipal(QMainWindow):
         elif tela == "receitas":
             self.pagina_receitas.recarregar()
             self.paginas.setCurrentWidget(self.pagina_receitas)
+
+        elif tela == "a_receber":
+            self.pagina_valores_receber.recarregar()
+            self.paginas.setCurrentWidget(self.pagina_valores_receber)
 
         elif tela == "gastos":
             self.pagina_gastos.recarregar()
