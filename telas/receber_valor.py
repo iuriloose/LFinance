@@ -24,7 +24,7 @@ class ReceberValor(QDialog):
         super().__init__(parent)
         self.valor_receber = valor_receber
         self.setWindowTitle("Registrar recebimento")
-        self.setFixedSize(520, 510)
+        self.setFixedSize(520, 540)
         self.setModal(True)
         self.aplicar_estilo()
         self.montar_tela()
@@ -109,7 +109,7 @@ class ReceberValor(QDialog):
         layout.addWidget(QLabel("Valor recebido agora"))
         self.valor = QDoubleSpinBox()
         self.valor.setLocale(QLocale(QLocale.Portuguese, QLocale.Brazil))
-        self.valor.setRange(0.01, max(float(atual[10]), 0.01))
+        self.valor.setRange(0.01, 999999999.99)
         self.valor.setDecimals(2)
         self.valor.setPrefix("R$ ")
         self.valor.setButtonSymbols(QAbstractSpinBox.NoButtons)
@@ -131,7 +131,9 @@ class ReceberValor(QDialog):
         layout.addWidget(self.observacao)
 
         aviso = QLabel(
-            "Ao confirmar, este valor será registrado automaticamente em Receitas."
+            "Ao confirmar, este valor será registrado automaticamente em Receitas.\n"
+            "Se recebeu mais que o previsto, informe o valor real: este lançamento será ajustado, "
+            "mas a próxima recorrência manterá o valor previsto original."
         )
         aviso.setWordWrap(True)
         aviso.setStyleSheet("color: #7dd3fc; font-size: 11px;")

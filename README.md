@@ -1,4 +1,4 @@
-# LFinance 2.0.0
+# LFinance 2.0.1
 
 Sistema financeiro pessoal para Windows.
 
@@ -8,8 +8,8 @@ Versão 2.0 em desenvolvimento, baseada na versão estável 1.0.7:
 
 - nova tela Valores a receber, sem alterar a Tela inicial;
 - controle por pessoa ou empresa, previsão, categoria e situação;
-- recebimentos totais e parciais vinculados automaticamente a Receitas;
-- recorrência mensal com histórico preservado;
+- recebimentos totais, parciais ou acima do previsto, vinculados automaticamente a Receitas;
+- recorrência quinzenal ou mensal, com histórico preservado;
 - compatibilidade com backups da versão 1.0.7;
 - testes executados somente em perfil temporário.
 

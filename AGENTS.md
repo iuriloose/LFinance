@@ -42,7 +42,8 @@ Stack atual: Python, PySide6, SQLite, python-dateutil, PyInstaller e Inno Setup.
 - Ao desfazer pagamento recorrente, preservar a ordem histórica e desfazer primeiro o registro mais recente.
 - Valores pendentes em Valores a receber nunca entram no saldo ou nas Receitas.
 - Cada recebimento confirmado cria uma Receita vinculada; desfazer deve remover os dois registros juntos.
-- Recebimentos mensais só criam a próxima competência depois da quitação total.
+- Recebimentos quinzenais (15 dias) ou mensais só criam a próxima competência depois da quitação total.
+- Se o valor real recebido for maior que o previsto, ajustar apenas o lançamento atual e preservar a previsão-base da próxima recorrência.
 - Não inventar categorias, valores, datas, regras comerciais ou dados financeiros.
 
 ## Interface

@@ -1,4 +1,10 @@
-# LFinance 2.0.0
+# LFinance 2.0.1
+
+## 2.0.1
+
+- Adicionada a frequência quinzenal para valores recorrentes, criando a próxima previsão 15 dias depois.
+- No recebimento, agora é possível informar um valor maior que o previsto; o lançamento atual é ajustado ao valor real sem alterar a previsão da próxima recorrência.
+- Ao desfazer esse recebimento, o valor previsto original é restaurado com segurança.
 
 ## 2.0.0
 

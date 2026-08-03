@@ -131,8 +131,8 @@ def criar_tabelas():
         """)
 
     versao_esquema = cursor.execute("PRAGMA user_version").fetchone()[0]
-    if versao_esquema != 4:
-        cursor.execute("PRAGMA user_version = 4")
+    if versao_esquema != 5:
+        cursor.execute("PRAGMA user_version = 5")
 
     conexao.commit()
     conexao.close()

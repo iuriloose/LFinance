@@ -62,7 +62,7 @@ class TesteLFinanceIsolado(unittest.TestCase):
         self.assertEqual(CAMINHO_BANCO.parent, Path(PERFIL_TEMPORARIO.name) / "LFinance")
         with closing(sqlite3.connect(CAMINHO_BANCO)) as conexao:
             self.assertEqual(conexao.execute("PRAGMA quick_check").fetchone()[0], "ok")
-            self.assertEqual(conexao.execute("PRAGMA user_version").fetchone()[0], 4)
+            self.assertEqual(conexao.execute("PRAGMA user_version").fetchone()[0], 5)
 
         self.assertEqual(converter_texto_moeda("1.234,56"), 1234.56)
         self.assertEqual(converter_texto_moeda("1234.56"), 1234.56)
@@ -342,16 +342,16 @@ class TesteLFinanceIsolado(unittest.TestCase):
                 return json.dumps(self.dados).encode("utf-8")
 
         hash_esperado = "a" * 64
-        nome_esperado = "LFinance_Setup_v2.0.1.exe"
+        nome_esperado = "LFinance_Setup_v2.0.2.exe"
         url_esperada = (
             "https://github.com/iuriloose/LFinance/releases/download/"
-            f"v2.0.1/{nome_esperado}"
+            f"v2.0.2/{nome_esperado}"
         )
         release = {
-            "tag_name": "v2.0.1",
-            "name": "LFinance 2.0.1",
+            "tag_name": "v2.0.2",
+            "name": "LFinance 2.0.2",
             "body": "Melhorias de teste",
-            "html_url": "https://github.com/iuriloose/LFinance/releases/tag/v2.0.1",
+            "html_url": "https://github.com/iuriloose/LFinance/releases/tag/v2.0.2",
             "assets": [
                 {
                     "name": nome_esperado,
@@ -360,7 +360,7 @@ class TesteLFinanceIsolado(unittest.TestCase):
                 },
                 {
                     "name": "outro_programa.exe",
-                    "browser_download_url": "https://github.com/iuriloose/LFinance/releases/download/v2.0.1/outro_programa.exe",
+                    "browser_download_url": "https://github.com/iuriloose/LFinance/releases/download/v2.0.2/outro_programa.exe",
                 },
                 {
                     "name": nome_esperado,
@@ -377,7 +377,7 @@ class TesteLFinanceIsolado(unittest.TestCase):
             resultado = consultar_ultima_versao(timeout=1)
 
         self.assertTrue(resultado.disponivel)
-        self.assertEqual(resultado.nova_versao, "2.0.1")
+        self.assertEqual(resultado.nova_versao, "2.0.2")
         self.assertEqual(resultado.url_download, url_esperada)
         self.assertEqual(resultado.nome_arquivo, nome_esperado)
         self.assertEqual(resultado.hash_sha256, hash_esperado)

@@ -116,7 +116,7 @@ class DetalhesValorReceber(QDialog):
             f"Previsão\n<b>{formatar_data(atual[4])}</b>"
         )
         saldo.setObjectName("resumoDetalhes")
-        recorrencia = "Mensal" if atual[6] else "Único"
+        recorrencia = {"unico": "Único", "quinzenal": "Quinzenal", "mensal": "Mensal"}.get(atual[12] if len(atual) > 12 else ("mensal" if atual[6] else "unico"), "Único")
         situacao = {
             "em_aberto": "Em aberto",
             "parcial": "Parcial",

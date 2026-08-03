@@ -130,11 +130,12 @@ class NovoValorReceber(QDialog):
         self.categoria.setAccessibleName("Categoria")
 
         self.recorrencia = QComboBox()
-        self.recorrencia.addItem("Recebimento único", False)
-        self.recorrencia.addItem("Repetir mensalmente", True)
-        self.recorrencia.setAccessibleName("Recorrência")
+        self.recorrencia.addItem("Recebimento único", "unico")
+        self.recorrencia.addItem("Repetir quinzenalmente", "quinzenal")
+        self.recorrencia.addItem("Repetir mensalmente", "mensal")
+        self.recorrencia.setAccessibleName("Frequência")
         self.recorrencia.setToolTip(
-            "Ao concluir um recebimento mensal, o próximo mês será criado automaticamente."
+            "Quinzenal cria a próxima previsão em 15 dias. Mensal cria no próximo mês."
         )
 
         self.observacao = QLineEdit()
@@ -192,7 +193,8 @@ class NovoValorReceber(QDialog):
         indice_categoria = self.categoria.findText(atual[5] or "")
         if indice_categoria >= 0:
             self.categoria.setCurrentIndex(indice_categoria)
-        indice_recorrencia = self.recorrencia.findData(bool(atual[6]))
+        frequencia = atual[12] if len(atual) > 12 else ("mensal" if atual[6] else "unico")
+        indice_recorrencia = self.recorrencia.findData(frequencia)
         if indice_recorrencia >= 0:
             self.recorrencia.setCurrentIndex(indice_recorrencia)
         self.observacao.setText(atual[8] or "")
@@ -215,19 +217,20 @@ class NovoValorReceber(QDialog):
             self.valor.value(),
             self.data_prevista.date().toString("yyyy-MM-dd"),
             self.categoria.currentText(),
-            self.recorrencia.currentData(),
+            self.recorrencia.currentData() != "unico",
             self.observacao.text().strip(),
         )
+        frequencia = self.recorrencia.currentData()
         try:
             if self.modo_edicao:
                 sucesso, mensagem = atualizar_valor_receber(
-                    self.valor_receber[0], *argumentos
+                    self.valor_receber[0], *argumentos, frequencia=frequencia
                 )
                 if not sucesso:
                     QMessageBox.warning(self, "Alteração não realizada", mensagem)
                     return
             else:
-                inserir_valor_receber(*argumentos)
+                inserir_valor_receber(*argumentos, frequencia=frequencia)
         except (TypeError, ValueError) as erro:
             QMessageBox.warning(self, "Atenção", str(erro))
             return

@@ -19,6 +19,7 @@ def criar_estrutura_valores_receber(cursor):
             data_prevista TEXT NOT NULL,
             categoria TEXT NOT NULL,
             recorrente INTEGER NOT NULL DEFAULT 0,
+            frequencia TEXT NOT NULL DEFAULT 'unico',
             status TEXT NOT NULL DEFAULT 'aberto',
             observacao TEXT,
             gerado_de_id INTEGER,
@@ -36,6 +37,7 @@ def criar_estrutura_valores_receber(cursor):
             valor_receber_id INTEGER NOT NULL,
             receita_id INTEGER NOT NULL UNIQUE,
             valor REAL NOT NULL,
+            valor_previsto_anterior REAL,
             data_recebimento TEXT NOT NULL,
             observacao TEXT,
             data_criacao TEXT DEFAULT CURRENT_TIMESTAMP
@@ -45,6 +47,28 @@ def criar_estrutura_valores_receber(cursor):
         CREATE INDEX IF NOT EXISTS idx_recebimentos_valor_receber
         ON recebimentos (valor_receber_id)
     """)
+
+    colunas_valores = {
+        coluna[1] for coluna in cursor.execute("PRAGMA table_info(valores_receber)")
+    }
+    if "frequencia" not in colunas_valores:
+        cursor.execute(
+            "ALTER TABLE valores_receber ADD COLUMN frequencia TEXT NOT NULL DEFAULT 'unico'"
+        )
+    cursor.execute("""
+        UPDATE valores_receber
+        SET frequencia = CASE WHEN recorrente = 1 THEN 'mensal' ELSE 'unico' END
+        WHERE frequencia IS NULL OR frequencia = ''
+           OR (frequencia = 'unico' AND recorrente = 1)
+    """)
+
+    colunas_recebimentos = {
+        coluna[1] for coluna in cursor.execute("PRAGMA table_info(recebimentos)")
+    }
+    if "valor_previsto_anterior" not in colunas_recebimentos:
+        cursor.execute(
+            "ALTER TABLE recebimentos ADD COLUMN valor_previsto_anterior REAL"
+        )
 
 
 def limpar_valores_receber(cursor):
@@ -61,6 +85,24 @@ def _validar_data(data_texto):
         date.fromisoformat(str(data_texto))
     except (TypeError, ValueError) as erro:
         raise ValueError("Informe uma data válida.") from erro
+
+
+def _normalizar_frequencia(frequencia=None, recorrente=False):
+    frequencia = str(frequencia or "").strip().lower()
+    if frequencia in {"unico", "quinzenal", "mensal"}:
+        return frequencia
+    return "mensal" if recorrente else "unico"
+
+
+def _proxima_data(data_prevista, frequencia):
+    data_base = datetime.strptime(data_prevista, "%Y-%m-%d")
+    if frequencia == "quinzenal":
+        return (data_base + relativedelta(days=15)).strftime("%Y-%m-%d")
+    return (data_base + relativedelta(months=1)).strftime("%Y-%m-%d")
+
+
+def _nome_frequencia(frequencia):
+    return {"quinzenal": "quinzena", "mensal": "mês"}.get(frequencia, "período")
 
 
 def _situacao(status, data_prevista, recebido, valor):
@@ -84,6 +126,7 @@ def _montar(linha):
         data_prevista,
         categoria,
         recorrente,
+        frequencia,
         status,
         observacao,
         recebido,
@@ -104,6 +147,7 @@ def _montar(linha):
         recebido,
         restante,
         _situacao(status, data_prevista, recebido, valor),
+        _normalizar_frequencia(frequencia, recorrente),
     )
 
 
@@ -123,6 +167,7 @@ def _selecionar(conexao, id_valor=None):
             v.data_prevista,
             v.categoria,
             v.recorrente,
+            v.frequencia,
             v.status,
             v.observacao,
             COALESCE(SUM(r.valor), 0)
@@ -141,11 +186,13 @@ def inserir_valor_receber(
     categoria,
     recorrente=False,
     observacao="",
+    frequencia=None,
 ):
     pagador = str(pagador or "").strip()
     descricao = str(descricao or "").strip()
     categoria = str(categoria or "").strip()
     valor = round(float(valor), 2)
+    frequencia = _normalizar_frequencia(frequencia, recorrente)
     _validar_data(data_prevista)
 
     if not pagador:
@@ -162,16 +209,17 @@ def inserir_valor_receber(
     cursor.execute("""
         INSERT INTO valores_receber (
             pagador, descricao, valor, data_prevista, categoria,
-            recorrente, observacao
+            recorrente, frequencia, observacao
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     """, (
         pagador,
         descricao,
         valor,
         data_prevista,
         categoria,
-        int(bool(recorrente)),
+        int(frequencia != "unico"),
+        frequencia,
         str(observacao or "").strip(),
     ))
     id_valor = cursor.lastrowid
@@ -220,6 +268,7 @@ def atualizar_valor_receber(
     categoria,
     recorrente=False,
     observacao="",
+    frequencia=None,
 ):
     atual = buscar_valor_receber_por_id(id_valor)
     if not atual:
@@ -231,6 +280,7 @@ def atualizar_valor_receber(
     descricao = str(descricao or "").strip()
     categoria = str(categoria or "").strip()
     valor = round(float(valor), 2)
+    frequencia = _normalizar_frequencia(frequencia, recorrente)
     _validar_data(data_prevista)
 
     if not pagador or not descricao or not categoria:
@@ -249,6 +299,7 @@ def atualizar_valor_receber(
             data_prevista = ?,
             categoria = ?,
             recorrente = ?,
+            frequencia = ?,
             observacao = ?
         WHERE id = ?
     """, (
@@ -257,7 +308,8 @@ def atualizar_valor_receber(
         valor,
         data_prevista,
         categoria,
-        int(bool(recorrente)),
+        int(frequencia != "unico"),
+        frequencia,
         str(observacao or "").strip(),
         id_valor,
     ))
@@ -284,9 +336,9 @@ def registrar_recebimento(id_valor, valor_recebido, data_recebimento, observacao
         if atual[11] in {"recebido", "cancelado"}:
             conexao.rollback()
             return False, "Este valor não está disponível para recebimento."
+        valor_previsto_anterior = None
         if valor_recebido > atual[10] + 0.005:
-            conexao.rollback()
-            return False, "O recebimento não pode ser maior que o saldo restante."
+            valor_previsto_anterior = atual[3]
 
         observacao = str(observacao or "").strip()
         observacao_receita = f"Recebido de {atual[1]}"
@@ -294,6 +346,11 @@ def registrar_recebimento(id_valor, valor_recebido, data_recebimento, observacao
             observacao_receita += f" • {observacao}"
 
         cursor = conexao.cursor()
+        if valor_previsto_anterior is not None:
+            cursor.execute(
+                "UPDATE valores_receber SET valor = ? WHERE id = ?",
+                (round(atual[9] + valor_recebido, 2), id_valor),
+            )
         cursor.execute("""
             INSERT INTO receitas (
                 descricao, valor, data_recebimento, categoria, observacao
@@ -309,14 +366,15 @@ def registrar_recebimento(id_valor, valor_recebido, data_recebimento, observacao
         receita_id = cursor.lastrowid
         cursor.execute("""
             INSERT INTO recebimentos (
-                valor_receber_id, receita_id, valor,
+                valor_receber_id, receita_id, valor, valor_previsto_anterior,
                 data_recebimento, observacao
             )
-            VALUES (?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?)
         """, (
             id_valor,
             receita_id,
             valor_recebido,
+            valor_previsto_anterior,
             data_recebimento,
             observacao,
         ))
@@ -329,22 +387,21 @@ def registrar_recebimento(id_valor, valor_recebido, data_recebimento, observacao
                 "UPDATE valores_receber SET status = 'recebido' WHERE id = ?",
                 (id_valor,),
             )
-            if atual[6]:
-                proxima_data = (
-                    datetime.strptime(atual[4], "%Y-%m-%d") + relativedelta(months=1)
-                ).strftime("%Y-%m-%d")
+            if atual[12] != "unico":
+                proxima_data = _proxima_data(atual[4], atual[12])
                 cursor.execute("""
                     INSERT OR IGNORE INTO valores_receber (
                         pagador, descricao, valor, data_prevista, categoria,
-                        recorrente, status, observacao, gerado_de_id
+                        recorrente, frequencia, status, observacao, gerado_de_id
                     )
-                    VALUES (?, ?, ?, ?, ?, 1, 'aberto', ?, ?)
+                    VALUES (?, ?, ?, ?, ?, 1, ?, 'aberto', ?, ?)
                 """, (
                     atual[1],
                     atual[2],
                     atual[3],
                     proxima_data,
                     atual[5],
+                    atual[12],
                     atual[8],
                     id_valor,
                 ))
@@ -357,7 +414,10 @@ def registrar_recebimento(id_valor, valor_recebido, data_recebimento, observacao
         conexao.close()
 
     if completo and proxima_competencia:
-        return True, "Recebimento concluído e próximo mês criado."
+        ajuste = " e valor previsto ajustado ao valor real" if valor_previsto_anterior is not None else ""
+        return True, f"Recebimento concluído{ajuste} e próxima {_nome_frequencia(atual[12])} criada."
+    if completo and valor_previsto_anterior is not None:
+        return True, "Recebimento concluído e valor previsto ajustado ao valor real."
     if completo:
         return True, "Recebimento concluído."
     return True, "Recebimento parcial registrado."
@@ -397,7 +457,7 @@ def desfazer_ultimo_recebimento(id_valor):
     try:
         conexao.execute("BEGIN IMMEDIATE")
         recebimento = conexao.execute("""
-            SELECT id, receita_id
+            SELECT id, receita_id, valor_previsto_anterior
             FROM recebimentos
             WHERE valor_receber_id = ?
             ORDER BY data_recebimento DESC, id DESC
@@ -420,17 +480,23 @@ def desfazer_ultimo_recebimento(id_valor):
             if movimentado or proximo[1] != "aberto":
                 conexao.rollback()
                 return False, (
-                    "O próximo mês já possui movimentação. "
+                    "A próxima competência já possui movimentação. "
                     "Desfaça primeiro os recebimentos mais recentes."
                 )
             conexao.execute("DELETE FROM valores_receber WHERE id = ?", (proximo[0],))
 
         conexao.execute("DELETE FROM recebimentos WHERE id = ?", (recebimento[0],))
         conexao.execute("DELETE FROM receitas WHERE id = ?", (recebimento[1],))
-        conexao.execute(
-            "UPDATE valores_receber SET status = 'aberto' WHERE id = ?",
-            (id_valor,),
-        )
+        if recebimento[2] is not None:
+            conexao.execute(
+                "UPDATE valores_receber SET valor = ?, status = 'aberto' WHERE id = ?",
+                (recebimento[2], id_valor),
+            )
+        else:
+            conexao.execute(
+                "UPDATE valores_receber SET status = 'aberto' WHERE id = ?",
+                (id_valor,),
+            )
         conexao.commit()
     except Exception:
         conexao.rollback()

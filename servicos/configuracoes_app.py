@@ -6,7 +6,7 @@ import tempfile
 from pathlib import Path
 
 APP_NOME = "LFinance"
-APP_VERSAO = "2.0.0"
+APP_VERSAO = "2.0.1"
 USUARIO_PADRAO = "Usuário"
 
 

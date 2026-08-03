@@ -49,7 +49,7 @@ class TesteValoresReceberIsolado(unittest.TestCase):
     def test_esquema_2_0_e_integridade(self):
         with closing(sqlite3.connect(CAMINHO_BANCO)) as conexao:
             self.assertEqual(conexao.execute("PRAGMA quick_check").fetchone()[0], "ok")
-            self.assertEqual(conexao.execute("PRAGMA user_version").fetchone()[0], 4)
+            self.assertEqual(conexao.execute("PRAGMA user_version").fetchone()[0], 5)
             tabelas = {
                 linha[0]
                 for linha in conexao.execute(
@@ -106,6 +106,43 @@ class TesteValoresReceberIsolado(unittest.TestCase):
         self.assertTrue(excluir_valor_receber(id_valor)[0])
         self.assertIsNone(buscar_valor_receber_por_id(id_valor))
 
+    def test_quinzenal_ajusta_valor_real_e_preserva_proxima_previsao(self):
+        id_valor = inserir_valor_receber(
+            "Empresa fictícia",
+            "Salário quinzenal",
+            2000,
+            "2099-01-15",
+            "Salário",
+            frequencia="quinzenal",
+        )
+        previsto = buscar_valor_receber_por_id(id_valor)
+        self.assertEqual((previsto[3], previsto[12]), (2000, "quinzenal"))
+
+        sucesso, mensagem = registrar_recebimento(
+            id_valor, 2300, "2099-01-15", "Adicional fictício"
+        )
+        self.assertTrue(sucesso)
+        self.assertIn("ajustado", mensagem)
+        recebido = buscar_valor_receber_por_id(id_valor)
+        self.assertEqual(
+            (recebido[3], recebido[9], recebido[10], recebido[11]),
+            (2300, 2300, 0, "recebido"),
+        )
+
+        proximos = listar_valores_receber("ativos")
+        self.assertEqual(len(proximos), 1)
+        self.assertEqual(
+            (proximos[0][3], proximos[0][4], proximos[0][12]),
+            (2000, "2099-01-30", "quinzenal"),
+        )
+
+        self.assertTrue(desfazer_ultimo_recebimento(id_valor)[0])
+        restaurado = buscar_valor_receber_por_id(id_valor)
+        self.assertEqual(
+            (restaurado[3], restaurado[9], restaurado[10], restaurado[11]),
+            (2000, 0, 2000, "em_aberto"),
+        )
+        self.assertEqual(listar_valores_receber("ativos"), [restaurado])
     def test_cancelamento_preserva_receita_e_bloqueia_exclusao(self):
         id_valor = inserir_valor_receber(
             "Cliente fictício",
@@ -141,7 +178,7 @@ class TesteValoresReceberIsolado(unittest.TestCase):
         banco.criar_tabelas()
 
         with closing(sqlite3.connect(CAMINHO_BANCO)) as conexao:
-            self.assertEqual(conexao.execute("PRAGMA user_version").fetchone()[0], 4)
+            self.assertEqual(conexao.execute("PRAGMA user_version").fetchone()[0], 5)
             tabelas = {
                 linha[0]
                 for linha in conexao.execute(

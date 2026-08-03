@@ -6,7 +6,7 @@ except ModuleNotFoundError:
     from tests import test_lfinance as ambiente
 
 from banco import banco
-from banco.valores_receber import inserir_valor_receber
+from banco.valores_receber import buscar_valor_receber_por_id, inserir_valor_receber
 from servicos.configuracoes_app import CAMINHO_BANCO, CAMINHO_CONFIG
 
 
@@ -31,7 +31,7 @@ class TesteInterfaceValoresReceberIsolada(unittest.TestCase):
         CAMINHO_BANCO.unlink(missing_ok=True)
         CAMINHO_CONFIG.unlink(missing_ok=True)
         banco.criar_tabelas()
-        inserir_valor_receber(
+        self.id_valor = inserir_valor_receber(
             "Empresa visual de teste",
             "Salário visual de teste",
             2500,
@@ -89,5 +89,24 @@ class TesteInterfaceValoresReceberIsolada(unittest.TestCase):
             app.processEvents()
 
 
+    def test_formulario_aceita_quinzena_e_valor_real_maior(self):
+        from PySide6.QtWidgets import QApplication
+
+        from telas.novo_valor_receber import NovoValorReceber
+        from telas.receber_valor import ReceberValor
+
+        app = QApplication.instance() or QApplication([])
+        formulario = NovoValorReceber()
+        dialogo = ReceberValor(buscar_valor_receber_por_id(self.id_valor))
+        try:
+            self.assertGreaterEqual(formulario.recorrencia.findData("quinzenal"), 0)
+            self.assertGreater(dialogo.valor.maximum(), 2500)
+            self.assertEqual(dialogo.valor.value(), 2500)
+        finally:
+            formulario.close()
+            dialogo.close()
+            formulario.deleteLater()
+            dialogo.deleteLater()
+            app.processEvents()
 if __name__ == "__main__":
     unittest.main()
