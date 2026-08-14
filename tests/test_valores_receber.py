@@ -2,6 +2,7 @@ import sqlite3
 import unittest
 from contextlib import closing
 from pathlib import Path
+from datetime import date
 
 try:
     import test_lfinance as ambiente
@@ -200,6 +201,34 @@ class TesteValoresReceberIsolado(unittest.TestCase):
 
         self.assertEqual(validar_backup_lfinance(legado), (True, ""))
 
+
+
+    def test_relatorio_separa_valores_previstos_das_receitas(self):
+        from telas.relatorios import TelaRelatorios
+
+        inserir_valor_receber(
+            "Empresa fict?cia",
+            "Comiss?o prevista",
+            500,
+            "2000-01-10",
+            "Comiss?o",
+        )
+        inserir_valor_receber(
+            "Cliente fict?cio",
+            "Servi?o previsto",
+            200,
+            "2000-01-15",
+            "Servi?os",
+        )
+        tela = TelaRelatorios.__new__(TelaRelatorios)
+        tela.mes_referencia = date(2000, 1, 1)
+        dados = tela.dados_mes()
+
+        self.assertEqual(dados["total_receitas"], 0)
+        self.assertEqual(dados["total_a_receber"], 700)
+        self.assertEqual(dados["total_a_receber_atrasado"], 700)
+        self.assertEqual(len(dados["valores_receber"]), 2)
+        self.assertEqual(dados["resultado_planejado"], dados["resultado_previsto"] + 700)
 
 if __name__ == "__main__":
     unittest.main()

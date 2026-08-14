@@ -40,7 +40,7 @@ class TesteInterfaceValoresReceberIsolada(unittest.TestCase):
             recorrente=True,
         )
 
-    def test_nona_tela_menu_responsividade_e_pesquisa(self):
+    def test_decima_tela_menu_responsividade_e_pesquisa(self):
         from PySide6.QtTest import QTest
         from PySide6.QtWidgets import QApplication
 
@@ -50,7 +50,7 @@ class TesteInterfaceValoresReceberIsolada(unittest.TestCase):
         app = QApplication.instance() or QApplication([])
         janela = TelaPrincipal()
         try:
-            self.assertEqual(janela.paginas.count(), 9)
+            self.assertEqual(janela.paginas.count(), 10)
             self.assertIn("a_receber", janela.menu.botoes)
             self.assertIs(
                 janela.paginas.currentWidget(),

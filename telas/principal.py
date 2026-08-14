@@ -14,6 +14,7 @@ from telas.tela_inicial import TelaInicial
 from telas.configuracoes import TelaConfiguracoes
 from telas.contas_fixas import TelaContasFixas
 from telas.parcelamentos import TelaParcelamentos
+from telas.relatorios import TelaRelatorios
 from telas.pesquisa import TelaPesquisa
 from servicos.configuracoes_app import (
     APP_VERSAO, caminho_recurso, carregar_configuracoes, salvar_configuracoes
@@ -372,6 +373,7 @@ class TelaPrincipal(QMainWindow):
         self.pagina_despesas = TelaDespesas()
         self.pagina_contas = TelaContasFixas(self.recarregar_home)
         self.pagina_parcelamentos = TelaParcelamentos(self.recarregar_home)
+        self.pagina_relatorios = TelaRelatorios()
         self.pagina_configuracoes = TelaConfiguracoes(lambda: self.recarregar_home(preservar_pagina=True))
 
         self.paginas.addWidget(self.pagina_inicial)
@@ -382,6 +384,7 @@ class TelaPrincipal(QMainWindow):
         self.paginas.addWidget(self.pagina_despesas)
         self.paginas.addWidget(self.pagina_contas)
         self.paginas.addWidget(self.pagina_parcelamentos)
+        self.paginas.addWidget(self.pagina_relatorios)
         self.paginas.addWidget(self.pagina_configuracoes)
 
         self.menu = MenuLateral(self.menu_clicado)
@@ -422,6 +425,10 @@ class TelaPrincipal(QMainWindow):
         elif tela == "parcelamentos":
             self.pagina_parcelamentos.recarregar()
             self.paginas.setCurrentWidget(self.pagina_parcelamentos)
+
+        elif tela == "relatorios":
+            self.pagina_relatorios.recarregar()
+            self.paginas.setCurrentWidget(self.pagina_relatorios)
 
         elif tela == "configuracoes":
             self.paginas.setCurrentWidget(self.pagina_configuracoes)

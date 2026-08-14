@@ -22,6 +22,7 @@ class MenuLateral(QFrame):
             "despesas": "Contas a pagar\n\nUse para boletos, mensalidades e compromissos que podem ficar pendentes até o pagamento.",
             "contas_fixas": "Contas fixas\n\nControle contas recorrentes que se repetem todo mês, como internet, aluguel, energia ou mensalidades.",
             "parcelamentos": "Parcelamentos\n\nControle compras divididas em parcelas e acompanhe automaticamente o andamento de cada parcela.",
+            "relatorios": "Relat?rios\n\nAcompanhe o resumo mensal: entradas reais, contas pagas, pend?ncias e valores previstos a receber.",
             "configuracoes": "Configurações\n\nFerramentas do sistema, backup, restauração e limpeza segura dos dados.",
         }
 
@@ -42,6 +43,7 @@ class MenuLateral(QFrame):
         self.adicionar_botao(layout, "despesas", "menu_despesas.png", "Contas a pagar")
         self.adicionar_botao(layout, "contas_fixas", "menu_contas.png", "Contas fixas")
         self.adicionar_botao(layout, "parcelamentos", "menu_parcelamentos.png", "Parcelamentos")
+        self.adicionar_botao(layout, "relatorios", "menu_relatorios.png", "Relat?rios")
 
         layout.addStretch()
 

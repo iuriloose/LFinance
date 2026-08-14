@@ -74,7 +74,7 @@ Nunca use `gerar_exe.bat` como comando de teste rotineiro: ele atualiza o `pip`,
 - `PRAGMA quick_check` no banco temporário.
 - Fluxos fictícios: receita, gasto, conta simples, conta fixa, parcelamento, pagamento e desfazer pagamento.
 - Backup e restauração somente entre arquivos temporários.
-- Abertura e navegação das nove telas: inicial, pesquisar, receitas, valores a receber, gastos, contas a pagar, contas fixas, parcelamentos e configurações.
+- Abertura e navegação das dez telas: inicial, pesquisar, receitas, valores a receber, gastos, contas a pagar, contas fixas, parcelamentos, relatórios e configurações.
 - Confirmar que o banco real não mudou comparando caminho e data de modificação antes/depois.
 
 ## Build e publicação

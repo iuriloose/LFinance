@@ -14,6 +14,7 @@ from banco.banco import (
     listar_pagamentos_detalhados,
 )
 
+from banco.valores_receber import listar_valores_receber
 
 class TelaRelatorios(QWidget):
     def __init__(self):
@@ -417,6 +418,52 @@ class TelaRelatorios(QWidget):
                     "tipo": "Receita",
                 })
 
+        # Valores a receber continuam fora das receitas at? que sejam realmente
+        # confirmados. Assim, o relat?rio mostra o planejamento sem inflar o
+        # saldo realizado do m?s.
+        valores_receber_mes = []
+        valores_receber_atrasados = []
+        for valor_receber in listar_valores_receber("ativos"):
+            (
+                id_valor,
+                pagador,
+                descricao,
+                _valor,
+                data_prevista,
+                categoria,
+                _recorrente,
+                _status,
+                _observacao,
+                _recebido,
+                restante,
+                situacao,
+                frequencia,
+            ) = valor_receber
+            data = self.converter_data(data_prevista)
+            if data is None:
+                continue
+
+            item = {
+                "id": id_valor,
+                "descricao": descricao,
+                "pagador": pagador,
+                "valor": float(restante or 0),
+                "valor_exibicao": float(restante or 0),
+                "data": data,
+                "data_texto": self.formatar_data(data_prevista),
+                "categoria": categoria,
+                "tipo": "A receber",
+                "situacao": situacao,
+                "info_extra": (
+                    f"{pagador}  ?  {self.formatar_data(data_prevista)}  ?  "
+                    f"{frequencia.capitalize()}"
+                ),
+            }
+            if inicio_mes <= data <= fim_mes:
+                valores_receber_mes.append(item)
+            if situacao == "atrasado":
+                valores_receber_atrasados.append(item)
+
         gastos_mes = []
         for gasto in listar_gastos():
             id_gasto, descricao, valor, data_gasto, categoria, observacao = gasto
@@ -468,14 +515,19 @@ class TelaRelatorios(QWidget):
         total_pago = total_gastos + total_pagamentos
         total_pendente = sum(item["valor"] for item in pendentes_mes)
         total_atrasado = sum(item["valor"] for item in atrasadas)
+        total_a_receber = sum(item["valor"] for item in valores_receber_mes)
+        total_a_receber_atrasado = sum(item["valor"] for item in valores_receber_atrasados)
         saldo_mes = total_receitas - total_pago
         total_parcelamentos = sum(item.get("valor_restante", 0) for item in parcelamentos_abertos)
         resultado_previsto = total_receitas - (total_pago + total_pendente)
+        resultado_planejado = resultado_previsto + total_a_receber
 
         return {
             "inicio_mes": inicio_mes,
             "fim_mes": fim_mes,
             "receitas": receitas_mes,
+            "valores_receber": valores_receber_mes,
+            "valores_receber_atrasados": sorted(valores_receber_atrasados, key=lambda item: item["data"]),
             "gastos": gastos_mes,
             "pagamentos": pagamentos_mes,
             "despesas_mes": despesas_mes,
@@ -490,9 +542,12 @@ class TelaRelatorios(QWidget):
             "total_pago": total_pago,
             "total_pendente": total_pendente,
             "total_atrasado": total_atrasado,
+            "total_a_receber": total_a_receber,
+            "total_a_receber_atrasado": total_a_receber_atrasado,
             "saldo_mes": saldo_mes,
             "total_parcelamentos": total_parcelamentos,
             "resultado_previsto": resultado_previsto,
+            "resultado_planejado": resultado_planejado,
         }
 
     def criar_card_resumo(self, objeto, icone, titulo, valor, info):
@@ -841,6 +896,27 @@ class TelaRelatorios(QWidget):
             f"{len(dados['atrasadas'])} conta(s) vencida(s)"
         ), 1, 2)
 
+        cards.addWidget(self.criar_card_resumo(
+            "cardReceitaRelatorio", "??", "A receber previsto",
+            self.formatar_moeda(dados["total_a_receber"]),
+            f"{len(dados['valores_receber'])} valor(es) previsto(s) no m?s"
+        ), 2, 0)
+
+        cards.addWidget(self.criar_card_resumo(
+            "cardSaldoRelatorio" if dados["resultado_planejado"] >= 0 else "cardPendenteRelatorio",
+            "?" if dados["resultado_planejado"] >= 0 else "?",
+            "Resultado planejado",
+            self.formatar_moeda(dados["resultado_planejado"]),
+            "Inclui valores previstos; n?o altera o saldo realizado"
+        ), 2, 1)
+
+        cards.addWidget(self.criar_card_resumo(
+            "cardPendenteRelatorio" if dados["total_a_receber_atrasado"] > 0 else "cardBase",
+            "!", "A receber atrasado",
+            self.formatar_moeda(dados["total_a_receber_atrasado"]),
+            f"{len(dados['valores_receber_atrasados'])} valor(es) com pagamento pendente"
+        ), 2, 2)
+
         layout.addLayout(cards)
 
         panorama = QFrame()
@@ -921,6 +997,14 @@ class TelaRelatorios(QWidget):
         listas.addWidget(self.criar_secao_lista(
             "Juros e multas pagos", itens_acrescimos, "valorLaranja", 6
         ), 3, 0, 1, 2)
+
+        listas.addWidget(self.criar_secao_lista(
+            "Valores previstos a receber", dados["valores_receber"], "valorVerde", 6
+        ), 4, 0)
+        listas.addWidget(self.criar_secao_lista(
+            "Valores a receber atrasados", dados["valores_receber_atrasados"], "valorVermelho", 6
+        ), 4, 1)
+
 
         layout.addLayout(listas)
 
