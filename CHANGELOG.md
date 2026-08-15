@@ -1,4 +1,10 @@
-# LFinance 2.0.1
+# LFinance 2.0.2
+
+## 2.0.2
+
+- Restaurada a tela Relat?rios com resumo mensal de receitas, pagamentos, pend?ncias e atrasos.
+- Adicionados valores previstos a receber, recebimentos atrasados e resultado planejado sem alterar o saldo real.
+- Integrada a d?cima tela ao menu e ampliada a cobertura de testes.
 
 ## 2.0.1
 
