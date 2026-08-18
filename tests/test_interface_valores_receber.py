@@ -121,6 +121,17 @@ class TesteInterfaceValoresReceberIsolada(unittest.TestCase):
         try:
             self.assertIsNotNone(tela.findChild(QFrame, "seletorValores"))
             self.assertEqual(tela.filtro.currentData(), "ativos")
+            self.assertEqual(
+                tela.findChild(QLabel, "valorResumoReceber").text(),
+                "R$ 2.500,00",
+            )
+            self.assertEqual(
+                len(tela.findChildren(QFrame, "cardAReceberPrincipal"))
+                + len(tela.findChildren(QFrame, "cardPrevistoMes"))
+                + len(tela.findChildren(QFrame, "cardAtrasadosReceber"))
+                + len(tela.findChildren(QFrame, "cardRecebidoMes")),
+                4,
+            )
             valores_resumo = detalhes.findChildren(QLabel, "valorResumo")
             self.assertEqual(len(valores_resumo), 6)
             self.assertEqual(

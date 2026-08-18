@@ -1,7 +1,10 @@
+from datetime import date
+
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QComboBox,
     QFrame,
+    QGridLayout,
     QHBoxLayout,
     QLabel,
     QMessageBox,
@@ -14,6 +17,7 @@ from banco.valores_receber import (
     buscar_valor_receber_por_id,
     desfazer_ultimo_recebimento,
     excluir_valor_receber,
+    listar_recebimentos_valor,
     listar_valores_receber,
 )
 from componentes.dialogo_confirmacao import confirmar_acao
@@ -74,9 +78,48 @@ class TelaValoresReceber(QWidget):
                 background-color: #075985;
                 border-color: #7dd3fc;
             }
+            QFrame#cardAReceberPrincipal, QFrame#cardPrevistoMes,
+            QFrame#cardAtrasadosReceber, QFrame#cardRecebidoMes {
+                border-radius: 14px;
+                min-height: 94px;
+            }
+            QFrame#cardAReceberPrincipal {
+                background: #0b2b32;
+                border: 1px solid #22c55e;
+            }
+            QFrame#cardPrevistoMes {
+                background: #10263a;
+                border: 1px solid #38bdf8;
+            }
+            QFrame#cardAtrasadosReceber {
+                background: #34151c;
+                border: 1px solid #ef4444;
+            }
+            QFrame#cardRecebidoMes {
+                background: #2d230d;
+                border: 1px solid #f59e0b;
+            }
+            QLabel#iconeResumoReceber {
+                font-size: 28px;
+                min-width: 40px;
+            }
+            QLabel#tituloResumoReceber {
+                color: #b9c4d6;
+                font-size: 13px;
+            }
+            QLabel#valorResumoReceber {
+                color: #ffffff;
+                font-size: 23px;
+                font-weight: 800;
+            }
+            QLabel#infoResumoReceber {
+                color: #d7dcf0;
+                font-size: 11px;
+            }
             QLabel#resumoValores {
                 color: #d7dcf0;
                 font-size: 13px;
+                font-weight: 700;
             }
             QLabel#ajudaValores {
                 color: #7dd3fc;
@@ -109,6 +152,42 @@ class TelaValoresReceber(QWidget):
             "recebido": ("Recebido", "#22c55e"),
             "cancelado": ("Cancelado", "#94a3b8"),
         }[situacao]
+
+    @staticmethod
+    def nome_mes(data_referencia):
+        meses = (
+            "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
+            "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro",
+        )
+        return meses[data_referencia.month - 1]
+
+    def criar_card_resumo(self, objeto, icone, titulo, valor, info, tooltip):
+        card = QFrame()
+        card.setObjectName(objeto)
+        card.setToolTip(tooltip)
+        layout = QHBoxLayout(card)
+        layout.setContentsMargins(16, 12, 16, 12)
+        layout.setSpacing(12)
+
+        icone_label = QLabel(icone)
+        icone_label.setObjectName("iconeResumoReceber")
+        icone_label.setAlignment(Qt.AlignCenter)
+
+        textos = QVBoxLayout()
+        textos.setSpacing(1)
+        titulo_label = QLabel(titulo)
+        titulo_label.setObjectName("tituloResumoReceber")
+        valor_label = QLabel(valor)
+        valor_label.setObjectName("valorResumoReceber")
+        info_label = QLabel(info)
+        info_label.setObjectName("infoResumoReceber")
+        textos.addWidget(titulo_label)
+        textos.addWidget(valor_label)
+        textos.addWidget(info_label)
+
+        layout.addWidget(icone_label)
+        layout.addLayout(textos, 1)
+        return card
 
     def limpar_tela(self):
         while self.layout_principal.count():
@@ -159,12 +238,6 @@ class TelaValoresReceber(QWidget):
         topo.addWidget(novo)
         self.layout_principal.addLayout(topo)
 
-        painel = QFrame()
-        painel.setObjectName("card")
-        painel_layout = QVBoxLayout(painel)
-        painel_layout.setContentsMargins(18, 16, 18, 16)
-        painel_layout.setSpacing(12)
-
         todos = listar_valores_receber("todos")
         ativos = [
             item
@@ -173,14 +246,68 @@ class TelaValoresReceber(QWidget):
         ]
         atrasados = [item for item in todos if item[11] == "atrasado"]
         total_restante = sum(item[10] for item in ativos)
-        total_recebido = sum(item[9] for item in todos)
+        total_atrasado = sum(item[10] for item in atrasados)
+        hoje = date.today()
+        periodo_atual = hoje.strftime("%Y-%m")
+        previstos_mes = [item for item in ativos if item[4].startswith(periodo_atual)]
+        total_previsto_mes = sum(item[10] for item in previstos_mes)
+        total_recebido_mes = sum(
+            recebimento[1]
+            for item in todos
+            for recebimento in listar_recebimentos_valor(item[0])
+            if str(recebimento[2]).startswith(periodo_atual)
+        )
+        proximo = min(ativos, key=lambda item: (item[4], item[0]), default=None)
+        texto_proximo = (
+            f"Próximo: {self.formatar_data(proximo[4])}" if proximo else "Nenhum valor pendente"
+        )
+        nome_mes = self.nome_mes(hoje)
+
+        cards = QGridLayout()
+        cards.setHorizontalSpacing(14)
+        cards.setVerticalSpacing(12)
+        cards.addWidget(
+            self.criar_card_resumo(
+                "cardAReceberPrincipal", "💰", "Total a receber", self.formatar_moeda(total_restante),
+                f"{len(ativos)} valor(es) pendente(s) • {texto_proximo}",
+                "Soma de todos os valores que ainda faltam receber. Não altera o saldo até ser recebido.",
+            ),
+            0, 0,
+        )
+        cards.addWidget(
+            self.criar_card_resumo(
+                "cardPrevistoMes", "📅", f"Previsto em {nome_mes}", self.formatar_moeda(total_previsto_mes),
+                f"{len(previstos_mes)} valor(es) com previsão neste mês",
+                "Valores pendentes cuja previsão de recebimento está no mês atual.",
+            ),
+            0, 1,
+        )
+        cards.addWidget(
+            self.criar_card_resumo(
+                "cardAtrasadosReceber", "⚠", "A receber atrasado", self.formatar_moeda(total_atrasado),
+                f"{len(atrasados)} valor(es) com previsão vencida",
+                "Valores ainda pendentes cuja data prevista já passou.",
+            ),
+            1, 0,
+        )
+        cards.addWidget(
+            self.criar_card_resumo(
+                "cardRecebidoMes", "✅", f"Recebido em {nome_mes}", self.formatar_moeda(total_recebido_mes),
+                "Somente recebimentos registrados nesta área",
+                "Entradas confirmadas por Valores a receber no mês atual.",
+            ),
+            1, 1,
+        )
+        self.layout_principal.addLayout(cards)
+
+        painel = QFrame()
+        painel.setObjectName("card")
+        painel_layout = QVBoxLayout(painel)
+        painel_layout.setContentsMargins(18, 16, 18, 16)
+        painel_layout.setSpacing(12)
 
         linha_resumo = QHBoxLayout()
-        resumo = QLabel(
-            f"{len(ativos)} ativo(s)  •  {len(atrasados)} atrasado(s)  •  "
-            f"A receber: {self.formatar_moeda(total_restante)}  •  "
-            f"Já recebido: {self.formatar_moeda(total_recebido)}"
-        )
+        resumo = QLabel("Lançamentos a receber")
         resumo.setObjectName("resumoValores")
 
         self.filtro = QComboBox()

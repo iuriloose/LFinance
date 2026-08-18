@@ -1,3 +1,10 @@
+# LFinance 2.0.6
+
+## 2.0.6
+
+- Transforma Valores a receber em painel de acompanhamento, com total pendente, previsto no mês, atrasados e recebido no mês.
+- Mantém a Tela inicial como painel financeiro principal e separa os indicadores de recebimentos.
+
 # LFinance 2.0.5
 
 ## 2.0.5
