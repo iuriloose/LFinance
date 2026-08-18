@@ -1,3 +1,9 @@
+# LFinance 2.0.9
+
+## 2.0.9
+
+- Compacta os indicadores e os controles de Valores a receber para deixar mais espaco visivel para a lista.
+
 # LFinance 2.0.8
 
 ## 2.0.8

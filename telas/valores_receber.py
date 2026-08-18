@@ -32,8 +32,8 @@ class TelaValoresReceber(QWidget):
         self.ao_alterar = ao_alterar
         self.mes_referencia = date.today().replace(day=1)
         self.layout_principal = QVBoxLayout(self)
-        self.layout_principal.setContentsMargins(36, 30, 36, 24)
-        self.layout_principal.setSpacing(16)
+        self.layout_principal.setContentsMargins(36, 18, 36, 16)
+        self.layout_principal.setSpacing(10)
         self.aplicar_estilo()
         self.montar_tela()
 
@@ -44,24 +44,24 @@ class TelaValoresReceber(QWidget):
                 color: #e2e8f0;
                 border: 1px solid #38bdf8;
                 border-radius: 8px;
-                padding: 7px 10px;
-                min-height: 30px;
-                min-width: 170px;
-                font-size: 13px;
+                padding: 4px 8px;
+                min-height: 24px;
+                min-width: 150px;
+                font-size: 12px;
                 font-weight: 700;
             }
             QComboBox#filtroValores::drop-down {
                 border: none;
-                width: 26px;
+                width: 22px;
             }
             QFrame#seletorValores {
                 background: #0d2235;
                 border: 1px solid #1d70a2;
-                border-radius: 10px;
+                border-radius: 8px;
             }
             QLabel#rotuloFiltroValores {
                 color: #7dd3fc;
-                font-size: 12px;
+                font-size: 11px;
                 font-weight: 800;
             }
             QPushButton#btnNovoValor {
@@ -81,8 +81,8 @@ class TelaValoresReceber(QWidget):
             QFrame#cardAReceberPrincipal, QFrame#cardPrevistoMes,
             QFrame#cardAtrasadosReceber, QFrame#cardRecebidoMes {
                 border-radius: 14px;
-                min-height: 96px;
-                max-height: 116px;
+                min-height: 88px;
+                max-height: 92px;
             }
             QFrame#cardAReceberPrincipal {
                 background: #0b2b32;
@@ -101,21 +101,21 @@ class TelaValoresReceber(QWidget):
                 border: 1px solid #f59e0b;
             }
             QLabel#iconeResumoReceber {
-                font-size: 25px;
-                min-width: 36px;
+                font-size: 22px;
+                min-width: 32px;
             }
             QLabel#tituloResumoReceber {
                 color: #b9c4d6;
-                font-size: 12px;
+                font-size: 11px;
             }
             QLabel#valorResumoReceber {
                 color: #ffffff;
-                font-size: 21px;
+                font-size: 19px;
                 font-weight: 800;
             }
             QLabel#infoResumoReceber {
                 color: #d7dcf0;
-                font-size: 10px;
+                font-size: 9px;
             }
             QFrame#painelPeriodoValores {
                 background: transparent;
@@ -125,29 +125,30 @@ class TelaValoresReceber(QWidget):
                 color: #ffffff;
                 background: #1e293b;
                 border: 1px solid #334155;
-                border-radius: 9px;
-                font-size: 14px;
+                border-radius: 8px;
+                font-size: 12px;
                 font-weight: 800;
-                min-width: 165px;
-                min-height: 36px;
+                min-width: 140px;
+                min-height: 28px;
             }
             QPushButton#btnMesValores {
                 color: #ffffff;
                 background: #1e293b;
                 border: 1px solid #475569;
-                border-radius: 9px;
-                min-width: 36px;
-                min-height: 36px;
-                font-size: 18px;
+                border-radius: 8px;
+                min-width: 28px;
+                min-height: 28px;
+                font-size: 15px;
                 font-weight: 800;
             }
             QPushButton#btnMesAtualValores {
                 color: #ffffff;
                 background: #10263a;
                 border: 1px solid #38bdf8;
-                border-radius: 9px;
-                min-height: 36px;
-                padding: 0 12px;
+                border-radius: 8px;
+                min-height: 28px;
+                padding: 0 9px;
+                font-size: 12px;
                 font-weight: 700;
             }
             QPushButton#btnMesValores:hover, QPushButton#btnMesAtualValores:hover {
@@ -203,10 +204,10 @@ class TelaValoresReceber(QWidget):
         card = QFrame()
         card.setObjectName(objeto)
         card.setToolTip(tooltip)
-        card.setFixedHeight(118)
+        card.setFixedHeight(92)
         layout = QHBoxLayout(card)
-        layout.setContentsMargins(14, 8, 14, 8)
-        layout.setSpacing(10)
+        layout.setContentsMargins(12, 6, 12, 6)
+        layout.setSpacing(8)
 
         icone_label = QLabel(icone)
         icone_label.setObjectName("iconeResumoReceber")
@@ -350,7 +351,7 @@ class TelaValoresReceber(QWidget):
         nome_mes = self.nome_mes(self.mes_referencia)
 
         cards = QHBoxLayout()
-        cards.setSpacing(12)
+        cards.setSpacing(10)
         cards.addWidget(
             self.criar_card_resumo(
                 "cardAReceberPrincipal", "💰", "Total a receber", self.formatar_moeda(total_restante),
@@ -384,8 +385,8 @@ class TelaValoresReceber(QWidget):
         painel = QFrame()
         painel.setObjectName("card")
         painel_layout = QVBoxLayout(painel)
-        painel_layout.setContentsMargins(16, 10, 16, 10)
-        painel_layout.setSpacing(6)
+        painel_layout.setContentsMargins(12, 6, 12, 6)
+        painel_layout.setSpacing(4)
 
         linha_resumo = QHBoxLayout()
         resumo = QLabel("📅 Próximos recebimentos")
@@ -406,8 +407,8 @@ class TelaValoresReceber(QWidget):
         seletor = QFrame()
         seletor.setObjectName("seletorValores")
         seletor_layout = QHBoxLayout(seletor)
-        seletor_layout.setContentsMargins(12, 6, 8, 6)
-        seletor_layout.setSpacing(9)
+        seletor_layout.setContentsMargins(8, 3, 6, 3)
+        seletor_layout.setSpacing(6)
         rotulo_filtro = QLabel("Mostrar lançamentos")
         rotulo_filtro.setObjectName("rotuloFiltroValores")
         seletor_layout.addWidget(rotulo_filtro)
