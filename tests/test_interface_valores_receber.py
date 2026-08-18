@@ -111,7 +111,7 @@ class TesteInterfaceValoresReceberIsolada(unittest.TestCase):
             app.processEvents()
 
     def test_detalhes_e_filtro_usam_padrao_visual_e_texto_formatado(self):
-        from PySide6.QtWidgets import QApplication, QFrame, QLabel, QTableWidget
+        from PySide6.QtWidgets import QApplication, QFrame, QLabel, QPushButton, QTableWidget
 
         from telas.detalhes_valor_receber import DetalhesValorReceber
         from telas.valores_receber import TelaValoresReceber
@@ -155,7 +155,7 @@ class TesteInterfaceValoresReceberIsolada(unittest.TestCase):
             app.processEvents()
 
     def test_relatorios_resumo_comparacao_e_categorias(self):
-        from PySide6.QtWidgets import QApplication, QFrame, QLabel, QTableWidget
+        from PySide6.QtWidgets import QApplication, QFrame, QLabel, QPushButton, QTableWidget
 
         from telas.relatorios import GraficoBarrasInterativo, TelaRelatorios
 
@@ -180,6 +180,8 @@ class TesteInterfaceValoresReceberIsolada(unittest.TestCase):
             self.assertTrue(all(card.minimumHeight() == 76 for card in cards))
             self.assertEqual(tela.quantidade_colunas_cartoes(900), 2)
             self.assertEqual(tela.quantidade_colunas_cartoes(1600), 4)
+            self.assertGreaterEqual(tela.findChild(QPushButton, "btnMesAtualRelatorio").minimumWidth(), 154)
+            self.assertGreaterEqual(tela.findChild(QPushButton, "btnAtualizarRelatorio").minimumWidth(), 142)
             detalhes = tela.criar_janela_detalhes_lancamentos(
                 "Categoria de teste — Maio de 2099",
                 [{

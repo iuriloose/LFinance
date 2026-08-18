@@ -54,6 +54,21 @@ class GraficoBarrasInterativo(QWidget):
             [float(valor or 0) for serie in self.series for valor in serie["valores"]] or [1]
         )
         area = QRectF(62, 14, max(120, self.width() - 80), max(110, self.height() - 52))
+        grupos = len(self.meses)
+        quantidade_series = len(self.series)
+        largura_grupo = area.width() / max(grupos, 1)
+
+        # Alterna faixas sutis para separar visualmente cada competência.
+        for indice_mes in range(grupos):
+            faixa = QRectF(
+                area.left() + indice_mes * largura_grupo,
+                area.top(),
+                largura_grupo,
+                area.height() + 28,
+            )
+            cor_faixa = "#12213a" if indice_mes % 2 == 0 else "#182b46"
+            painter.fillRect(faixa, QColor(cor_faixa))
+
         painter.setPen(QPen(QColor("#334155"), 1))
         for nivel in range(5):
             y = area.bottom() - (area.height() * nivel / 4)
@@ -66,10 +81,6 @@ class GraficoBarrasInterativo(QWidget):
                     self.formatar_eixo(maximo * nivel / 4),
                 )
                 painter.setPen(QPen(QColor("#334155"), 1))
-
-        grupos = len(self.meses)
-        quantidade_series = len(self.series)
-        largura_grupo = area.width() / max(grupos, 1)
         espacamento = 3
         largura_barra = max(
             6, (largura_grupo - 18 - (quantidade_series - 1) * espacamento) / max(quantidade_series, 1)
@@ -1197,11 +1208,15 @@ class TelaRelatorios(QWidget):
         btn_proximo.clicked.connect(self.mes_proximo)
         btn_mes_atual = QPushButton("Mês atual")
         btn_mes_atual.setObjectName("btnMesAtualRelatorio")
-        btn_mes_atual.setFixedSize(112, 40)
+        btn_mes_atual.setFixedHeight(40)
+        btn_mes_atual.setMinimumWidth(154)
+        btn_mes_atual.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Fixed)
         btn_mes_atual.clicked.connect(self.voltar_mes_atual)
         btn_atualizar = QPushButton("↻ Atualizar")
         btn_atualizar.setObjectName("btnAtualizarRelatorio")
-        btn_atualizar.setFixedSize(112, 40)
+        btn_atualizar.setFixedHeight(40)
+        btn_atualizar.setMinimumWidth(142)
+        btn_atualizar.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Fixed)
         btn_atualizar.clicked.connect(self.recarregar)
         for controle in (btn_anterior, periodo, btn_proximo, btn_mes_atual, btn_atualizar):
             controles.addWidget(controle)

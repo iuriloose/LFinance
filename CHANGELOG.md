@@ -1,3 +1,9 @@
+# LFinance 2.1.3
+
+## 2.1.3
+
+- Corrige a largura dos controles no cabeçalho de Relatórios para impedir sobreposição.
+- Alterna tons de azul nas faixas mensais do gráfico, deixando a leitura entre meses mais clara.
 # LFinance 2.1.2
 
 ## 2.1.2
