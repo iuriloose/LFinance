@@ -1,4 +1,5 @@
 import unittest
+from datetime import date
 
 try:
     import test_lfinance as ambiente
@@ -110,7 +111,7 @@ class TesteInterfaceValoresReceberIsolada(unittest.TestCase):
             app.processEvents()
 
     def test_detalhes_e_filtro_usam_padrao_visual_e_texto_formatado(self):
-        from PySide6.QtWidgets import QApplication, QFrame, QLabel
+        from PySide6.QtWidgets import QApplication, QFrame, QLabel, QTableWidget
 
         from telas.detalhes_valor_receber import DetalhesValorReceber
         from telas.valores_receber import TelaValoresReceber
@@ -154,7 +155,7 @@ class TesteInterfaceValoresReceberIsolada(unittest.TestCase):
             app.processEvents()
 
     def test_relatorios_resumo_comparacao_e_categorias(self):
-        from PySide6.QtWidgets import QApplication, QFrame, QLabel
+        from PySide6.QtWidgets import QApplication, QFrame, QLabel, QTableWidget
 
         from telas.relatorios import GraficoBarrasInterativo, TelaRelatorios
 
@@ -174,6 +175,26 @@ class TesteInterfaceValoresReceberIsolada(unittest.TestCase):
             self.assertEqual(len(graficos), 1)
             self.assertEqual(len(graficos[0].meses), 6)
             self.assertLessEqual(len(graficos[0].series), 4)
+            self.assertEqual(graficos[0].minimumHeight(), 224)
+            self.assertEqual(graficos[0].maximumHeight(), 224)
+            self.assertTrue(all(card.minimumHeight() == 76 for card in cards))
+            self.assertEqual(tela.quantidade_colunas_cartoes(900), 2)
+            self.assertEqual(tela.quantidade_colunas_cartoes(1600), 4)
+            detalhes = tela.criar_janela_detalhes_lancamentos(
+                "Categoria de teste — Maio de 2099",
+                [{
+                    "data": date(2099, 5, 10),
+                    "data_texto": "10/05",
+                    "descricao": "Lançamento visual de teste",
+                    "categoria": "Teste",
+                    "tipo": "Gasto",
+                    "valor": 123.45,
+                }],
+            )
+            tabela = detalhes.findChild(QTableWidget, "tabelaDetalhesRelatorio")
+            self.assertEqual(tabela.selectionMode(), QTableWidget.NoSelection)
+            self.assertLessEqual(detalhes.height(), 560)
+            detalhes.close()
             dados_anterior = tela.dados_mes(tela.referencia_mes_anterior())
             self.assertIn("total_pago", dados_anterior)
         finally:

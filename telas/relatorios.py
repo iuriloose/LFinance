@@ -5,7 +5,7 @@ from PySide6.QtWidgets import (
     QScrollArea, QGridLayout, QSizePolicy, QDialog, QTableWidget,
     QTableWidgetItem, QHeaderView
 )
-from PySide6.QtCore import Qt, QRectF
+from PySide6.QtCore import Qt, QRectF, QTimer
 from PySide6.QtGui import QColor, QPainter, QPen
 
 from banco.banco import (
@@ -28,10 +28,17 @@ class GraficoBarrasInterativo(QWidget):
         self.ao_clicar = ao_clicar
         self.barras = []
         self.setObjectName("graficoBarrasRelatorio")
-        self.setMinimumHeight(265)
+        self.setFixedHeight(224)
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         self.setCursor(Qt.PointingHandCursor)
+        self.setMouseTracking(True)
         self.setToolTip("Clique em uma barra para ver os lançamentos.")
+
+    @staticmethod
+    def formatar_eixo(valor):
+        if valor >= 1000:
+            return f"R$ {valor / 1000:.1f} mil".replace(".", ",")
+        return f"R$ {valor:.0f}"
 
     def paintEvent(self, evento):
         painter = QPainter(self)
@@ -46,11 +53,19 @@ class GraficoBarrasInterativo(QWidget):
         maximo = max(
             [float(valor or 0) for serie in self.series for valor in serie["valores"]] or [1]
         )
-        area = QRectF(52, 18, max(120, self.width() - 70), max(110, self.height() - 62))
+        area = QRectF(62, 14, max(120, self.width() - 80), max(110, self.height() - 52))
         painter.setPen(QPen(QColor("#334155"), 1))
         for nivel in range(5):
             y = area.bottom() - (area.height() * nivel / 4)
             painter.drawLine(area.left(), y, area.right(), y)
+            if nivel in (0, 2, 4):
+                painter.setPen(QColor("#718096"))
+                painter.drawText(
+                    QRectF(0, y - 9, 56, 18),
+                    Qt.AlignRight | Qt.AlignVCenter,
+                    self.formatar_eixo(maximo * nivel / 4),
+                )
+                painter.setPen(QPen(QColor("#334155"), 1))
 
         grupos = len(self.meses)
         quantidade_series = len(self.series)
@@ -71,14 +86,25 @@ class GraficoBarrasInterativo(QWidget):
             )
             for indice_serie, serie in enumerate(self.series):
                 valor = float(serie["valores"][indice_mes] or 0)
+                if valor <= 0:
+                    continue
                 altura = 0 if maximo <= 0 else area.height() * valor / maximo
                 x = inicio + indice_serie * (largura_barra + espacamento)
                 y = area.bottom() - altura
-                retangulo = QRectF(x, y, largura_barra, max(1, altura))
+                retangulo = QRectF(x, y, largura_barra, altura)
                 painter.setPen(Qt.NoPen)
                 painter.setBrush(QColor(serie["cor"]))
                 painter.drawRoundedRect(retangulo, 3, 3)
                 self.barras.append((retangulo, mes, serie, valor))
+
+    def mouseMoveEvent(self, evento):
+        for retangulo, mes, serie, valor in self.barras:
+            if retangulo.contains(evento.position()):
+                texto = f"{serie['nome']} • {mes['rotulo']}: R$ {valor:,.2f}"
+                self.setToolTip(texto.replace(",", "X").replace(".", ",").replace("X", "."))
+                return
+        self.setToolTip("Clique em uma barra para ver os lançamentos.")
+        super().mouseMoveEvent(evento)
 
     def mouseReleaseEvent(self, evento):
         for retangulo, mes, serie, valor in self.barras:
@@ -93,6 +119,7 @@ class TelaRelatorios(QWidget):
     def __init__(self):
         super().__init__()
         self.mes_referencia = date.today().replace(day=1)
+        self._colunas_cartoes = None
         self.aplicar_estilo()
         self.montar_tela()
 
@@ -148,13 +175,13 @@ class TelaRelatorios(QWidget):
 
             QLabel#cardValorRelatorio {
                 color: #ffffff;
-                font-size: 24px;
+                font-size: 21px;
                 font-weight: 800;
             }
 
             QLabel#cardInfoRelatorio {
                 color: #cbd5e1;
-                font-size: 12px;
+                font-size: 11px;
             }
 
             QLabel#valorVerde {
@@ -631,15 +658,16 @@ class TelaRelatorios(QWidget):
     def criar_card_resumo(self, objeto, icone, titulo, valor, info):
         card = QFrame()
         card.setObjectName(objeto)
-        card.setMinimumHeight(84)
+        card.setFixedHeight(76)
+        card.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
 
         layout = QHBoxLayout(card)
-        layout.setContentsMargins(16, 10, 16, 10)
-        layout.setSpacing(14)
+        layout.setContentsMargins(12, 8, 12, 8)
+        layout.setSpacing(10)
 
         lbl_icone = QLabel(icone)
         lbl_icone.setObjectName("cardValorRelatorio")
-        lbl_icone.setFixedWidth(36)
+        lbl_icone.setFixedWidth(30)
         lbl_icone.setAlignment(Qt.AlignCenter)
 
         textos = QVBoxLayout()
@@ -865,17 +893,22 @@ class TelaRelatorios(QWidget):
             ano, mes = ano - 1, 12
         return date(ano, mes, 1)
 
-    def mostrar_detalhes_lancamentos(self, titulo, itens, texto_vazio="Nenhum lançamento neste período."):
+    def criar_janela_detalhes_lancamentos(self, titulo, itens, texto_vazio="Nenhum lançamento neste período."):
         janela = QDialog(self)
         janela.setWindowTitle(titulo)
-        janela.resize(820, 470)
         janela.setModal(True)
+        janela.setMinimumWidth(700)
+        janela.setSizeGripEnabled(True)
         janela.setStyleSheet("""
             QDialog { background-color: #0f1726; }
             QLabel { color: #ffffff; font-family: 'Segoe UI'; }
             QLabel#tituloDetalhes { font-size: 22px; font-weight: 800; }
             QLabel#resumoDetalhes { color: #a8b3c7; font-size: 13px; }
-            QTableWidget { background-color: #111c2e; color: #ffffff; border: 1px solid #26364e; gridline-color: #26364e; font-size: 12px; }
+            QLabel#totalDetalhes { color: #22c55e; font-size: 18px; font-weight: 800; }
+            QFrame#resumoDetalhesPainel { background-color: #152238; border: 1px solid #26364e; border-radius: 9px; }
+            QTableWidget { background-color: #111c2e; color: #ffffff; border: 1px solid #26364e; gridline-color: #26364e; font-size: 13px; alternate-background-color: #162238; selection-background-color: #1d4ed8; selection-color: #ffffff; }
+            QTableWidget::item { color: #ffffff; padding: 6px; border-bottom: 1px solid #26364e; }
+            QTableWidget::item:alternate { background-color: #162238; color: #ffffff; }
             QHeaderView::section { background-color: #1e293b; color: #ffffff; border: 0; border-right: 1px solid #334155; padding: 8px; font-weight: 700; }
             QPushButton { background-color: #1f2937; color: #ffffff; border: 1px solid #475569; border-radius: 8px; min-height: 38px; padding: 0 22px; font-weight: 700; }
             QPushButton:hover { background-color: #334155; }
@@ -883,22 +916,39 @@ class TelaRelatorios(QWidget):
         layout = QVBoxLayout(janela)
         layout.setContentsMargins(22, 20, 22, 20)
         layout.setSpacing(12)
+
         lbl_titulo = QLabel(titulo)
         lbl_titulo.setObjectName("tituloDetalhes")
-        total = sum(float(item.get("valor", 0) or 0) for item in itens)
-        resumo = QLabel(f"{len(itens)} lançamento(s)  •  Total: {self.formatar_moeda(total)}")
-        resumo.setObjectName("resumoDetalhes")
         layout.addWidget(lbl_titulo)
-        layout.addWidget(resumo)
+
+        total = sum(float(item.get("valor", 0) or 0) for item in itens)
+        painel = QFrame()
+        painel.setObjectName("resumoDetalhesPainel")
+        painel_layout = QHBoxLayout(painel)
+        painel_layout.setContentsMargins(14, 10, 14, 10)
+        painel_layout.setSpacing(12)
+        quantidade = QLabel(f"{len(itens)} lançamento(s) neste detalhe")
+        quantidade.setObjectName("resumoDetalhes")
+        valor_total = QLabel(self.formatar_moeda(total))
+        valor_total.setObjectName("totalDetalhes")
+        valor_total.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        painel_layout.addWidget(quantidade)
+        painel_layout.addStretch()
+        painel_layout.addWidget(valor_total)
+        layout.addWidget(painel)
 
         tabela = QTableWidget(len(itens), 5)
+        tabela.setObjectName("tabelaDetalhesRelatorio")
         tabela.setHorizontalHeaderLabels(["Data", "Descrição", "Categoria", "Tipo", "Valor"])
         tabela.verticalHeader().setVisible(False)
+        tabela.verticalHeader().setDefaultSectionSize(35)
         tabela.setEditTriggers(QTableWidget.NoEditTriggers)
-        tabela.setSelectionBehavior(QTableWidget.SelectRows)
+        tabela.setSelectionMode(QTableWidget.NoSelection)
+        tabela.setFocusPolicy(Qt.NoFocus)
         tabela.setAlternatingRowColors(True)
         tabela.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeToContents)
         tabela.horizontalHeader().setSectionResizeMode(1, QHeaderView.Stretch)
+        tabela.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
         for linha, item in enumerate(sorted(itens, key=lambda registro: registro.get("data", date.min), reverse=True)):
             valores = [
                 item.get("data_texto", "-"),
@@ -908,22 +958,32 @@ class TelaRelatorios(QWidget):
                 self.formatar_moeda(item.get("valor", 0)),
             ]
             for coluna, valor in enumerate(valores):
-                tabela.setItem(linha, coluna, QTableWidgetItem(str(valor)))
+                item_tabela = QTableWidgetItem(str(valor))
+                if coluna == 4:
+                    item_tabela.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
+                tabela.setItem(linha, coluna, item_tabela)
         if not itens:
             tabela.setRowCount(1)
             tabela.setSpan(0, 0, 1, 5)
             item_vazio = QTableWidgetItem(texto_vazio)
             item_vazio.setTextAlignment(Qt.AlignCenter)
             tabela.setItem(0, 0, item_vazio)
-        layout.addWidget(tabela, 1)
+
+        linhas_visiveis = max(1, min(len(itens), 7))
+        tabela.setFixedHeight(40 + linhas_visiveis * 35 + 3)
+        layout.addWidget(tabela)
+
         botoes = QHBoxLayout()
         botoes.addStretch()
         fechar = QPushButton("Fechar")
         fechar.clicked.connect(janela.accept)
         botoes.addWidget(fechar)
         layout.addLayout(botoes)
-        janela.exec()
+        janela.resize(790, min(560, 175 + tabela.height()))
+        return janela
 
+    def mostrar_detalhes_lancamentos(self, titulo, itens, texto_vazio="Nenhum lançamento neste período."):
+        self.criar_janela_detalhes_lancamentos(titulo, itens, texto_vazio).exec()
     def ultimos_meses_relatorio(self, quantidade=6):
         meses = []
         referencia = self.mes_referencia
@@ -985,6 +1045,8 @@ class TelaRelatorios(QWidget):
 
         caixa = QFrame()
         caixa.setObjectName("cardBase")
+        caixa.setFixedHeight(316)
+        caixa.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         layout = QVBoxLayout(caixa)
         layout.setContentsMargins(18, 16, 18, 16)
         layout.setSpacing(9)
@@ -1052,7 +1114,7 @@ class TelaRelatorios(QWidget):
         caixa = QFrame()
         caixa.setObjectName("linhaResumo")
         layout = QVBoxLayout(caixa)
-        layout.setContentsMargins(16, 10, 16, 10)
+        layout.setContentsMargins(12, 8, 12, 8)
         layout.setSpacing(3)
         titulo = QLabel("Planejamento do mês")
         titulo.setObjectName("itemTitulo")
@@ -1080,7 +1142,7 @@ class TelaRelatorios(QWidget):
         caixa = QFrame()
         caixa.setObjectName("cardPendenteRelatorio")
         layout = QHBoxLayout(caixa)
-        layout.setContentsMargins(16, 10, 16, 10)
+        layout.setContentsMargins(12, 8, 12, 8)
         titulo = QLabel("Atenção")
         titulo.setObjectName("itemTitulo")
         texto = QLabel("  •  ".join(alertas))
@@ -1089,6 +1151,10 @@ class TelaRelatorios(QWidget):
         layout.addWidget(titulo)
         layout.addWidget(texto, 1)
         return caixa
+
+    def quantidade_colunas_cartoes(self, largura=None):
+        largura_util = self.width() if largura is None else largura
+        return 2 if largura_util < 1250 else 4
 
     def montar_tela(self):
         if self.layout() is None:
@@ -1152,29 +1218,36 @@ class TelaRelatorios(QWidget):
         layout.setContentsMargins(0, 0, 6, 0)
         layout.setSpacing(10)
 
+        colunas_cartoes = self.quantidade_colunas_cartoes()
+        self._colunas_cartoes = colunas_cartoes
         cards = QGridLayout()
+        cards.setObjectName("cardsRelatorios")
         cards.setHorizontalSpacing(10)
-        cards.setVerticalSpacing(10)
-        for coluna in range(2):
+        cards.setVerticalSpacing(8)
+        for coluna in range(colunas_cartoes):
             cards.setColumnStretch(coluna, 1)
-        cards.addWidget(self.criar_card_resumo(
-            "cardReceitaRelatorio", "💵", "Receitas", self.formatar_moeda(dados["total_receitas"]),
-            self.texto_quantidade(len(dados["receitas"]), "entrada", "entradas") + " no mês",
-        ), 0, 0)
-        cards.addWidget(self.criar_card_resumo(
-            "cardPagoRelatorio", "✅", "Gastos", self.formatar_moeda(dados["total_pago"]),
-            "Contas pagas e gastos do dia",
-        ), 0, 1)
-        cards.addWidget(self.criar_card_resumo(
-            "cardSaldoRelatorio", "💰", "Saldo realizado", self.formatar_moeda(dados["saldo_mes"]),
-            "Entradas menos valores já pagos",
-        ), 1, 0)
-        cards.addWidget(self.criar_card_resumo(
-            "cardSaldoRelatorio" if dados["resultado_previsto"] >= 0 else "cardPendenteRelatorio",
-            "📈" if dados["resultado_previsto"] >= 0 else "📉",
-            "Saldo previsto", self.formatar_moeda(dados["resultado_previsto"]),
-            "Considera as contas pendentes deste mês",
-        ), 1, 1)
+        itens_cartoes = [
+            self.criar_card_resumo(
+                "cardReceitaRelatorio", "💵", "Receitas", self.formatar_moeda(dados["total_receitas"]),
+                self.texto_quantidade(len(dados["receitas"]), "entrada", "entradas") + " no mês",
+            ),
+            self.criar_card_resumo(
+                "cardPagoRelatorio", "✅", "Gastos", self.formatar_moeda(dados["total_pago"]),
+                "Contas pagas e gastos do dia",
+            ),
+            self.criar_card_resumo(
+                "cardSaldoRelatorio", "💰", "Saldo realizado", self.formatar_moeda(dados["saldo_mes"]),
+                "Entradas menos valores já pagos",
+            ),
+            self.criar_card_resumo(
+                "cardSaldoRelatorio" if dados["resultado_previsto"] >= 0 else "cardPendenteRelatorio",
+                "📈" if dados["resultado_previsto"] >= 0 else "📉",
+                "Saldo previsto", self.formatar_moeda(dados["resultado_previsto"]),
+                "Considera as contas pendentes deste mês",
+            ),
+        ]
+        for indice, cartao in enumerate(itens_cartoes):
+            cards.addWidget(cartao, indice // colunas_cartoes, indice % colunas_cartoes)
         layout.addLayout(cards)
 
         alerta = self.criar_alertas(dados)
@@ -1195,6 +1268,12 @@ class TelaRelatorios(QWidget):
         area.setWidget(conteudo)
         area.verticalScrollBar().setValue(0)
         principal.addWidget(area, 1)
+
+    def resizeEvent(self, evento):
+        super().resizeEvent(evento)
+        colunas = self.quantidade_colunas_cartoes()
+        if self._colunas_cartoes is not None and colunas != self._colunas_cartoes:
+            QTimer.singleShot(0, self.montar_tela)
 
     def mes_anterior(self):
         ano = self.mes_referencia.year

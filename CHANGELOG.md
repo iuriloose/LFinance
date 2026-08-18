@@ -1,3 +1,10 @@
+# LFinance 2.1.2
+
+## 2.1.2
+
+- Compacta os cartões e o gráfico de Relatórios, com adaptação entre tela ampla e estreita.
+- Acrescenta referências de valor e dica ao passar o mouse nas barras.
+- Reorganiza os detalhes das barras: tabela escura, altura ajustada ao conteúdo e rolagem apenas quando necessária.
 # LFinance 2.1.1
 
 ## 2.1.1

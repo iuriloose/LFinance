@@ -342,16 +342,16 @@ class TesteLFinanceIsolado(unittest.TestCase):
                 return json.dumps(self.dados).encode("utf-8")
 
         hash_esperado = "a" * 64
-        nome_esperado = "LFinance_Setup_v2.1.2.exe"
+        nome_esperado = "LFinance_Setup_v2.1.3.exe"
         url_esperada = (
             "https://github.com/iuriloose/LFinance/releases/download/"
-            f"v2.1.2/{nome_esperado}"
+            f"v2.1.3/{nome_esperado}"
         )
         release = {
-            "tag_name": "v2.1.2",
-            "name": "LFinance 2.1.2",
+            "tag_name": "v2.1.3",
+            "name": "LFinance 2.1.3",
             "body": "Melhorias de teste",
-            "html_url": "https://github.com/iuriloose/LFinance/releases/tag/v2.1.2",
+            "html_url": "https://github.com/iuriloose/LFinance/releases/tag/v2.1.3",
             "assets": [
                 {
                     "name": nome_esperado,
@@ -360,7 +360,7 @@ class TesteLFinanceIsolado(unittest.TestCase):
                 },
                 {
                     "name": "outro_programa.exe",
-                    "browser_download_url": "https://github.com/iuriloose/LFinance/releases/download/v2.1.2/outro_programa.exe",
+                    "browser_download_url": "https://github.com/iuriloose/LFinance/releases/download/v2.1.3/outro_programa.exe",
                 },
                 {
                     "name": nome_esperado,
@@ -377,7 +377,7 @@ class TesteLFinanceIsolado(unittest.TestCase):
             resultado = consultar_ultima_versao(timeout=1)
 
         self.assertTrue(resultado.disponivel)
-        self.assertEqual(resultado.nova_versao, "2.1.2")
+        self.assertEqual(resultado.nova_versao, "2.1.3")
         self.assertEqual(resultado.url_download, url_esperada)
         self.assertEqual(resultado.nome_arquivo, nome_esperado)
         self.assertEqual(resultado.hash_sha256, hash_esperado)
