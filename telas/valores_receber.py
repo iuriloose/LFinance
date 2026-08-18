@@ -4,7 +4,6 @@ from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QComboBox,
     QFrame,
-    QGridLayout,
     QHBoxLayout,
     QLabel,
     QMessageBox,
@@ -31,6 +30,7 @@ class TelaValoresReceber(QWidget):
     def __init__(self, ao_alterar=None):
         super().__init__()
         self.ao_alterar = ao_alterar
+        self.mes_referencia = date.today().replace(day=1)
         self.layout_principal = QVBoxLayout(self)
         self.layout_principal.setContentsMargins(36, 30, 36, 24)
         self.layout_principal.setSpacing(16)
@@ -81,7 +81,8 @@ class TelaValoresReceber(QWidget):
             QFrame#cardAReceberPrincipal, QFrame#cardPrevistoMes,
             QFrame#cardAtrasadosReceber, QFrame#cardRecebidoMes {
                 border-radius: 14px;
-                min-height: 94px;
+                min-height: 96px;
+                max-height: 116px;
             }
             QFrame#cardAReceberPrincipal {
                 background: #0b2b32;
@@ -100,21 +101,64 @@ class TelaValoresReceber(QWidget):
                 border: 1px solid #f59e0b;
             }
             QLabel#iconeResumoReceber {
-                font-size: 28px;
-                min-width: 40px;
+                font-size: 25px;
+                min-width: 36px;
             }
             QLabel#tituloResumoReceber {
                 color: #b9c4d6;
-                font-size: 13px;
+                font-size: 12px;
             }
             QLabel#valorResumoReceber {
                 color: #ffffff;
-                font-size: 23px;
+                font-size: 21px;
                 font-weight: 800;
             }
             QLabel#infoResumoReceber {
                 color: #d7dcf0;
-                font-size: 11px;
+                font-size: 10px;
+            }
+            QFrame#painelPeriodoValores {
+                background: #131d2e;
+                border: 1px solid #2a3a52;
+                border-radius: 12px;
+            }
+            QLabel#tituloPeriodoValores {
+                color: #94a3b8;
+                font-size: 12px;
+                font-weight: 700;
+            }
+            QLabel#periodoValores {
+                color: #ffffff;
+                background: #1e293b;
+                border: 1px solid #334155;
+                border-radius: 9px;
+                font-size: 14px;
+                font-weight: 800;
+                min-width: 165px;
+                min-height: 36px;
+            }
+            QPushButton#btnMesValores {
+                color: #ffffff;
+                background: #1e293b;
+                border: 1px solid #475569;
+                border-radius: 9px;
+                min-width: 36px;
+                min-height: 36px;
+                font-size: 18px;
+                font-weight: 800;
+            }
+            QPushButton#btnMesAtualValores {
+                color: #ffffff;
+                background: #10263a;
+                border: 1px solid #38bdf8;
+                border-radius: 9px;
+                min-height: 36px;
+                padding: 0 12px;
+                font-weight: 700;
+            }
+            QPushButton#btnMesValores:hover, QPushButton#btnMesAtualValores:hover {
+                background: #075985;
+                border-color: #7dd3fc;
             }
             QLabel#resumoValores {
                 color: #d7dcf0;
@@ -166,8 +210,8 @@ class TelaValoresReceber(QWidget):
         card.setObjectName(objeto)
         card.setToolTip(tooltip)
         layout = QHBoxLayout(card)
-        layout.setContentsMargins(16, 12, 16, 12)
-        layout.setSpacing(12)
+        layout.setContentsMargins(14, 8, 14, 8)
+        layout.setSpacing(10)
 
         icone_label = QLabel(icone)
         icone_label.setObjectName("iconeResumoReceber")
@@ -188,6 +232,59 @@ class TelaValoresReceber(QWidget):
         layout.addWidget(icone_label)
         layout.addLayout(textos, 1)
         return card
+
+    def mes_anterior(self):
+        ano = self.mes_referencia.year
+        mes = self.mes_referencia.month - 1
+        if mes == 0:
+            ano, mes = ano - 1, 12
+        self.mes_referencia = date(ano, mes, 1)
+        self.montar_tela()
+
+    def mes_proximo(self):
+        ano = self.mes_referencia.year
+        mes = self.mes_referencia.month + 1
+        if mes == 13:
+            ano, mes = ano + 1, 1
+        self.mes_referencia = date(ano, mes, 1)
+        self.montar_tela()
+
+    def voltar_mes_atual(self):
+        self.mes_referencia = date.today().replace(day=1)
+        self.montar_tela()
+
+    def criar_controles_mes(self):
+        painel = QFrame()
+        painel.setObjectName("painelPeriodoValores")
+        layout = QHBoxLayout(painel)
+        layout.setContentsMargins(14, 8, 14, 8)
+        layout.setSpacing(8)
+
+        titulo = QLabel("Resumo de recebimentos")
+        titulo.setObjectName("tituloPeriodoValores")
+        layout.addWidget(titulo)
+        layout.addStretch()
+
+        anterior = QPushButton("‹")
+        anterior.setObjectName("btnMesValores")
+        anterior.setToolTip("Ver mês anterior")
+        anterior.clicked.connect(self.mes_anterior)
+        periodo = QLabel(f"{self.nome_mes(self.mes_referencia)} de {self.mes_referencia.year}")
+        periodo.setObjectName("periodoValores")
+        periodo.setAlignment(Qt.AlignCenter)
+        proximo = QPushButton("›")
+        proximo.setObjectName("btnMesValores")
+        proximo.setToolTip("Ver próximo mês")
+        proximo.clicked.connect(self.mes_proximo)
+        atual = QPushButton("Mês atual")
+        atual.setObjectName("btnMesAtualValores")
+        atual.clicked.connect(self.voltar_mes_atual)
+
+        layout.addWidget(anterior)
+        layout.addWidget(periodo)
+        layout.addWidget(proximo)
+        layout.addWidget(atual)
+        return painel
 
     def limpar_tela(self):
         while self.layout_principal.count():
@@ -238,6 +335,8 @@ class TelaValoresReceber(QWidget):
         topo.addWidget(novo)
         self.layout_principal.addLayout(topo)
 
+        self.layout_principal.addWidget(self.criar_controles_mes())
+
         todos = listar_valores_receber("todos")
         ativos = [
             item
@@ -247,8 +346,7 @@ class TelaValoresReceber(QWidget):
         atrasados = [item for item in todos if item[11] == "atrasado"]
         total_restante = sum(item[10] for item in ativos)
         total_atrasado = sum(item[10] for item in atrasados)
-        hoje = date.today()
-        periodo_atual = hoje.strftime("%Y-%m")
+        periodo_atual = self.mes_referencia.strftime("%Y-%m")
         previstos_mes = [item for item in ativos if item[4].startswith(periodo_atual)]
         total_previsto_mes = sum(item[10] for item in previstos_mes)
         total_recebido_mes = sum(
@@ -259,44 +357,39 @@ class TelaValoresReceber(QWidget):
         )
         proximo = min(ativos, key=lambda item: (item[4], item[0]), default=None)
         texto_proximo = (
-            f"Próximo: {self.formatar_data(proximo[4])}" if proximo else "Nenhum valor pendente"
+            f"Próximo: {self.formatar_data(proximo[4])[:5]}" if proximo else "Nenhum valor pendente"
         )
-        nome_mes = self.nome_mes(hoje)
+        nome_mes = self.nome_mes(self.mes_referencia)
 
-        cards = QGridLayout()
-        cards.setHorizontalSpacing(14)
-        cards.setVerticalSpacing(12)
+        cards = QHBoxLayout()
+        cards.setSpacing(12)
         cards.addWidget(
             self.criar_card_resumo(
                 "cardAReceberPrincipal", "💰", "Total a receber", self.formatar_moeda(total_restante),
-                f"{len(ativos)} valor(es) pendente(s) • {texto_proximo}",
+                f"{len(ativos)} pendente(s) • {texto_proximo}",
                 "Soma de todos os valores que ainda faltam receber. Não altera o saldo até ser recebido.",
-            ),
-            0, 0,
+            )
         )
         cards.addWidget(
             self.criar_card_resumo(
                 "cardPrevistoMes", "📅", f"Previsto em {nome_mes}", self.formatar_moeda(total_previsto_mes),
-                f"{len(previstos_mes)} valor(es) com previsão neste mês",
-                "Valores pendentes cuja previsão de recebimento está no mês atual.",
-            ),
-            0, 1,
+                f"{len(previstos_mes)} previsto(s) no mês",
+                "Valores pendentes cuja previsão de recebimento está no mês selecionado.",
+            )
         )
         cards.addWidget(
             self.criar_card_resumo(
                 "cardAtrasadosReceber", "⚠", "A receber atrasado", self.formatar_moeda(total_atrasado),
-                f"{len(atrasados)} valor(es) com previsão vencida",
+                f"{len(atrasados)} vencido(s)",
                 "Valores ainda pendentes cuja data prevista já passou.",
-            ),
-            1, 0,
+            )
         )
         cards.addWidget(
             self.criar_card_resumo(
                 "cardRecebidoMes", "✅", f"Recebido em {nome_mes}", self.formatar_moeda(total_recebido_mes),
-                "Somente recebimentos registrados nesta área",
-                "Entradas confirmadas por Valores a receber no mês atual.",
-            ),
-            1, 1,
+                "Recebimentos confirmados",
+                "Entradas confirmadas por Valores a receber no mês selecionado.",
+            )
         )
         self.layout_principal.addLayout(cards)
 

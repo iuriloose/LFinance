@@ -132,6 +132,11 @@ class TesteInterfaceValoresReceberIsolada(unittest.TestCase):
                 + len(tela.findChildren(QFrame, "cardRecebidoMes")),
                 4,
             )
+            mes_inicial = tela.mes_referencia
+            tela.mes_proximo()
+            self.assertNotEqual(tela.mes_referencia, mes_inicial)
+            self.assertIn(str(tela.mes_referencia.year), tela.findChild(QLabel, "periodoValores").text())
+            tela.voltar_mes_atual()
             valores_resumo = detalhes.findChildren(QLabel, "valorResumo")
             self.assertEqual(len(valores_resumo), 6)
             self.assertEqual(

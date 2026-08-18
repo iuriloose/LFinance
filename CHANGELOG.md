@@ -1,3 +1,10 @@
+# LFinance 2.0.7
+
+## 2.0.7
+
+- Deixa os cartões de Valores a receber no formato compacto da Tela inicial.
+- Permite navegar entre meses para consultar os indicadores de previsto e recebido do período escolhido.
+
 # LFinance 2.0.6
 
 ## 2.0.6
