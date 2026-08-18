@@ -118,14 +118,8 @@ class TelaValoresReceber(QWidget):
                 font-size: 10px;
             }
             QFrame#painelPeriodoValores {
-                background: #131d2e;
-                border: 1px solid #2a3a52;
-                border-radius: 12px;
-            }
-            QLabel#tituloPeriodoValores {
-                color: #94a3b8;
-                font-size: 12px;
-                font-weight: 700;
+                background: transparent;
+                border: none;
             }
             QLabel#periodoValores {
                 color: #ffffff;
@@ -209,6 +203,7 @@ class TelaValoresReceber(QWidget):
         card = QFrame()
         card.setObjectName(objeto)
         card.setToolTip(tooltip)
+        card.setFixedHeight(118)
         layout = QHBoxLayout(card)
         layout.setContentsMargins(14, 8, 14, 8)
         layout.setSpacing(10)
@@ -257,13 +252,8 @@ class TelaValoresReceber(QWidget):
         painel = QFrame()
         painel.setObjectName("painelPeriodoValores")
         layout = QHBoxLayout(painel)
-        layout.setContentsMargins(14, 8, 14, 8)
-        layout.setSpacing(8)
-
-        titulo = QLabel("Resumo de recebimentos")
-        titulo.setObjectName("tituloPeriodoValores")
-        layout.addWidget(titulo)
-        layout.addStretch()
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(6)
 
         anterior = QPushButton("‹")
         anterior.setObjectName("btnMesValores")
@@ -335,8 +325,6 @@ class TelaValoresReceber(QWidget):
         topo.addWidget(novo)
         self.layout_principal.addLayout(topo)
 
-        self.layout_principal.addWidget(self.criar_controles_mes())
-
         todos = listar_valores_receber("todos")
         ativos = [
             item
@@ -396,12 +384,13 @@ class TelaValoresReceber(QWidget):
         painel = QFrame()
         painel.setObjectName("card")
         painel_layout = QVBoxLayout(painel)
-        painel_layout.setContentsMargins(18, 16, 18, 16)
-        painel_layout.setSpacing(12)
+        painel_layout.setContentsMargins(16, 10, 16, 10)
+        painel_layout.setSpacing(6)
 
         linha_resumo = QHBoxLayout()
-        resumo = QLabel("Lançamentos a receber")
+        resumo = QLabel("📅 Próximos recebimentos")
         resumo.setObjectName("resumoValores")
+        resumo.setToolTip("Lista de valores a receber. Use o filtro para alternar entre pendentes, atrasados e recebidos.")
 
         self.filtro = QComboBox()
         self.filtro.setObjectName("filtroValores")
@@ -426,16 +415,9 @@ class TelaValoresReceber(QWidget):
 
         linha_resumo.addWidget(resumo)
         linha_resumo.addStretch()
+        linha_resumo.addWidget(self.criar_controles_mes())
         linha_resumo.addWidget(seletor)
         painel_layout.addLayout(linha_resumo)
-
-        ajuda = QLabel(
-            "Valores pendentes não alteram o saldo da Tela inicial. "
-            "Use Desfazer para cancelar somente o último recebimento."
-        )
-        ajuda.setObjectName("ajudaValores")
-        ajuda.setWordWrap(True)
-        painel_layout.addWidget(ajuda)
 
         valores = listar_valores_receber(filtro_atual)
         self.tabela = TabelaRegistros(
@@ -461,6 +443,7 @@ class TelaValoresReceber(QWidget):
             coluna_flexivel=1,
             colunas_ocultar_compacto=(2, 3, 5),
             limite_compacto=950,
+            altura_linha=42,
         )
         if not valores:
             self.tabela.mostrar_vazio("Nenhum valor encontrado neste filtro.")

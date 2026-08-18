@@ -121,6 +121,7 @@ class TesteInterfaceValoresReceberIsolada(unittest.TestCase):
         try:
             self.assertIsNotNone(tela.findChild(QFrame, "seletorValores"))
             self.assertEqual(tela.filtro.currentData(), "ativos")
+            self.assertEqual(tela.tabela.altura_linha, 42)
             self.assertEqual(
                 tela.findChild(QLabel, "valorResumoReceber").text(),
                 "R$ 2.500,00",

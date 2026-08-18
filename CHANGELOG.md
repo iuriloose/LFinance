@@ -1,3 +1,10 @@
+# LFinance 2.0.8
+
+## 2.0.8
+
+- Reorganiza Valores a receber para priorizar a lista, com cartões compactos e navegação mensal integrada ao cabeçalho da lista.
+- Aumenta as linhas da tabela para facilitar a leitura dos lançamentos.
+
 # LFinance 2.0.7
 
 ## 2.0.7

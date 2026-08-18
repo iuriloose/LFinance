@@ -1,4 +1,4 @@
-# LFinance 2.0.7
+# LFinance 2.0.8
 
 Sistema financeiro pessoal para Windows.
 
