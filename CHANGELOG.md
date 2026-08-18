@@ -1,3 +1,10 @@
+# LFinance 2.1.0
+
+## 2.1.0
+
+- Simplifica Relatórios com quatro indicadores, comparação de gastos entre meses e categorias clicáveis para abrir os lançamentos.
+- Mantém alertas apenas quando há algo que exige atenção e resume o planejamento do mês.
+
 # LFinance 2.0.10
 
 ## 2.0.10

@@ -153,5 +153,31 @@ class TesteInterfaceValoresReceberIsolada(unittest.TestCase):
             detalhes.deleteLater()
             app.processEvents()
 
+    def test_relatorios_resumo_comparacao_e_categorias(self):
+        from PySide6.QtWidgets import QApplication, QFrame, QLabel
+
+        from telas.relatorios import TelaRelatorios
+
+        app = QApplication.instance() or QApplication([])
+        tela = TelaRelatorios()
+        try:
+            cards = (
+                tela.findChildren(QFrame, "cardReceitaRelatorio")
+                + tela.findChildren(QFrame, "cardPagoRelatorio")
+                + tela.findChildren(QFrame, "cardSaldoRelatorio")
+                + tela.findChildren(QFrame, "cardPendenteRelatorio")
+            )
+            self.assertEqual(len(cards), 4)
+            textos = [label.text() for label in tela.findChildren(QLabel)]
+            self.assertIn("Gastos: comparação mensal", textos)
+            self.assertIn("Onde você gastou", textos)
+            dados_anterior = tela.dados_mes(tela.referencia_mes_anterior())
+            self.assertIn("total_pago", dados_anterior)
+        finally:
+            tela.close()
+            tela.deleteLater()
+            app.processEvents()
+
+
 if __name__ == "__main__":
     unittest.main()
