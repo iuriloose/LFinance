@@ -1,10 +1,16 @@
-# LFinance 2.0.2
+# LFinance 2.0.3
+
+## 2.0.3
+
+- Adicionado botão visível para desfazer o último recebimento em Valores a receber.
+- Bloqueada a confirmação duplicada no diálogo de recebimento.
+- Corrigidos os textos, ícones, acentuação e contagens da tela Relatórios.
 
 ## 2.0.2
 
-- Restaurada a tela Relat?rios com resumo mensal de receitas, pagamentos, pend?ncias e atrasos.
+- Restaurada a tela Relatórios com resumo mensal de receitas, pagamentos, pendências e atrasos.
 - Adicionados valores previstos a receber, recebimentos atrasados e resultado planejado sem alterar o saldo real.
-- Integrada a d?cima tela ao menu e ampliada a cobertura de testes.
+- Integrada a décima tela ao menu e ampliada a cobertura de testes.
 
 ## 2.0.1
 

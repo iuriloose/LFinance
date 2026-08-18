@@ -11,6 +11,8 @@ from PySide6.QtWidgets import (
 )
 
 from banco.valores_receber import (
+    buscar_valor_receber_por_id,
+    desfazer_ultimo_recebimento,
     excluir_valor_receber,
     listar_valores_receber,
 )
@@ -116,9 +118,9 @@ class TelaValoresReceber(QWidget):
             elif item.layout():
                 self.limpar_layout(item.layout())
 
-    def montar_tela(self):
-        filtro_atual = "ativos"
-        if hasattr(self, "filtro"):
+    def montar_tela(self, filtro_preferido=None):
+        filtro_atual = filtro_preferido or "ativos"
+        if filtro_preferido is None and hasattr(self, "filtro"):
             filtro_atual = self.filtro.currentData() or "ativos"
         self.limpar_tela()
 
@@ -188,7 +190,7 @@ class TelaValoresReceber(QWidget):
 
         ajuda = QLabel(
             "Valores pendentes não alteram o saldo da Tela inicial. "
-            "Dê dois cliques em uma linha para consultar o histórico."
+            "Use Desfazer para cancelar somente o último recebimento."
         )
         ajuda.setObjectName("ajudaValores")
         ajuda.setWordWrap(True)
@@ -263,6 +265,18 @@ class TelaValoresReceber(QWidget):
                             "Editar este valor a receber",
                         )
                     )
+                if item[9] > 0:
+                    botoes.append(
+                        criar_botao_acao(
+                            "Desfazer",
+                            lambda _, id_valor=item[0], descricao=item[2]: self.desfazer_ultimo(
+                                id_valor, descricao
+                            ),
+                            "#f59e0b",
+                            78,
+                            "Desfazer o último recebimento e a Receita vinculada",
+                        )
+                    )
                 botoes.append(
                     criar_botao_acao(
                         "Ver",
@@ -311,8 +325,28 @@ class TelaValoresReceber(QWidget):
 
     def receber(self, valor):
         if ReceberValor(valor, self).exec():
-            self.montar_tela()
+            atualizado = buscar_valor_receber_por_id(valor[0])
+            filtro = "recebidos" if atualizado and atualizado[11] == "recebido" else "ativos"
+            self.montar_tela(filtro)
             self.notificar_alteracao()
+
+    def desfazer_ultimo(self, id_valor, descricao):
+        resposta = QMessageBox.question(
+            self,
+            "Desfazer último recebimento",
+            f'O último recebimento de "{descricao}" e a Receita vinculada a ele serão removidos.\n\n'
+            "Deseja continuar?",
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No,
+        )
+        if resposta != QMessageBox.Yes:
+            return
+        sucesso, mensagem = desfazer_ultimo_recebimento(id_valor)
+        if not sucesso:
+            QMessageBox.warning(self, "Não foi possível desfazer", mensagem)
+            return
+        self.montar_tela("ativos")
+        self.notificar_alteracao()
 
     def detalhes(self, id_valor):
         if DetalhesValorReceber(id_valor, self).exec():

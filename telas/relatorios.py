@@ -326,6 +326,11 @@ class TelaRelatorios(QWidget):
             return "Amanhã"
         return f"Em {(data - hoje).days} dias"
 
+    @staticmethod
+    def texto_quantidade(quantidade, singular, plural=None):
+        palavra = singular if quantidade == 1 else (plural or f"{singular}s")
+        return f"{quantidade} {palavra}"
+
     def separar_despesa(self, despesa):
         if len(despesa) == 10:
             return despesa
@@ -418,9 +423,9 @@ class TelaRelatorios(QWidget):
                     "tipo": "Receita",
                 })
 
-        # Valores a receber continuam fora das receitas at? que sejam realmente
-        # confirmados. Assim, o relat?rio mostra o planejamento sem inflar o
-        # saldo realizado do m?s.
+        # Valores a receber continuam fora das receitas até que sejam realmente
+        # confirmados. Assim, o relatório mostra o planejamento sem inflar o
+        # saldo realizado do mês.
         valores_receber_mes = []
         valores_receber_atrasados = []
         for valor_receber in listar_valores_receber("ativos"):
@@ -455,7 +460,7 @@ class TelaRelatorios(QWidget):
                 "tipo": "A receber",
                 "situacao": situacao,
                 "info_extra": (
-                    f"{pagador}  ?  {self.formatar_data(data_prevista)}  ?  "
+                    f"{pagador}  •  {self.formatar_data(data_prevista)}  •  "
                     f"{frequencia.capitalize()}"
                 ),
             }
@@ -728,7 +733,9 @@ class TelaRelatorios(QWidget):
         lbl_titulo.setObjectName("secaoRelatorio")
 
         total = sum(float(item.get("valor_exibicao", item.get("valor", 0)) or 0) for item in itens)
-        lbl_resumo = QLabel(f"{len(itens)} item(ns) • {self.formatar_moeda(total)}")
+        lbl_resumo = QLabel(
+            f"{self.texto_quantidade(len(itens), 'item')} • {self.formatar_moeda(total)}"
+        )
         lbl_resumo.setObjectName("textoSuave")
         lbl_resumo.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
 
@@ -746,7 +753,11 @@ class TelaRelatorios(QWidget):
                 layout.addWidget(self.criar_item_lista(item, cor_valor))
 
             if len(itens) > limite:
-                extra = QLabel(f"+ {len(itens) - limite} lançamento(s) além destes.")
+                quantidade_extra = len(itens) - limite
+                extra = QLabel(
+                    f"+ {self.texto_quantidade(quantidade_extra, 'lançamento')} além "
+                    f"{'deste' if quantidade_extra == 1 else 'destes'}."
+                )
                 extra.setObjectName("textoSuave")
                 layout.addWidget(extra)
 
@@ -795,7 +806,7 @@ class TelaRelatorios(QWidget):
         titulo.setObjectName("tituloRelatorio")
         titulo.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
 
-        subtitulo = QLabel("Resumo financeiro por mês, com entradas, valores pagos e contas em aberto")
+        subtitulo = QLabel("Resumo do mês: entradas, pagamentos, pendências e valores previstos.")
         subtitulo.setObjectName("subtituloRelatorio")
         subtitulo.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
         subtitulo.setWordWrap(True)
@@ -860,19 +871,20 @@ class TelaRelatorios(QWidget):
         cards.addWidget(self.criar_card_resumo(
             "cardReceitaRelatorio", "💵", "Receitas do mês",
             self.formatar_moeda(dados["total_receitas"]),
-            f"{len(dados['receitas'])} entrada(s) registrada(s)"
+            self.texto_quantidade(len(dados["receitas"]), "entrada registrada", "entradas registradas")
         ), 0, 0)
 
         cards.addWidget(self.criar_card_resumo(
             "cardPagoRelatorio", "✅", "Pago no mês",
             self.formatar_moeda(dados["total_pago"]),
-            f"{len(dados['pagamentos'])} conta(s) + {len(dados['gastos'])} gasto(s)"
+            f"{self.texto_quantidade(len(dados['pagamentos']), 'conta')} + "
+            f"{self.texto_quantidade(len(dados['gastos']), 'gasto')}"
         ), 0, 1)
 
         cards.addWidget(self.criar_card_resumo(
             "cardPendenteRelatorio", "📌", "Ainda a pagar",
             self.formatar_moeda(dados["total_pendente"]),
-            f"{len(dados['pendentes'])} conta(s) neste mês"
+            f"{self.texto_quantidade(len(dados['pendentes']), 'conta')} neste mês"
         ), 0, 2)
 
         cards.addWidget(self.criar_card_resumo(
@@ -893,28 +905,34 @@ class TelaRelatorios(QWidget):
             "cardPendenteRelatorio" if dados["total_atrasado"] > 0 else "cardBase",
             "⚠", "Contas atrasadas",
             self.formatar_moeda(dados["total_atrasado"]),
-            f"{len(dados['atrasadas'])} conta(s) vencida(s)"
+            self.texto_quantidade(len(dados["atrasadas"]), "conta vencida", "contas vencidas")
         ), 1, 2)
 
         cards.addWidget(self.criar_card_resumo(
-            "cardReceitaRelatorio", "??", "A receber previsto",
+            "cardReceitaRelatorio", "📅", "A receber previsto",
             self.formatar_moeda(dados["total_a_receber"]),
-            f"{len(dados['valores_receber'])} valor(es) previsto(s) no m?s"
+            self.texto_quantidade(
+                len(dados["valores_receber"]), "valor previsto", "valores previstos"
+            ) + " neste mês"
         ), 2, 0)
 
         cards.addWidget(self.criar_card_resumo(
             "cardSaldoRelatorio" if dados["resultado_planejado"] >= 0 else "cardPendenteRelatorio",
-            "?" if dados["resultado_planejado"] >= 0 else "?",
+            "📈" if dados["resultado_planejado"] >= 0 else "📉",
             "Resultado planejado",
             self.formatar_moeda(dados["resultado_planejado"]),
-            "Inclui valores previstos; n?o altera o saldo realizado"
+            "Inclui valores previstos; não altera o saldo realizado"
         ), 2, 1)
 
         cards.addWidget(self.criar_card_resumo(
             "cardPendenteRelatorio" if dados["total_a_receber_atrasado"] > 0 else "cardBase",
-            "!", "A receber atrasado",
+            "⚠", "A receber atrasado",
             self.formatar_moeda(dados["total_a_receber_atrasado"]),
-            f"{len(dados['valores_receber_atrasados'])} valor(es) com pagamento pendente"
+            self.texto_quantidade(
+                len(dados["valores_receber_atrasados"]),
+                "valor com recebimento pendente",
+                "valores com recebimento pendente",
+            )
         ), 2, 2)
 
         layout.addLayout(cards)
@@ -941,12 +959,12 @@ class TelaRelatorios(QWidget):
 
         total_compromisso = dados["total_pago"] + dados["total_pendente"]
         percentual_pago = 0 if total_compromisso <= 0 else (dados["total_pago"] / total_compromisso) * 100
-        percentual_pendente = 0 if total_compromisso <= 0 else (dados["total_pendente"] / total_compromisso) * 100
-
         panorama_layout.addWidget(self.criar_barra(percentual_pago, "barraVerde"))
+        percentual_pago_texto = round(percentual_pago)
+        percentual_pendente_texto = 100 - percentual_pago_texto if total_compromisso > 0 else 0
         andamento = QLabel(
-            f"{int(percentual_pago)}% dos compromissos já pagos  •  "
-            f"{int(percentual_pendente)}% ainda pendentes"
+            f"{percentual_pago_texto}% dos compromissos já pagos  •  "
+            f"{percentual_pendente_texto}% ainda pendentes"
         )
         andamento.setObjectName("textoSuave")
         panorama_layout.addWidget(andamento)

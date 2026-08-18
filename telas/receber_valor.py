@@ -23,6 +23,7 @@ class ReceberValor(QDialog):
     def __init__(self, valor_receber, parent=None):
         super().__init__(parent)
         self.valor_receber = valor_receber
+        self._confirmando = False
         self.setWindowTitle("Registrar recebimento")
         self.setFixedSize(520, 540)
         self.setModal(True)
@@ -144,17 +145,21 @@ class ReceberValor(QDialog):
         cancelar = QPushButton("Cancelar")
         cancelar.setObjectName("cancelar")
         cancelar.clicked.connect(self.reject)
-        confirmar = QPushButton("✓ Confirmar recebimento")
-        confirmar.setObjectName("confirmar")
-        confirmar.clicked.connect(self.confirmar)
+        self.botao_confirmar = QPushButton("✓ Confirmar recebimento")
+        self.botao_confirmar.setObjectName("confirmar")
+        self.botao_confirmar.clicked.connect(self.confirmar)
         botoes.addWidget(cancelar)
-        botoes.addWidget(confirmar)
+        botoes.addWidget(self.botao_confirmar)
 
         layout.addStretch()
         layout.addLayout(botoes)
         self.valor.setFocus()
 
     def confirmar(self):
+        if self._confirmando:
+            return
+        self._confirmando = True
+        self.botao_confirmar.setEnabled(False)
         sucesso, mensagem = registrar_recebimento(
             self.valor_receber[0],
             self.valor.value(),
@@ -162,6 +167,8 @@ class ReceberValor(QDialog):
             self.observacao.text().strip(),
         )
         if not sucesso:
+            self._confirmando = False
+            self.botao_confirmar.setEnabled(True)
             QMessageBox.warning(self, "Recebimento não registrado", mensagem)
             return
         self.accept()
