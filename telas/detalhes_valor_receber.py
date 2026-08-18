@@ -15,6 +15,7 @@ from banco.valores_receber import (
     desfazer_ultimo_recebimento,
     listar_recebimentos_valor,
 )
+from componentes.dialogo_confirmacao import confirmar_acao
 from componentes.tabela_registros import TabelaRegistros
 
 
@@ -111,11 +112,13 @@ class DetalhesValorReceber(QDialog):
             f"Recebido\n<b>{formatar_moeda(atual[9])}</b>"
         )
         resumo.setObjectName("resumoDetalhes")
+        resumo.setTextFormat(Qt.RichText)
         saldo = QLabel(
             f"Restante\n<b>{formatar_moeda(atual[10])}</b>\n\n"
             f"Previsão\n<b>{formatar_data(atual[4])}</b>"
         )
         saldo.setObjectName("resumoDetalhes")
+        saldo.setTextFormat(Qt.RichText)
         recorrencia = {"unico": "Único", "quinzenal": "Quinzenal", "mensal": "Mensal"}.get(atual[12] if len(atual) > 12 else ("mensal" if atual[6] else "unico"), "Único")
         situacao = {
             "em_aberto": "Em aberto",
@@ -129,6 +132,7 @@ class DetalhesValorReceber(QDialog):
             f"Frequência\n<b>{recorrencia}</b>"
         )
         estado.setObjectName("resumoDetalhes")
+        estado.setTextFormat(Qt.RichText)
         card_layout.addWidget(resumo, 1)
         card_layout.addWidget(saldo, 1)
         card_layout.addWidget(estado, 1)
@@ -183,15 +187,13 @@ class DetalhesValorReceber(QDialog):
         layout.addLayout(botoes)
 
     def desfazer(self):
-        resposta = QMessageBox.question(
-            self,
+        if not confirmar_acao(
             "Desfazer recebimento",
             "O último recebimento e a Receita criada por ele serão removidos.\n\n"
             "Deseja continuar?",
-            QMessageBox.Yes | QMessageBox.No,
-            QMessageBox.No,
-        )
-        if resposta != QMessageBox.Yes:
+            "Desfazer recebimento",
+            self,
+        ):
             return
         sucesso, mensagem = desfazer_ultimo_recebimento(self.id_valor)
         if not sucesso:
@@ -200,16 +202,15 @@ class DetalhesValorReceber(QDialog):
         self.accept()
 
     def cancelar_saldo(self):
-        resposta = QMessageBox.question(
-            self,
+        if not confirmar_acao(
             "Cancelar saldo restante",
             "O valor que ainda falta receber será encerrado.\n"
             "Os recebimentos já registrados continuarão em Receitas.\n\n"
             "Deseja continuar?",
-            QMessageBox.Yes | QMessageBox.No,
-            QMessageBox.No,
-        )
-        if resposta != QMessageBox.Yes:
+            "Cancelar saldo",
+            self,
+            "#dc2626",
+        ):
             return
         sucesso, mensagem = cancelar_valor_receber(self.id_valor)
         if not sucesso:

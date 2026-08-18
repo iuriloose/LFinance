@@ -1,3 +1,11 @@
+# LFinance 2.0.4
+
+## 2.0.4
+
+- Destaca o seletor de lançamentos em Valores a receber.
+- Padroniza o formulário e as confirmações da área Valores a receber.
+- Corrige a formatação dos detalhes abertos por duplo clique.
+
 # LFinance 2.0.3
 
 ## 2.0.3

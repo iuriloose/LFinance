@@ -108,5 +108,29 @@ class TesteInterfaceValoresReceberIsolada(unittest.TestCase):
             formulario.deleteLater()
             dialogo.deleteLater()
             app.processEvents()
+
+    def test_detalhes_e_filtro_usam_padrao_visual_e_texto_formatado(self):
+        from PySide6.QtCore import Qt
+        from PySide6.QtWidgets import QApplication, QFrame, QLabel
+
+        from telas.detalhes_valor_receber import DetalhesValorReceber
+        from telas.valores_receber import TelaValoresReceber
+
+        app = QApplication.instance() or QApplication([])
+        tela = TelaValoresReceber()
+        detalhes = DetalhesValorReceber(self.id_valor)
+        try:
+            self.assertIsNotNone(tela.findChild(QFrame, "seletorValores"))
+            self.assertEqual(tela.filtro.currentData(), "ativos")
+            resumos = detalhes.findChildren(QLabel, "resumoDetalhes")
+            self.assertEqual(len(resumos), 3)
+            self.assertTrue(all(item.textFormat() == Qt.RichText for item in resumos))
+        finally:
+            tela.close()
+            detalhes.close()
+            tela.deleteLater()
+            detalhes.deleteLater()
+            app.processEvents()
+
 if __name__ == "__main__":
     unittest.main()

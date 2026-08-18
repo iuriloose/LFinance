@@ -5,6 +5,7 @@ from PySide6.QtWidgets import (
     QDateEdit,
     QDialog,
     QDoubleSpinBox,
+    QFrame,
     QHBoxLayout,
     QLabel,
     QLineEdit,
@@ -24,7 +25,7 @@ class NovoValorReceber(QDialog):
         self.setWindowTitle(
             "Editar valor a receber" if self.modo_edicao else "Novo valor a receber"
         )
-        self.setFixedSize(560, 560)
+        self.setFixedSize(560, 590)
         self.setModal(True)
         self.aplicar_estilo()
         self.montar_tela()
@@ -45,6 +46,11 @@ class NovoValorReceber(QDialog):
             QLabel#subtituloCadastro {
                 color: #94a3b8;
                 font-size: 13px;
+            }
+            QFrame#painelFormulario {
+                background: #131d2e;
+                border: 1px solid #2a3a52;
+                border-radius: 12px;
             }
             QLineEdit, QComboBox, QDateEdit, QDoubleSpinBox {
                 background: #151c2b;
@@ -102,6 +108,12 @@ class NovoValorReceber(QDialog):
         layout.addWidget(subtitulo)
         layout.addSpacing(6)
 
+        painel_formulario = QFrame()
+        painel_formulario.setObjectName("painelFormulario")
+        formulario = QVBoxLayout(painel_formulario)
+        formulario.setContentsMargins(18, 16, 18, 16)
+        formulario.setSpacing(10)
+
         self.pagador = QLineEdit()
         self.pagador.setPlaceholderText("Ex.: Empresa, cliente ou pessoa")
         self.pagador.setAccessibleName("Pessoa ou empresa pagadora")
@@ -142,8 +154,8 @@ class NovoValorReceber(QDialog):
         self.observacao.setPlaceholderText("Informação opcional")
         self.observacao.setAccessibleName("Observação")
 
-        layout.addLayout(self.criar_campo("Pessoa ou empresa", self.pagador))
-        layout.addLayout(self.criar_campo("Descrição", self.descricao))
+        formulario.addLayout(self.criar_campo("Pessoa ou empresa", self.pagador))
+        formulario.addLayout(self.criar_campo("Descrição", self.descricao))
 
         linha_valor_data = QHBoxLayout()
         linha_valor_data.setSpacing(12)
@@ -151,7 +163,7 @@ class NovoValorReceber(QDialog):
         linha_valor_data.addLayout(
             self.criar_campo("Previsão de recebimento", self.data_prevista)
         )
-        layout.addLayout(linha_valor_data)
+        formulario.addLayout(linha_valor_data)
 
         linha_categoria_recorrencia = QHBoxLayout()
         linha_categoria_recorrencia.setSpacing(12)
@@ -161,8 +173,9 @@ class NovoValorReceber(QDialog):
         linha_categoria_recorrencia.addLayout(
             self.criar_campo("Frequência", self.recorrencia)
         )
-        layout.addLayout(linha_categoria_recorrencia)
-        layout.addLayout(self.criar_campo("Observação", self.observacao))
+        formulario.addLayout(linha_categoria_recorrencia)
+        formulario.addLayout(self.criar_campo("Observação", self.observacao))
+        layout.addWidget(painel_formulario)
 
         if self.modo_edicao:
             self.preencher()

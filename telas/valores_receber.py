@@ -16,6 +16,7 @@ from banco.valores_receber import (
     excluir_valor_receber,
     listar_valores_receber,
 )
+from componentes.dialogo_confirmacao import confirmar_acao
 from componentes.tabela_registros import TabelaRegistros, criar_botao_acao
 from telas.detalhes_valor_receber import DetalhesValorReceber
 from telas.novo_valor_receber import NovoValorReceber
@@ -35,18 +36,29 @@ class TelaValoresReceber(QWidget):
     def aplicar_estilo(self):
         self.setStyleSheet("""
             QComboBox#filtroValores {
-                background: #151f31;
+                background: #10263a;
                 color: #e2e8f0;
-                border: 1px solid #334155;
+                border: 1px solid #38bdf8;
                 border-radius: 8px;
-                padding: 6px 10px;
-                min-height: 27px;
+                padding: 7px 10px;
+                min-height: 30px;
                 min-width: 170px;
-                font-size: 12px;
+                font-size: 13px;
+                font-weight: 700;
             }
             QComboBox#filtroValores::drop-down {
                 border: none;
                 width: 26px;
+            }
+            QFrame#seletorValores {
+                background: #0d2235;
+                border: 1px solid #1d70a2;
+                border-radius: 10px;
+            }
+            QLabel#rotuloFiltroValores {
+                color: #7dd3fc;
+                font-size: 12px;
+                font-weight: 800;
             }
             QPushButton#btnNovoValor {
                 background-color: #10263a;
@@ -182,10 +194,19 @@ class TelaValoresReceber(QWidget):
         self.filtro.setCurrentIndex(max(indice, 0))
         self.filtro.currentIndexChanged.connect(self.recarregar)
 
+        seletor = QFrame()
+        seletor.setObjectName("seletorValores")
+        seletor_layout = QHBoxLayout(seletor)
+        seletor_layout.setContentsMargins(12, 6, 8, 6)
+        seletor_layout.setSpacing(9)
+        rotulo_filtro = QLabel("Mostrar lançamentos")
+        rotulo_filtro.setObjectName("rotuloFiltroValores")
+        seletor_layout.addWidget(rotulo_filtro)
+        seletor_layout.addWidget(self.filtro)
+
         linha_resumo.addWidget(resumo)
         linha_resumo.addStretch()
-        linha_resumo.addWidget(QLabel("Mostrar:"))
-        linha_resumo.addWidget(self.filtro)
+        linha_resumo.addWidget(seletor)
         painel_layout.addLayout(linha_resumo)
 
         ajuda = QLabel(
@@ -331,15 +352,13 @@ class TelaValoresReceber(QWidget):
             self.notificar_alteracao()
 
     def desfazer_ultimo(self, id_valor, descricao):
-        resposta = QMessageBox.question(
-            self,
+        if not confirmar_acao(
             "Desfazer último recebimento",
             f'O último recebimento de "{descricao}" e a Receita vinculada a ele serão removidos.\n\n'
             "Deseja continuar?",
-            QMessageBox.Yes | QMessageBox.No,
-            QMessageBox.No,
-        )
-        if resposta != QMessageBox.Yes:
+            "Desfazer recebimento",
+            self,
+        ):
             return
         sucesso, mensagem = desfazer_ultimo_recebimento(id_valor)
         if not sucesso:
@@ -354,14 +373,13 @@ class TelaValoresReceber(QWidget):
             self.notificar_alteracao()
 
     def excluir(self, id_valor, descricao):
-        resposta = QMessageBox.question(
-            self,
+        if not confirmar_acao(
             "Excluir valor a receber",
             f'Deseja excluir "{descricao}"?\n\nEsta ação não poderá ser desfeita.',
-            QMessageBox.Yes | QMessageBox.No,
-            QMessageBox.No,
-        )
-        if resposta != QMessageBox.Yes:
+            "Excluir valor",
+            self,
+            "#dc2626",
+        ):
             return
         sucesso, mensagem = excluir_valor_receber(id_valor)
         if not sucesso:
