@@ -1,4 +1,3 @@
-from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QDialog,
     QFrame,
@@ -59,10 +58,14 @@ class DetalhesValorReceber(QDialog):
                 color: #94a3b8;
                 font-size: 14px;
             }
-            QLabel#resumoDetalhes {
-                color: #e2e8f0;
+            QLabel#rotuloResumo {
+                color: #94a3b8;
                 font-size: 13px;
-                padding: 14px;
+            }
+            QLabel#valorResumo {
+                color: #ffffff;
+                font-size: 15px;
+                font-weight: 800;
             }
             QFrame#cardDetalhes {
                 background: #131d2e;
@@ -103,23 +106,10 @@ class DetalhesValorReceber(QDialog):
         layout.addWidget(titulo)
         layout.addWidget(subtitulo)
 
-        card = QFrame()
-        card.setObjectName("cardDetalhes")
-        card_layout = QHBoxLayout(card)
-        card_layout.setContentsMargins(18, 8, 18, 8)
-        resumo = QLabel(
-            f"Previsto\n<b>{formatar_moeda(atual[3])}</b>\n\n"
-            f"Recebido\n<b>{formatar_moeda(atual[9])}</b>"
+        recorrencia = {"unico": "Único", "quinzenal": "Quinzenal", "mensal": "Mensal"}.get(
+            atual[12] if len(atual) > 12 else ("mensal" if atual[6] else "unico"),
+            "Único",
         )
-        resumo.setObjectName("resumoDetalhes")
-        resumo.setTextFormat(Qt.RichText)
-        saldo = QLabel(
-            f"Restante\n<b>{formatar_moeda(atual[10])}</b>\n\n"
-            f"Previsão\n<b>{formatar_data(atual[4])}</b>"
-        )
-        saldo.setObjectName("resumoDetalhes")
-        saldo.setTextFormat(Qt.RichText)
-        recorrencia = {"unico": "Único", "quinzenal": "Quinzenal", "mensal": "Mensal"}.get(atual[12] if len(atual) > 12 else ("mensal" if atual[6] else "unico"), "Único")
         situacao = {
             "em_aberto": "Em aberto",
             "parcial": "Parcial",
@@ -127,15 +117,31 @@ class DetalhesValorReceber(QDialog):
             "recebido": "Recebido",
             "cancelado": "Cancelado",
         }[atual[11]]
-        estado = QLabel(
-            f"Situação\n<b>{situacao}</b>\n\n"
-            f"Frequência\n<b>{recorrencia}</b>"
+
+        card = QFrame()
+        card.setObjectName("cardDetalhes")
+        card_layout = QHBoxLayout(card)
+        card_layout.setContentsMargins(22, 16, 22, 16)
+        card_layout.setSpacing(28)
+        campos = (
+            (("Previsto", formatar_moeda(atual[3])), ("Recebido", formatar_moeda(atual[9]))),
+            (("Restante", formatar_moeda(atual[10])), ("Previsão", formatar_data(atual[4]))),
+            (("Situação", situacao), ("Frequência", recorrencia)),
         )
-        estado.setObjectName("resumoDetalhes")
-        estado.setTextFormat(Qt.RichText)
-        card_layout.addWidget(resumo, 1)
-        card_layout.addWidget(saldo, 1)
-        card_layout.addWidget(estado, 1)
+        for coluna in campos:
+            coluna_layout = QVBoxLayout()
+            coluna_layout.setSpacing(12)
+            for rotulo, valor in coluna:
+                campo_layout = QVBoxLayout()
+                campo_layout.setSpacing(3)
+                rotulo_label = QLabel(rotulo)
+                rotulo_label.setObjectName("rotuloResumo")
+                valor_label = QLabel(valor)
+                valor_label.setObjectName("valorResumo")
+                campo_layout.addWidget(rotulo_label)
+                campo_layout.addWidget(valor_label)
+                coluna_layout.addLayout(campo_layout)
+            card_layout.addLayout(coluna_layout, 1)
         layout.addWidget(card)
 
         historico_titulo = QLabel("Histórico de recebimentos")

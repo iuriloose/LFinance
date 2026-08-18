@@ -110,7 +110,6 @@ class TesteInterfaceValoresReceberIsolada(unittest.TestCase):
             app.processEvents()
 
     def test_detalhes_e_filtro_usam_padrao_visual_e_texto_formatado(self):
-        from PySide6.QtCore import Qt
         from PySide6.QtWidgets import QApplication, QFrame, QLabel
 
         from telas.detalhes_valor_receber import DetalhesValorReceber
@@ -122,9 +121,13 @@ class TesteInterfaceValoresReceberIsolada(unittest.TestCase):
         try:
             self.assertIsNotNone(tela.findChild(QFrame, "seletorValores"))
             self.assertEqual(tela.filtro.currentData(), "ativos")
-            resumos = detalhes.findChildren(QLabel, "resumoDetalhes")
-            self.assertEqual(len(resumos), 3)
-            self.assertTrue(all(item.textFormat() == Qt.RichText for item in resumos))
+            valores_resumo = detalhes.findChildren(QLabel, "valorResumo")
+            self.assertEqual(len(valores_resumo), 6)
+            self.assertEqual(
+                [item.text() for item in valores_resumo],
+                ["R$ 2.500,00", "R$ 0,00", "R$ 2.500,00", "10/05/2099", "Em aberto", "Mensal"],
+            )
+            self.assertTrue(all("<" not in item.text() for item in valores_resumo))
         finally:
             tela.close()
             detalhes.close()

@@ -1,3 +1,9 @@
+# LFinance 2.0.5
+
+## 2.0.5
+
+- Restaura a visualização completa dos detalhes de Valores a receber, com seis campos legíveis e sem marcações técnicas.
+
 # LFinance 2.0.4
 
 ## 2.0.4
