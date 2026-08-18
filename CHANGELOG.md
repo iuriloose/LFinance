@@ -1,3 +1,9 @@
+# LFinance 2.0.10
+
+## 2.0.10
+
+- Ajusta a largura responsiva da lista de Valores a receber para evitar rolagem horizontal e manter as acoes visiveis.
+
 # LFinance 2.0.9
 
 ## 2.0.9

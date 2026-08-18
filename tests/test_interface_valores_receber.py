@@ -68,7 +68,7 @@ class TesteInterfaceValoresReceberIsolada(unittest.TestCase):
                 self.assertTrue(tabela.isColumnHidden(coluna))
             self.assertFalse(tabela.isColumnHidden(7))
 
-            janela.resize(1440, 900)
+            janela.resize(1700, 900)
             QTest.qWait(50)
             for coluna in (2, 3, 5):
                 self.assertFalse(tabela.isColumnHidden(coluna))
@@ -122,6 +122,7 @@ class TesteInterfaceValoresReceberIsolada(unittest.TestCase):
             self.assertIsNotNone(tela.findChild(QFrame, "seletorValores"))
             self.assertEqual(tela.filtro.currentData(), "ativos")
             self.assertEqual(tela.tabela.altura_linha, 42)
+            self.assertEqual(tela.tabela.limite_compacto, 1200)
             self.assertEqual(
                 tela.findChild(QLabel, "valorResumoReceber").text(),
                 "R$ 2.500,00",

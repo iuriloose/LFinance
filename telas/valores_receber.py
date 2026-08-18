@@ -443,7 +443,7 @@ class TelaValoresReceber(QWidget):
             },
             coluna_flexivel=1,
             colunas_ocultar_compacto=(2, 3, 5),
-            limite_compacto=950,
+            limite_compacto=1200,
             altura_linha=42,
         )
         if not valores:
