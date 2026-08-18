@@ -5,7 +5,8 @@ from PySide6.QtWidgets import (
     QScrollArea, QGridLayout, QSizePolicy, QDialog, QTableWidget,
     QTableWidgetItem, QHeaderView
 )
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QRectF
+from PySide6.QtGui import QColor, QPainter, QPen
 
 from banco.banco import (
     listar_despesas,
@@ -15,6 +16,78 @@ from banco.banco import (
 )
 
 from banco.valores_receber import listar_valores_receber
+
+
+class GraficoBarrasInterativo(QWidget):
+    """Gráfico vertical compacto com barras clicáveis por mês e categoria."""
+
+    def __init__(self, meses, series, ao_clicar, parent=None):
+        super().__init__(parent)
+        self.meses = meses
+        self.series = series
+        self.ao_clicar = ao_clicar
+        self.barras = []
+        self.setObjectName("graficoBarrasRelatorio")
+        self.setMinimumHeight(265)
+        self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        self.setCursor(Qt.PointingHandCursor)
+        self.setToolTip("Clique em uma barra para ver os lançamentos.")
+
+    def paintEvent(self, evento):
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.Antialiasing)
+        painter.fillRect(self.rect(), QColor("#111827"))
+        self.barras = []
+        if not self.meses or not self.series:
+            painter.setPen(QColor("#a8b3c7"))
+            painter.drawText(self.rect(), Qt.AlignCenter, "Ainda não há gastos para comparar.")
+            return
+
+        maximo = max(
+            [float(valor or 0) for serie in self.series for valor in serie["valores"]] or [1]
+        )
+        area = QRectF(52, 18, max(120, self.width() - 70), max(110, self.height() - 62))
+        painter.setPen(QPen(QColor("#334155"), 1))
+        for nivel in range(5):
+            y = area.bottom() - (area.height() * nivel / 4)
+            painter.drawLine(area.left(), y, area.right(), y)
+
+        grupos = len(self.meses)
+        quantidade_series = len(self.series)
+        largura_grupo = area.width() / max(grupos, 1)
+        espacamento = 3
+        largura_barra = max(
+            6, (largura_grupo - 18 - (quantidade_series - 1) * espacamento) / max(quantidade_series, 1)
+        )
+
+        for indice_mes, mes in enumerate(self.meses):
+            inicio = area.left() + indice_mes * largura_grupo + 9
+            centro = area.left() + indice_mes * largura_grupo + largura_grupo / 2
+            painter.setPen(QColor("#a8b3c7"))
+            painter.drawText(
+                QRectF(inicio, area.bottom() + 7, max(20, largura_grupo - 18), 20),
+                Qt.AlignHCenter | Qt.AlignTop,
+                mes["rotulo"],
+            )
+            for indice_serie, serie in enumerate(self.series):
+                valor = float(serie["valores"][indice_mes] or 0)
+                altura = 0 if maximo <= 0 else area.height() * valor / maximo
+                x = inicio + indice_serie * (largura_barra + espacamento)
+                y = area.bottom() - altura
+                retangulo = QRectF(x, y, largura_barra, max(1, altura))
+                painter.setPen(Qt.NoPen)
+                painter.setBrush(QColor(serie["cor"]))
+                painter.drawRoundedRect(retangulo, 3, 3)
+                self.barras.append((retangulo, mes, serie, valor))
+
+    def mouseReleaseEvent(self, evento):
+        for retangulo, mes, serie, valor in self.barras:
+            if retangulo.contains(evento.position()):
+                self.ao_clicar(mes, serie, valor)
+                evento.accept()
+                return
+        super().mouseReleaseEvent(evento)
+
 
 class TelaRelatorios(QWidget):
     def __init__(self):
@@ -851,157 +924,147 @@ class TelaRelatorios(QWidget):
         layout.addLayout(botoes)
         janela.exec()
 
-    def criar_barra_interativa(self, titulo, valor, maximo, callback, cor):
-        linha = QFrame()
-        linha.setObjectName("itemLista")
-        linha.setFixedHeight(42)
-        layout = QHBoxLayout(linha)
-        layout.setContentsMargins(8, 5, 10, 5)
-        layout.setSpacing(10)
+    def ultimos_meses_relatorio(self, quantidade=6):
+        meses = []
+        referencia = self.mes_referencia
+        for _ in range(quantidade):
+            meses.append(referencia)
+            mes = referencia.month - 1
+            ano = referencia.year
+            if mes == 0:
+                ano, mes = ano - 1, 12
+            referencia = date(ano, mes, 1)
+        return list(reversed(meses))
 
-        proporcao = 0 if maximo <= 0 else max(0.08, min(1, float(valor) / maximo))
-        barra = QPushButton(titulo)
-        barra.setToolTip("Clique para abrir os lançamentos deste grupo.")
-        barra.setCursor(Qt.PointingHandCursor)
-        barra.setMinimumWidth(110)
-        barra.setStyleSheet(f"""
-            QPushButton {{
-                background-color: {cor};
-                color: #ffffff;
-                border: none;
-                border-radius: 7px;
-                padding: 0 10px;
-                font-size: 12px;
-                font-weight: 800;
-                text-align: left;
-            }}
-            QPushButton:hover {{ background-color: #2563eb; }}
-        """)
-        barra.clicked.connect(callback)
+    def criar_grafico_historico_categorias(self):
+        meses_referencia = self.ultimos_meses_relatorio()
+        dados_por_mes = [self.dados_mes(mes) for mes in meses_referencia]
+        totais_categoria = {}
+        itens_por_mes = []
 
-        valor_label = QLabel(self.formatar_moeda(valor))
-        valor_label.setObjectName("valorAzul")
-        valor_label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
-        valor_label.setMinimumWidth(108)
+        for dados in dados_por_mes:
+            grupos = {}
+            for item in dados["pagamentos"] + dados["gastos"]:
+                categoria = item.get("categoria") or "Sem categoria"
+                grupos.setdefault(categoria, []).append(item)
+                totais_categoria[categoria] = totais_categoria.get(categoria, 0) + float(item.get("valor", 0) or 0)
+            itens_por_mes.append(grupos)
 
-        layout.addWidget(barra, max(8, int(proporcao * 100)))
-        layout.addWidget(valor_label)
-        return linha
+        categorias_principais = [
+            categoria for categoria, _total in sorted(
+                totais_categoria.items(), key=lambda grupo: grupo[1], reverse=True
+            )[:3]
+        ]
+        tem_outras = len(totais_categoria) > len(categorias_principais)
+        categorias = list(categorias_principais)
+        if tem_outras:
+            categorias.append("Outras categorias")
 
-    def criar_grafico_comparacao(self, dados_atual, dados_anterior):
+        cores = ["#3b82f6", "#ef4444", "#a855f7", "#14b8a6"]
+        series = []
+        for indice, categoria in enumerate(categorias):
+            valores, conjuntos = [], []
+            for grupos in itens_por_mes:
+                if categoria == "Outras categorias":
+                    itens = [
+                        item
+                        for nome, grupo in grupos.items()
+                        if nome not in categorias_principais
+                        for item in grupo
+                    ]
+                else:
+                    itens = grupos.get(categoria, [])
+                conjuntos.append(itens)
+                valores.append(sum(float(item.get("valor", 0) or 0) for item in itens))
+            series.append({
+                "nome": categoria,
+                "cor": cores[indice % len(cores)],
+                "valores": valores,
+                "conjuntos": conjuntos,
+            })
+
         caixa = QFrame()
         caixa.setObjectName("cardBase")
         layout = QVBoxLayout(caixa)
         layout.setContentsMargins(18, 16, 18, 16)
-        layout.setSpacing(10)
+        layout.setSpacing(9)
 
-        titulo = QLabel("Gastos: comparação mensal")
+        linha_titulo = QHBoxLayout()
+        titulo = QLabel("Gastos por categoria")
         titulo.setObjectName("secaoRelatorio")
-        subtitulo = QLabel("Clique em uma barra para ver os lançamentos do mês.")
-        subtitulo.setObjectName("textoSuave")
-        layout.addWidget(titulo)
-        layout.addWidget(subtitulo)
+        descricao = QLabel("Últimos 6 meses • clique em uma barra para detalhar")
+        descricao.setObjectName("textoSuave")
+        descricao.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        linha_titulo.addWidget(titulo)
+        linha_titulo.addStretch()
+        linha_titulo.addWidget(descricao)
+        layout.addLayout(linha_titulo)
 
-        total_atual = dados_atual["total_pago"]
-        total_anterior = dados_anterior["total_pago"]
-        maximo = max(total_atual, total_anterior, 1)
-        nome_atual = self.nome_mes(self.mes_referencia)
-        nome_anterior = self.nome_mes(self.referencia_mes_anterior())
+        legenda = QHBoxLayout()
+        legenda.setSpacing(14)
+        for serie in series:
+            item_legenda = QLabel(f"■ {serie['nome']}")
+            item_legenda.setStyleSheet(f"color: {serie['cor']}; font-size: 12px; font-weight: 700;")
+            legenda.addWidget(item_legenda)
+        legenda.addStretch()
+        layout.addLayout(legenda)
 
-        layout.addWidget(self.criar_barra_interativa(
-            nome_atual, total_atual, maximo,
-            lambda: self.mostrar_detalhes_lancamentos(
-                f"Gastos de {nome_atual}", dados_atual["pagamentos"] + dados_atual["gastos"]
-            ),
-            "#1d4f78",
-        ))
-        layout.addWidget(self.criar_barra_interativa(
-            nome_anterior, total_anterior, maximo,
-            lambda: self.mostrar_detalhes_lancamentos(
-                f"Gastos de {nome_anterior}", dados_anterior["pagamentos"] + dados_anterior["gastos"]
-            ),
-            "#334155",
-        ))
+        meses = [
+            {"data": mes, "rotulo": self.nome_mes(mes).split(" de ")[0][:3]}
+            for mes in meses_referencia
+        ]
 
-        diferenca = total_atual - total_anterior
-        if diferenca > 0:
-            texto = f"Você gastou {self.formatar_moeda(diferenca)} a mais que no mês anterior."
-        elif diferenca < 0:
-            texto = f"Você gastou {self.formatar_moeda(abs(diferenca))} a menos que no mês anterior."
-        else:
-            texto = "Seus gastos ficaram iguais aos do mês anterior."
-        insight = QLabel(texto)
-        insight.setObjectName("textoNormal")
-        insight.setWordWrap(True)
-        layout.addWidget(insight)
+        def abrir_detalhes(mes, serie, _valor):
+            indice = meses.index(mes)
+            itens = serie["conjuntos"][indice]
+            titulo_detalhe = f"{serie['nome']} — {self.nome_mes(mes['data'])}"
+            self.mostrar_detalhes_lancamentos(titulo_detalhe, itens)
+
+        grafico = GraficoBarrasInterativo(meses, series, abrir_detalhes, caixa)
+        layout.addWidget(grafico)
         return caixa
 
-    def criar_grafico_categorias(self, dados):
+    def criar_resumo_comparacao(self, dados_atual, dados_anterior):
+        diferenca = dados_atual["total_pago"] - dados_anterior["total_pago"]
+        if diferenca > 0:
+            texto = f"Você gastou {self.formatar_moeda(diferenca)} a mais que no mês anterior."
+            cor = "valorVermelho"
+        elif diferenca < 0:
+            texto = f"Você gastou {self.formatar_moeda(abs(diferenca))} a menos que no mês anterior."
+            cor = "valorVerde"
+        else:
+            texto = "Seus gastos ficaram iguais aos do mês anterior."
+            cor = "valorAzul"
         caixa = QFrame()
-        caixa.setObjectName("cardBase")
-        layout = QVBoxLayout(caixa)
-        layout.setContentsMargins(18, 16, 18, 16)
-        layout.setSpacing(8)
-
-        titulo = QLabel("Onde você gastou")
-        titulo.setObjectName("secaoRelatorio")
-        subtitulo = QLabel("Categorias com maior impacto no mês. Clique para detalhar.")
-        subtitulo.setObjectName("textoSuave")
+        caixa.setObjectName("linhaResumo")
+        layout = QHBoxLayout(caixa)
+        layout.setContentsMargins(16, 9, 16, 9)
+        titulo = QLabel("Comparação mensal")
+        titulo.setObjectName("itemTitulo")
+        resultado = QLabel(texto)
+        resultado.setObjectName(cor)
+        resultado.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
         layout.addWidget(titulo)
-        layout.addWidget(subtitulo)
-
-        grupos = {}
-        for item in dados["pagamentos"] + dados["gastos"]:
-            categoria = item.get("categoria") or "Sem categoria"
-            grupos.setdefault(categoria, []).append(item)
-        ordenados = sorted(
-            grupos.items(),
-            key=lambda grupo: sum(float(item.get("valor", 0) or 0) for item in grupo[1]),
-            reverse=True,
-        )[:4]
-
-        if not ordenados:
-            vazio = QLabel("Nenhum gasto registrado neste mês.")
-            vazio.setObjectName("textoSuave")
-            layout.addWidget(vazio)
-            return caixa
-
-        maximo = max(
-            sum(float(item.get("valor", 0) or 0) for item in itens)
-            for _categoria, itens in ordenados
-        )
-        for categoria, itens in ordenados:
-            total = sum(float(item.get("valor", 0) or 0) for item in itens)
-            layout.addWidget(self.criar_barra_interativa(
-                categoria, total, maximo,
-                lambda grupo=list(itens), nome=categoria: self.mostrar_detalhes_lancamentos(
-                    f"Gastos em {nome}", grupo
-                ),
-                "#7c3e12",
-            ))
+        layout.addWidget(resultado, 1)
         return caixa
 
     def criar_planejamento_compacto(self, dados):
         caixa = QFrame()
         caixa.setObjectName("linhaResumo")
-        layout = QHBoxLayout(caixa)
+        layout = QVBoxLayout(caixa)
         layout.setContentsMargins(16, 10, 16, 10)
-        layout.setSpacing(16)
-
+        layout.setSpacing(3)
         titulo = QLabel("Planejamento do mês")
         titulo.setObjectName("itemTitulo")
-        contas = QLabel(f"A pagar: {self.formatar_moeda(dados['total_pendente'])}")
-        contas.setObjectName("textoNormal")
-        receber = QLabel(f"A receber previsto: {self.formatar_moeda(dados['total_a_receber'])}")
-        receber.setObjectName("textoNormal")
-        resultado = QLabel(f"Saldo planejado: {self.formatar_moeda(dados['resultado_planejado'])}")
-        resultado.setObjectName("valorVerde" if dados["resultado_planejado"] >= 0 else "valorVermelho")
-        resultado.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        resumo = QLabel(
+            f"A pagar: {self.formatar_moeda(dados['total_pendente'])}  •  "
+            f"A receber previsto: {self.formatar_moeda(dados['total_a_receber'])}  •  "
+            f"Saldo planejado: {self.formatar_moeda(dados['resultado_planejado'])}"
+        )
+        resumo.setObjectName("valorVerde" if dados["resultado_planejado"] >= 0 else "valorVermelho")
+        resumo.setWordWrap(True)
         layout.addWidget(titulo)
-        layout.addStretch()
-        layout.addWidget(contas)
-        layout.addWidget(receber)
-        layout.addWidget(resultado)
+        layout.addWidget(resumo)
         return caixa
 
     def criar_alertas(self, dados):
@@ -1089,37 +1152,37 @@ class TelaRelatorios(QWidget):
         layout.setContentsMargins(0, 0, 6, 0)
         layout.setSpacing(10)
 
-        cards = QHBoxLayout()
-        cards.setSpacing(10)
+        cards = QGridLayout()
+        cards.setHorizontalSpacing(10)
+        cards.setVerticalSpacing(10)
+        for coluna in range(2):
+            cards.setColumnStretch(coluna, 1)
         cards.addWidget(self.criar_card_resumo(
             "cardReceitaRelatorio", "💵", "Receitas", self.formatar_moeda(dados["total_receitas"]),
             self.texto_quantidade(len(dados["receitas"]), "entrada", "entradas") + " no mês",
-        ))
+        ), 0, 0)
         cards.addWidget(self.criar_card_resumo(
             "cardPagoRelatorio", "✅", "Gastos", self.formatar_moeda(dados["total_pago"]),
             "Contas pagas e gastos do dia",
-        ))
+        ), 0, 1)
         cards.addWidget(self.criar_card_resumo(
             "cardSaldoRelatorio", "💰", "Saldo realizado", self.formatar_moeda(dados["saldo_mes"]),
             "Entradas menos valores já pagos",
-        ))
+        ), 1, 0)
         cards.addWidget(self.criar_card_resumo(
             "cardSaldoRelatorio" if dados["resultado_previsto"] >= 0 else "cardPendenteRelatorio",
             "📈" if dados["resultado_previsto"] >= 0 else "📉",
             "Saldo previsto", self.formatar_moeda(dados["resultado_previsto"]),
             "Considera as contas pendentes deste mês",
-        ))
+        ), 1, 1)
         layout.addLayout(cards)
 
         alerta = self.criar_alertas(dados)
         if alerta is not None:
             layout.addWidget(alerta)
 
-        graficos = QHBoxLayout()
-        graficos.setSpacing(10)
-        graficos.addWidget(self.criar_grafico_comparacao(dados, dados_anterior), 1)
-        graficos.addWidget(self.criar_grafico_categorias(dados), 1)
-        layout.addLayout(graficos)
+        layout.addWidget(self.criar_grafico_historico_categorias())
+        layout.addWidget(self.criar_resumo_comparacao(dados, dados_anterior))
         layout.addWidget(self.criar_planejamento_compacto(dados))
 
         rodape = QLabel(

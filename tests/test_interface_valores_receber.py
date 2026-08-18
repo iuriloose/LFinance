@@ -156,7 +156,7 @@ class TesteInterfaceValoresReceberIsolada(unittest.TestCase):
     def test_relatorios_resumo_comparacao_e_categorias(self):
         from PySide6.QtWidgets import QApplication, QFrame, QLabel
 
-        from telas.relatorios import TelaRelatorios
+        from telas.relatorios import GraficoBarrasInterativo, TelaRelatorios
 
         app = QApplication.instance() or QApplication([])
         tela = TelaRelatorios()
@@ -169,8 +169,11 @@ class TesteInterfaceValoresReceberIsolada(unittest.TestCase):
             )
             self.assertEqual(len(cards), 4)
             textos = [label.text() for label in tela.findChildren(QLabel)]
-            self.assertIn("Gastos: comparação mensal", textos)
-            self.assertIn("Onde você gastou", textos)
+            self.assertIn("Gastos por categoria", textos)
+            graficos = tela.findChildren(GraficoBarrasInterativo)
+            self.assertEqual(len(graficos), 1)
+            self.assertEqual(len(graficos[0].meses), 6)
+            self.assertLessEqual(len(graficos[0].series), 4)
             dados_anterior = tela.dados_mes(tela.referencia_mes_anterior())
             self.assertIn("total_pago", dados_anterior)
         finally:

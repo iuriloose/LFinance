@@ -1,3 +1,10 @@
+# LFinance 2.1.1
+
+## 2.1.1
+
+- Substitui as barras horizontais por gráfico vertical de gastos por categoria nos últimos seis meses.
+- Cada barra abre os lançamentos completos do mês e da categoria selecionados.
+- Elimina a rolagem horizontal da tela de Relatórios.
 # LFinance 2.1.0
 
 ## 2.1.0
