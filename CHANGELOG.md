@@ -1,3 +1,10 @@
+# LFinance 2.1.5
+
+## 2.1.5
+
+- Corrige a tela Valores a receber ao navegar entre meses.
+- Projeta visualmente as competências mensais e quinzenais futuras, sem criar lançamentos nem alterar o saldo.
+- Identifica as projeções na lista e mantém ações financeiras somente no lançamento real.
 # LFinance 2.1.4
 
 ## 2.1.4

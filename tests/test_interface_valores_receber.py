@@ -7,7 +7,11 @@ except ModuleNotFoundError:
     from tests import test_lfinance as ambiente
 
 from banco import banco
-from banco.valores_receber import buscar_valor_receber_por_id, inserir_valor_receber
+from banco.valores_receber import (
+    buscar_valor_receber_por_id,
+    inserir_valor_receber,
+    listar_valores_receber,
+)
 from servicos.configuracoes_app import CAMINHO_BANCO, CAMINHO_CONFIG
 
 
@@ -110,6 +114,46 @@ class TesteInterfaceValoresReceberIsolada(unittest.TestCase):
             dialogo.deleteLater()
             app.processEvents()
 
+    def test_mes_futuro_projeta_quinzenas_sem_criar_lancamentos(self):
+        from PySide6.QtWidgets import QApplication
+
+        from telas.valores_receber import TelaValoresReceber
+
+        app = QApplication.instance() or QApplication([])
+        inserir_valor_receber(
+            "Empresa quinzenal de teste",
+            "Recebimento quinzenal de teste",
+            2000,
+            "2099-08-30",
+            "Salário",
+            recorrente=True,
+            frequencia="quinzenal",
+        )
+        antes = listar_valores_receber("todos")
+        tela = TelaValoresReceber()
+        try:
+            tela.mes_referencia = date(2099, 9, 1)
+            tela.montar_tela()
+            previsoes = tela.previsoes_ativas_no_mes(listar_valores_receber("ativos"))
+            previsoes_quinzenais = [
+                entrada for entrada in previsoes
+                if entrada[0][1] == "Empresa quinzenal de teste"
+            ]
+
+            self.assertEqual(len(previsoes_quinzenais), 2)
+            self.assertEqual(
+                [item[4] for item, _projecao in previsoes_quinzenais],
+                ["2099-09-14", "2099-09-29"],
+            )
+            self.assertTrue(all(eh_projecao for _item, eh_projecao in previsoes_quinzenais))
+            self.assertEqual(sum(item[10] for item, _projecao in previsoes_quinzenais), 4000)
+            self.assertEqual(tela.tabela.rowCount(), 3)
+            self.assertEqual(tela.tabela.item(1, 4).text(), "Previsão")
+            self.assertEqual(antes, listar_valores_receber("todos"))
+        finally:
+            tela.close()
+            tela.deleteLater()
+            app.processEvents()
     def test_detalhes_e_filtro_usam_padrao_visual_e_texto_formatado(self):
         from PySide6.QtWidgets import QApplication, QFrame, QLabel, QPushButton, QTableWidget
 

@@ -1,5 +1,7 @@
 from datetime import date
 
+from dateutil.relativedelta import relativedelta
+
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QComboBox,
@@ -188,6 +190,7 @@ class TelaValoresReceber(QWidget):
             "em_aberto": ("Em aberto", "#22c55e"),
             "parcial": ("Parcial", "#f59e0b"),
             "atrasado": ("Atrasado", "#ef4444"),
+            "previsto": ("Previsão", "#60a5fa"),
             "recebido": ("Recebido", "#22c55e"),
             "cancelado": ("Cancelado", "#94a3b8"),
         }[situacao]
@@ -199,6 +202,47 @@ class TelaValoresReceber(QWidget):
             "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro",
         )
         return meses[data_referencia.month - 1]
+
+    @staticmethod
+    def avancar_previsao(data_previsao, frequencia):
+        if frequencia == "quinzenal":
+            return data_previsao + relativedelta(days=15)
+        return data_previsao + relativedelta(months=1)
+
+    def previsoes_ativas_no_mes(self, ativos):
+        """Gera somente para exibição as próximas competências recorrentes."""
+        inicio = self.mes_referencia
+        fim = inicio + relativedelta(months=1)
+        previsoes = []
+
+        for item in ativos:
+            frequencia = item[12]
+            data_previsao = date.fromisoformat(item[4])
+
+            if frequencia not in {"quinzenal", "mensal"}:
+                if inicio <= data_previsao < fim:
+                    previsoes.append((item, False))
+                continue
+
+            while data_previsao < inicio:
+                data_previsao = self.avancar_previsao(data_previsao, frequencia)
+
+            while data_previsao < fim:
+                if data_previsao == date.fromisoformat(item[4]):
+                    previsoes.append((item, False))
+                else:
+                    previsto = list(item)
+                    previsto[4] = data_previsao.isoformat()
+                    previsto[9] = 0
+                    previsto[10] = previsto[3]
+                    previsto[11] = "previsto"
+                    previsoes.append((tuple(previsto), True))
+                data_previsao = self.avancar_previsao(data_previsao, frequencia)
+
+        return sorted(
+            previsoes,
+            key=lambda entrada: (entrada[0][4], entrada[0][1].casefold(), entrada[0][0]),
+        )
 
     def criar_card_resumo(self, objeto, icone, titulo, valor, info, tooltip):
         card = QFrame()
@@ -336,7 +380,8 @@ class TelaValoresReceber(QWidget):
         total_restante = sum(item[10] for item in ativos)
         total_atrasado = sum(item[10] for item in atrasados)
         periodo_atual = self.mes_referencia.strftime("%Y-%m")
-        previstos_mes = [item for item in ativos if item[4].startswith(periodo_atual)]
+        previsoes_mes = self.previsoes_ativas_no_mes(ativos)
+        previstos_mes = [item for item, _projecao in previsoes_mes]
         total_previsto_mes = sum(item[10] for item in previstos_mes)
         total_recebido_mes = sum(
             recebimento[1]
@@ -363,7 +408,7 @@ class TelaValoresReceber(QWidget):
             self.criar_card_resumo(
                 "cardPrevistoMes", "📅", f"Previsto em {nome_mes}", self.formatar_moeda(total_previsto_mes),
                 f"{len(previstos_mes)} previsto(s) no mês",
-                "Valores pendentes cuja previsão de recebimento está no mês selecionado.",
+                "Inclui projeções visuais de recorrências quinzenais e mensais. Elas não criam lançamentos nem alteram o saldo.",
             )
         )
         cards.addWidget(
@@ -389,7 +434,7 @@ class TelaValoresReceber(QWidget):
         painel_layout.setSpacing(4)
 
         linha_resumo = QHBoxLayout()
-        resumo = QLabel("📅 Próximos recebimentos")
+        resumo = QLabel("📅 Recebimentos previstos")
         resumo.setObjectName("resumoValores")
         resumo.setToolTip("Lista de valores a receber. Use o filtro para alternar entre pendentes, atrasados e recebidos.")
 
@@ -420,7 +465,17 @@ class TelaValoresReceber(QWidget):
         linha_resumo.addWidget(seletor)
         painel_layout.addLayout(linha_resumo)
 
-        valores = listar_valores_receber(filtro_atual)
+        if filtro_atual == "ativos":
+            entradas_tabela = previsoes_mes
+        else:
+            inicio_mes = self.mes_referencia
+            fim_mes = inicio_mes + relativedelta(months=1)
+            entradas_tabela = [
+                (item, False)
+                for item in listar_valores_receber(filtro_atual)
+                if inicio_mes <= date.fromisoformat(item[4]) < fim_mes
+            ]
+
         self.tabela = TabelaRegistros(
             [
                 "Previsão",
@@ -446,10 +501,10 @@ class TelaValoresReceber(QWidget):
             limite_compacto=1200,
             altura_linha=42,
         )
-        if not valores:
-            self.tabela.mostrar_vazio("Nenhum valor encontrado neste filtro.")
+        if not entradas_tabela:
+            self.tabela.mostrar_vazio("Nenhum valor encontrado neste filtro e mês.")
         else:
-            for item in valores:
+            for item, eh_projecao in entradas_tabela:
                 texto_status, cor_status = self.texto_situacao(item[11])
                 linha = self.tabela.adicionar_linha(
                     [
@@ -468,10 +523,14 @@ class TelaValoresReceber(QWidget):
                         1: item[1],
                         2: item[2],
                         3: item[8] or item[5],
+                        4: (
+                            "Previsão automática da recorrência. O lançamento real será criado ao receber a competência atual."
+                            if eh_projecao else texto_status
+                        ),
                     },
                 )
                 botoes = []
-                if item[11] in {"em_aberto", "parcial", "atrasado"}:
+                if not eh_projecao and item[11] in {"em_aberto", "parcial", "atrasado"}:
                     botoes.append(
                         criar_botao_acao(
                             "Receber",
@@ -490,7 +549,7 @@ class TelaValoresReceber(QWidget):
                             "Editar este valor a receber",
                         )
                     )
-                if item[9] > 0:
+                if not eh_projecao and item[9] > 0:
                     botoes.append(
                         criar_botao_acao(
                             "Desfazer",
@@ -511,7 +570,7 @@ class TelaValoresReceber(QWidget):
                         "Ver detalhes e histórico",
                     )
                 )
-                if item[9] <= 0 and item[11] not in {"recebido", "cancelado"}:
+                if not eh_projecao and item[9] <= 0 and item[11] not in {"recebido", "cancelado"}:
                     botoes.append(
                         criar_botao_acao(
                             "🗑",
