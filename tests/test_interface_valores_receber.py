@@ -180,8 +180,14 @@ class TesteInterfaceValoresReceberIsolada(unittest.TestCase):
             self.assertTrue(all(card.minimumHeight() == 76 for card in cards))
             self.assertEqual(tela.quantidade_colunas_cartoes(900), 2)
             self.assertEqual(tela.quantidade_colunas_cartoes(1600), 4)
-            self.assertGreaterEqual(tela.findChild(QPushButton, "btnMesAtualRelatorio").minimumWidth(), 154)
-            self.assertGreaterEqual(tela.findChild(QPushButton, "btnAtualizarRelatorio").minimumWidth(), 142)
+            botao_anterior = tela.findChildren(QPushButton, "btnMesRelatorio")[0]
+            botao_mes_atual = tela.findChild(QPushButton, "btnMesAtualRelatorio")
+            botao_atualizar = tela.findChild(QPushButton, "btnAtualizarRelatorio")
+            self.assertEqual(botao_anterior.maximumWidth(), 42)
+            self.assertEqual(botao_mes_atual.minimumWidth(), 126)
+            self.assertEqual(botao_mes_atual.maximumWidth(), 126)
+            self.assertEqual(botao_atualizar.minimumWidth(), 128)
+            self.assertEqual(botao_atualizar.maximumWidth(), 128)
             detalhes = tela.criar_janela_detalhes_lancamentos(
                 "Categoria de teste — Maio de 2099",
                 [{

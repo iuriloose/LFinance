@@ -335,19 +335,23 @@ class TelaRelatorios(QWidget):
             }
 
             QPushButton#btnMesRelatorio {
-                padding: 9px 12px;
+                padding: 0;
                 border: 1px solid #334155;
-                min-width: 54px;
+                min-width: 42px;
+                max-width: 42px;
             }
 
             QPushButton#btnMesAtualRelatorio {
-                padding: 9px 12px;
+                padding: 0 10px;
                 border: 1px solid #334155;
-                min-width: 154px;
+                min-width: 126px;
+                max-width: 126px;
             }
 
             QPushButton#btnAtualizarRelatorio {
-                min-width: 142px;
+                padding: 0 10px;
+                min-width: 128px;
+                max-width: 128px;
             }
 
             QScrollArea#areaRelatorios {
@@ -1192,6 +1196,7 @@ class TelaRelatorios(QWidget):
 
         controles = QHBoxLayout()
         controles.setSpacing(7)
+        controles.setContentsMargins(0, 0, 0, 0)
         btn_anterior = QPushButton("‹")
         btn_anterior.setObjectName("btnMesRelatorio")
         btn_anterior.setFixedSize(42, 40)
@@ -1208,15 +1213,11 @@ class TelaRelatorios(QWidget):
         btn_proximo.clicked.connect(self.mes_proximo)
         btn_mes_atual = QPushButton("Mês atual")
         btn_mes_atual.setObjectName("btnMesAtualRelatorio")
-        btn_mes_atual.setFixedHeight(40)
-        btn_mes_atual.setMinimumWidth(154)
-        btn_mes_atual.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Fixed)
+        btn_mes_atual.setFixedSize(126, 40)
         btn_mes_atual.clicked.connect(self.voltar_mes_atual)
         btn_atualizar = QPushButton("↻ Atualizar")
         btn_atualizar.setObjectName("btnAtualizarRelatorio")
-        btn_atualizar.setFixedHeight(40)
-        btn_atualizar.setMinimumWidth(142)
-        btn_atualizar.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Fixed)
+        btn_atualizar.setFixedSize(128, 40)
         btn_atualizar.clicked.connect(self.recarregar)
         for controle in (btn_anterior, periodo, btn_proximo, btn_mes_atual, btn_atualizar):
             controles.addWidget(controle)

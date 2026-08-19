@@ -1,3 +1,9 @@
+# LFinance 2.1.4
+
+## 2.1.4
+
+- Corrige definitivamente a largura dos controles de mês e atualização em Relatórios.
+- Impede que os botões do cabeçalho se sobreponham em telas usuais.
 # LFinance 2.1.3
 
 ## 2.1.3
