@@ -62,6 +62,10 @@ def criar_tabelas():
     if "observacao" not in colunas_receitas:
         cursor.execute("ALTER TABLE receitas ADD COLUMN observacao TEXT")
 
+    from banco.valores_receber import criar_estrutura_valores_receber
+
+    criar_estrutura_valores_receber(cursor)
+
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS gastos (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -127,8 +131,8 @@ def criar_tabelas():
         """)
 
     versao_esquema = cursor.execute("PRAGMA user_version").fetchone()[0]
-    if versao_esquema != 3:
-        cursor.execute("PRAGMA user_version = 3")
+    if versao_esquema != 5:
+        cursor.execute("PRAGMA user_version = 5")
 
     conexao.commit()
     conexao.close()
@@ -809,6 +813,9 @@ def limpar_todos_os_dados():
     conexao = conectar()
     cursor = conexao.cursor()
 
+    from banco.valores_receber import limpar_valores_receber
+
+    limpar_valores_receber(cursor)
     cursor.execute("DELETE FROM pagamentos")
     cursor.execute("DELETE FROM gastos")
     cursor.execute("DELETE FROM receitas")

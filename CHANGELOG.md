@@ -1,4 +1,121 @@
-# LFinance 1.0.7
+# LFinance 2.1.5
+
+## 2.1.5
+
+- Corrige a tela Valores a receber ao navegar entre meses.
+- Projeta visualmente as competências mensais e quinzenais futuras, sem criar lançamentos nem alterar o saldo.
+- Identifica as projeções na lista e mantém ações financeiras somente no lançamento real.
+# LFinance 2.1.4
+
+## 2.1.4
+
+- Corrige definitivamente a largura dos controles de mês e atualização em Relatórios.
+- Impede que os botões do cabeçalho se sobreponham em telas usuais.
+# LFinance 2.1.3
+
+## 2.1.3
+
+- Corrige a largura dos controles no cabeçalho de Relatórios para impedir sobreposição.
+- Alterna tons de azul nas faixas mensais do gráfico, deixando a leitura entre meses mais clara.
+# LFinance 2.1.2
+
+## 2.1.2
+
+- Compacta os cartões e o gráfico de Relatórios, com adaptação entre tela ampla e estreita.
+- Acrescenta referências de valor e dica ao passar o mouse nas barras.
+- Reorganiza os detalhes das barras: tabela escura, altura ajustada ao conteúdo e rolagem apenas quando necessária.
+# LFinance 2.1.1
+
+## 2.1.1
+
+- Substitui as barras horizontais por gráfico vertical de gastos por categoria nos últimos seis meses.
+- Cada barra abre os lançamentos completos do mês e da categoria selecionados.
+- Elimina a rolagem horizontal da tela de Relatórios.
+# LFinance 2.1.0
+
+## 2.1.0
+
+- Simplifica Relatórios com quatro indicadores, comparação de gastos entre meses e categorias clicáveis para abrir os lançamentos.
+- Mantém alertas apenas quando há algo que exige atenção e resume o planejamento do mês.
+
+# LFinance 2.0.10
+
+## 2.0.10
+
+- Ajusta a largura responsiva da lista de Valores a receber para evitar rolagem horizontal e manter as acoes visiveis.
+
+# LFinance 2.0.9
+
+## 2.0.9
+
+- Compacta os indicadores e os controles de Valores a receber para deixar mais espaco visivel para a lista.
+
+# LFinance 2.0.8
+
+## 2.0.8
+
+- Reorganiza Valores a receber para priorizar a lista, com cartões compactos e navegação mensal integrada ao cabeçalho da lista.
+- Aumenta as linhas da tabela para facilitar a leitura dos lançamentos.
+
+# LFinance 2.0.7
+
+## 2.0.7
+
+- Deixa os cartões de Valores a receber no formato compacto da Tela inicial.
+- Permite navegar entre meses para consultar os indicadores de previsto e recebido do período escolhido.
+
+# LFinance 2.0.6
+
+## 2.0.6
+
+- Transforma Valores a receber em painel de acompanhamento, com total pendente, previsto no mês, atrasados e recebido no mês.
+- Mantém a Tela inicial como painel financeiro principal e separa os indicadores de recebimentos.
+
+# LFinance 2.0.5
+
+## 2.0.5
+
+- Restaura a visualização completa dos detalhes de Valores a receber, com seis campos legíveis e sem marcações técnicas.
+
+# LFinance 2.0.4
+
+## 2.0.4
+
+- Destaca o seletor de lançamentos em Valores a receber.
+- Padroniza o formulário e as confirmações da área Valores a receber.
+- Corrige a formatação dos detalhes abertos por duplo clique.
+
+# LFinance 2.0.3
+
+## 2.0.3
+
+- Adicionado botão visível para desfazer o último recebimento em Valores a receber.
+- Bloqueada a confirmação duplicada no diálogo de recebimento.
+- Corrigidos os textos, ícones, acentuação e contagens da tela Relatórios.
+
+## 2.0.2
+
+- Restaurada a tela Relatórios com resumo mensal de receitas, pagamentos, pendências e atrasos.
+- Adicionados valores previstos a receber, recebimentos atrasados e resultado planejado sem alterar o saldo real.
+- Integrada a décima tela ao menu e ampliada a cobertura de testes.
+
+## 2.0.1
+
+- Adicionada a frequência quinzenal para valores recorrentes, criando a próxima previsão 15 dias depois.
+- No recebimento, agora é possível informar um valor maior que o previsto; o lançamento atual é ajustado ao valor real sem alterar a previsão da próxima recorrência.
+- Ao desfazer esse recebimento, o valor previsto original é restaurado com segurança.
+
+## 2.0.0
+
+- Adicionada a tela Valores a receber, acessível pelo menu abaixo de Receitas.
+- Criado cadastro de salários, comissões, vendas, empréstimos e outros valores previstos.
+- Adicionados recebimentos totais e parciais com histórico por pessoa ou empresa.
+- Cada recebimento confirmado gera automaticamente uma Receita vinculada.
+- Valores pendentes não alteram o saldo nem os cálculos da Tela inicial.
+- Adicionada recorrência mensal com criação automática da próxima competência.
+- Adicionados estados Em aberto, Parcial, Atrasado, Recebido e Cancelado.
+- Incluídos Valores a receber na pesquisa global e na limpeza total protegida.
+- Mantida compatibilidade com backups criados pela versão 1.0.7.
 
 ## 1.0.7
 

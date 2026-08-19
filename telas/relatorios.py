@@ -5,7 +5,8 @@ from PySide6.QtWidgets import (
     QScrollArea, QGridLayout, QSizePolicy, QDialog, QTableWidget,
     QTableWidgetItem, QHeaderView
 )
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QRectF, QTimer
+from PySide6.QtGui import QColor, QPainter, QPen
 
 from banco.banco import (
     listar_despesas,
@@ -14,11 +15,122 @@ from banco.banco import (
     listar_pagamentos_detalhados,
 )
 
+from banco.valores_receber import listar_valores_receber
+
+
+class GraficoBarrasInterativo(QWidget):
+    """Gráfico vertical compacto com barras clicáveis por mês e categoria."""
+
+    def __init__(self, meses, series, ao_clicar, parent=None):
+        super().__init__(parent)
+        self.meses = meses
+        self.series = series
+        self.ao_clicar = ao_clicar
+        self.barras = []
+        self.setObjectName("graficoBarrasRelatorio")
+        self.setFixedHeight(224)
+        self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        self.setCursor(Qt.PointingHandCursor)
+        self.setMouseTracking(True)
+        self.setToolTip("Clique em uma barra para ver os lançamentos.")
+
+    @staticmethod
+    def formatar_eixo(valor):
+        if valor >= 1000:
+            return f"R$ {valor / 1000:.1f} mil".replace(".", ",")
+        return f"R$ {valor:.0f}"
+
+    def paintEvent(self, evento):
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.Antialiasing)
+        painter.fillRect(self.rect(), QColor("#111827"))
+        self.barras = []
+        if not self.meses or not self.series:
+            painter.setPen(QColor("#a8b3c7"))
+            painter.drawText(self.rect(), Qt.AlignCenter, "Ainda não há gastos para comparar.")
+            return
+
+        maximo = max(
+            [float(valor or 0) for serie in self.series for valor in serie["valores"]] or [1]
+        )
+        area = QRectF(62, 14, max(120, self.width() - 80), max(110, self.height() - 52))
+        grupos = len(self.meses)
+        quantidade_series = len(self.series)
+        largura_grupo = area.width() / max(grupos, 1)
+
+        # Alterna faixas sutis para separar visualmente cada competência.
+        for indice_mes in range(grupos):
+            faixa = QRectF(
+                area.left() + indice_mes * largura_grupo,
+                area.top(),
+                largura_grupo,
+                area.height() + 28,
+            )
+            cor_faixa = "#12213a" if indice_mes % 2 == 0 else "#182b46"
+            painter.fillRect(faixa, QColor(cor_faixa))
+
+        painter.setPen(QPen(QColor("#334155"), 1))
+        for nivel in range(5):
+            y = area.bottom() - (area.height() * nivel / 4)
+            painter.drawLine(area.left(), y, area.right(), y)
+            if nivel in (0, 2, 4):
+                painter.setPen(QColor("#718096"))
+                painter.drawText(
+                    QRectF(0, y - 9, 56, 18),
+                    Qt.AlignRight | Qt.AlignVCenter,
+                    self.formatar_eixo(maximo * nivel / 4),
+                )
+                painter.setPen(QPen(QColor("#334155"), 1))
+        espacamento = 3
+        largura_barra = max(
+            6, (largura_grupo - 18 - (quantidade_series - 1) * espacamento) / max(quantidade_series, 1)
+        )
+
+        for indice_mes, mes in enumerate(self.meses):
+            inicio = area.left() + indice_mes * largura_grupo + 9
+            centro = area.left() + indice_mes * largura_grupo + largura_grupo / 2
+            painter.setPen(QColor("#a8b3c7"))
+            painter.drawText(
+                QRectF(inicio, area.bottom() + 7, max(20, largura_grupo - 18), 20),
+                Qt.AlignHCenter | Qt.AlignTop,
+                mes["rotulo"],
+            )
+            for indice_serie, serie in enumerate(self.series):
+                valor = float(serie["valores"][indice_mes] or 0)
+                if valor <= 0:
+                    continue
+                altura = 0 if maximo <= 0 else area.height() * valor / maximo
+                x = inicio + indice_serie * (largura_barra + espacamento)
+                y = area.bottom() - altura
+                retangulo = QRectF(x, y, largura_barra, altura)
+                painter.setPen(Qt.NoPen)
+                painter.setBrush(QColor(serie["cor"]))
+                painter.drawRoundedRect(retangulo, 3, 3)
+                self.barras.append((retangulo, mes, serie, valor))
+
+    def mouseMoveEvent(self, evento):
+        for retangulo, mes, serie, valor in self.barras:
+            if retangulo.contains(evento.position()):
+                texto = f"{serie['nome']} • {mes['rotulo']}: R$ {valor:,.2f}"
+                self.setToolTip(texto.replace(",", "X").replace(".", ",").replace("X", "."))
+                return
+        self.setToolTip("Clique em uma barra para ver os lançamentos.")
+        super().mouseMoveEvent(evento)
+
+    def mouseReleaseEvent(self, evento):
+        for retangulo, mes, serie, valor in self.barras:
+            if retangulo.contains(evento.position()):
+                self.ao_clicar(mes, serie, valor)
+                evento.accept()
+                return
+        super().mouseReleaseEvent(evento)
+
 
 class TelaRelatorios(QWidget):
     def __init__(self):
         super().__init__()
         self.mes_referencia = date.today().replace(day=1)
+        self._colunas_cartoes = None
         self.aplicar_estilo()
         self.montar_tela()
 
@@ -74,13 +186,13 @@ class TelaRelatorios(QWidget):
 
             QLabel#cardValorRelatorio {
                 color: #ffffff;
-                font-size: 24px;
+                font-size: 21px;
                 font-weight: 800;
             }
 
             QLabel#cardInfoRelatorio {
                 color: #cbd5e1;
-                font-size: 12px;
+                font-size: 11px;
             }
 
             QLabel#valorVerde {
@@ -223,19 +335,23 @@ class TelaRelatorios(QWidget):
             }
 
             QPushButton#btnMesRelatorio {
-                padding: 9px 12px;
+                padding: 0;
                 border: 1px solid #334155;
-                min-width: 54px;
+                min-width: 42px;
+                max-width: 42px;
             }
 
             QPushButton#btnMesAtualRelatorio {
-                padding: 9px 12px;
+                padding: 0 10px;
                 border: 1px solid #334155;
-                min-width: 154px;
+                min-width: 126px;
+                max-width: 126px;
             }
 
             QPushButton#btnAtualizarRelatorio {
-                min-width: 142px;
+                padding: 0 10px;
+                min-width: 128px;
+                max-width: 128px;
             }
 
             QScrollArea#areaRelatorios {
@@ -325,6 +441,11 @@ class TelaRelatorios(QWidget):
             return "Amanhã"
         return f"Em {(data - hoje).days} dias"
 
+    @staticmethod
+    def texto_quantidade(quantidade, singular, plural=None):
+        palavra = singular if quantidade == 1 else (plural or f"{singular}s")
+        return f"{quantidade} {palavra}"
+
     def separar_despesa(self, despesa):
         if len(despesa) == 10:
             return despesa
@@ -336,9 +457,9 @@ class TelaRelatorios(QWidget):
         id_despesa, descricao, valor, vencimento, categoria, tipo, status = despesa
         return id_despesa, descricao, valor, vencimento, categoria, tipo, None, None, None, status
 
-    def dados_mes(self):
+    def dados_mes(self, referencia=None):
         hoje = date.today()
-        inicio_mes = self.mes_referencia.replace(day=1)
+        inicio_mes = (referencia or self.mes_referencia).replace(day=1)
 
         if inicio_mes.month == 12:
             fim_mes = inicio_mes.replace(year=inicio_mes.year + 1, month=1, day=1) - timedelta(days=1)
@@ -417,6 +538,52 @@ class TelaRelatorios(QWidget):
                     "tipo": "Receita",
                 })
 
+        # Valores a receber continuam fora das receitas até que sejam realmente
+        # confirmados. Assim, o relatório mostra o planejamento sem inflar o
+        # saldo realizado do mês.
+        valores_receber_mes = []
+        valores_receber_atrasados = []
+        for valor_receber in listar_valores_receber("ativos"):
+            (
+                id_valor,
+                pagador,
+                descricao,
+                _valor,
+                data_prevista,
+                categoria,
+                _recorrente,
+                _status,
+                _observacao,
+                _recebido,
+                restante,
+                situacao,
+                frequencia,
+            ) = valor_receber
+            data = self.converter_data(data_prevista)
+            if data is None:
+                continue
+
+            item = {
+                "id": id_valor,
+                "descricao": descricao,
+                "pagador": pagador,
+                "valor": float(restante or 0),
+                "valor_exibicao": float(restante or 0),
+                "data": data,
+                "data_texto": self.formatar_data(data_prevista),
+                "categoria": categoria,
+                "tipo": "A receber",
+                "situacao": situacao,
+                "info_extra": (
+                    f"{pagador}  •  {self.formatar_data(data_prevista)}  •  "
+                    f"{frequencia.capitalize()}"
+                ),
+            }
+            if inicio_mes <= data <= fim_mes:
+                valores_receber_mes.append(item)
+            if situacao == "atrasado":
+                valores_receber_atrasados.append(item)
+
         gastos_mes = []
         for gasto in listar_gastos():
             id_gasto, descricao, valor, data_gasto, categoria, observacao = gasto
@@ -468,14 +635,19 @@ class TelaRelatorios(QWidget):
         total_pago = total_gastos + total_pagamentos
         total_pendente = sum(item["valor"] for item in pendentes_mes)
         total_atrasado = sum(item["valor"] for item in atrasadas)
+        total_a_receber = sum(item["valor"] for item in valores_receber_mes)
+        total_a_receber_atrasado = sum(item["valor"] for item in valores_receber_atrasados)
         saldo_mes = total_receitas - total_pago
         total_parcelamentos = sum(item.get("valor_restante", 0) for item in parcelamentos_abertos)
         resultado_previsto = total_receitas - (total_pago + total_pendente)
+        resultado_planejado = resultado_previsto + total_a_receber
 
         return {
             "inicio_mes": inicio_mes,
             "fim_mes": fim_mes,
             "receitas": receitas_mes,
+            "valores_receber": valores_receber_mes,
+            "valores_receber_atrasados": sorted(valores_receber_atrasados, key=lambda item: item["data"]),
             "gastos": gastos_mes,
             "pagamentos": pagamentos_mes,
             "despesas_mes": despesas_mes,
@@ -490,23 +662,27 @@ class TelaRelatorios(QWidget):
             "total_pago": total_pago,
             "total_pendente": total_pendente,
             "total_atrasado": total_atrasado,
+            "total_a_receber": total_a_receber,
+            "total_a_receber_atrasado": total_a_receber_atrasado,
             "saldo_mes": saldo_mes,
             "total_parcelamentos": total_parcelamentos,
             "resultado_previsto": resultado_previsto,
+            "resultado_planejado": resultado_planejado,
         }
 
     def criar_card_resumo(self, objeto, icone, titulo, valor, info):
         card = QFrame()
         card.setObjectName(objeto)
-        card.setMinimumHeight(84)
+        card.setFixedHeight(76)
+        card.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
 
         layout = QHBoxLayout(card)
-        layout.setContentsMargins(16, 10, 16, 10)
-        layout.setSpacing(14)
+        layout.setContentsMargins(12, 8, 12, 8)
+        layout.setSpacing(10)
 
         lbl_icone = QLabel(icone)
         lbl_icone.setObjectName("cardValorRelatorio")
-        lbl_icone.setFixedWidth(36)
+        lbl_icone.setFixedWidth(30)
         lbl_icone.setAlignment(Qt.AlignCenter)
 
         textos = QVBoxLayout()
@@ -673,7 +849,9 @@ class TelaRelatorios(QWidget):
         lbl_titulo.setObjectName("secaoRelatorio")
 
         total = sum(float(item.get("valor_exibicao", item.get("valor", 0)) or 0) for item in itens)
-        lbl_resumo = QLabel(f"{len(itens)} item(ns) • {self.formatar_moeda(total)}")
+        lbl_resumo = QLabel(
+            f"{self.texto_quantidade(len(itens), 'item')} • {self.formatar_moeda(total)}"
+        )
         lbl_resumo.setObjectName("textoSuave")
         lbl_resumo.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
 
@@ -691,7 +869,11 @@ class TelaRelatorios(QWidget):
                 layout.addWidget(self.criar_item_lista(item, cor_valor))
 
             if len(itens) > limite:
-                extra = QLabel(f"+ {len(itens) - limite} lançamento(s) além destes.")
+                quantidade_extra = len(itens) - limite
+                extra = QLabel(
+                    f"+ {self.texto_quantidade(quantidade_extra, 'lançamento')} além "
+                    f"{'deste' if quantidade_extra == 1 else 'destes'}."
+                )
                 extra.setObjectName("textoSuave")
                 layout.addWidget(extra)
 
@@ -719,218 +901,395 @@ class TelaRelatorios(QWidget):
 
         return fundo
 
+    def referencia_mes_anterior(self):
+        ano = self.mes_referencia.year
+        mes = self.mes_referencia.month - 1
+        if mes == 0:
+            ano, mes = ano - 1, 12
+        return date(ano, mes, 1)
+
+    def criar_janela_detalhes_lancamentos(self, titulo, itens, texto_vazio="Nenhum lançamento neste período."):
+        janela = QDialog(self)
+        janela.setWindowTitle(titulo)
+        janela.setModal(True)
+        janela.setMinimumWidth(700)
+        janela.setSizeGripEnabled(True)
+        janela.setStyleSheet("""
+            QDialog { background-color: #0f1726; }
+            QLabel { color: #ffffff; font-family: 'Segoe UI'; }
+            QLabel#tituloDetalhes { font-size: 22px; font-weight: 800; }
+            QLabel#resumoDetalhes { color: #a8b3c7; font-size: 13px; }
+            QLabel#totalDetalhes { color: #22c55e; font-size: 18px; font-weight: 800; }
+            QFrame#resumoDetalhesPainel { background-color: #152238; border: 1px solid #26364e; border-radius: 9px; }
+            QTableWidget { background-color: #111c2e; color: #ffffff; border: 1px solid #26364e; gridline-color: #26364e; font-size: 13px; alternate-background-color: #162238; selection-background-color: #1d4ed8; selection-color: #ffffff; }
+            QTableWidget::item { color: #ffffff; padding: 6px; border-bottom: 1px solid #26364e; }
+            QTableWidget::item:alternate { background-color: #162238; color: #ffffff; }
+            QHeaderView::section { background-color: #1e293b; color: #ffffff; border: 0; border-right: 1px solid #334155; padding: 8px; font-weight: 700; }
+            QPushButton { background-color: #1f2937; color: #ffffff; border: 1px solid #475569; border-radius: 8px; min-height: 38px; padding: 0 22px; font-weight: 700; }
+            QPushButton:hover { background-color: #334155; }
+        """)
+        layout = QVBoxLayout(janela)
+        layout.setContentsMargins(22, 20, 22, 20)
+        layout.setSpacing(12)
+
+        lbl_titulo = QLabel(titulo)
+        lbl_titulo.setObjectName("tituloDetalhes")
+        layout.addWidget(lbl_titulo)
+
+        total = sum(float(item.get("valor", 0) or 0) for item in itens)
+        painel = QFrame()
+        painel.setObjectName("resumoDetalhesPainel")
+        painel_layout = QHBoxLayout(painel)
+        painel_layout.setContentsMargins(14, 10, 14, 10)
+        painel_layout.setSpacing(12)
+        quantidade = QLabel(f"{len(itens)} lançamento(s) neste detalhe")
+        quantidade.setObjectName("resumoDetalhes")
+        valor_total = QLabel(self.formatar_moeda(total))
+        valor_total.setObjectName("totalDetalhes")
+        valor_total.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        painel_layout.addWidget(quantidade)
+        painel_layout.addStretch()
+        painel_layout.addWidget(valor_total)
+        layout.addWidget(painel)
+
+        tabela = QTableWidget(len(itens), 5)
+        tabela.setObjectName("tabelaDetalhesRelatorio")
+        tabela.setHorizontalHeaderLabels(["Data", "Descrição", "Categoria", "Tipo", "Valor"])
+        tabela.verticalHeader().setVisible(False)
+        tabela.verticalHeader().setDefaultSectionSize(35)
+        tabela.setEditTriggers(QTableWidget.NoEditTriggers)
+        tabela.setSelectionMode(QTableWidget.NoSelection)
+        tabela.setFocusPolicy(Qt.NoFocus)
+        tabela.setAlternatingRowColors(True)
+        tabela.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeToContents)
+        tabela.horizontalHeader().setSectionResizeMode(1, QHeaderView.Stretch)
+        tabela.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+        for linha, item in enumerate(sorted(itens, key=lambda registro: registro.get("data", date.min), reverse=True)):
+            valores = [
+                item.get("data_texto", "-"),
+                item.get("descricao", "-"),
+                item.get("categoria", "-") or "-",
+                item.get("tipo", "-") or "-",
+                self.formatar_moeda(item.get("valor", 0)),
+            ]
+            for coluna, valor in enumerate(valores):
+                item_tabela = QTableWidgetItem(str(valor))
+                if coluna == 4:
+                    item_tabela.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
+                tabela.setItem(linha, coluna, item_tabela)
+        if not itens:
+            tabela.setRowCount(1)
+            tabela.setSpan(0, 0, 1, 5)
+            item_vazio = QTableWidgetItem(texto_vazio)
+            item_vazio.setTextAlignment(Qt.AlignCenter)
+            tabela.setItem(0, 0, item_vazio)
+
+        linhas_visiveis = max(1, min(len(itens), 7))
+        tabela.setFixedHeight(40 + linhas_visiveis * 35 + 3)
+        layout.addWidget(tabela)
+
+        botoes = QHBoxLayout()
+        botoes.addStretch()
+        fechar = QPushButton("Fechar")
+        fechar.clicked.connect(janela.accept)
+        botoes.addWidget(fechar)
+        layout.addLayout(botoes)
+        janela.resize(790, min(560, 175 + tabela.height()))
+        return janela
+
+    def mostrar_detalhes_lancamentos(self, titulo, itens, texto_vazio="Nenhum lançamento neste período."):
+        self.criar_janela_detalhes_lancamentos(titulo, itens, texto_vazio).exec()
+    def ultimos_meses_relatorio(self, quantidade=6):
+        meses = []
+        referencia = self.mes_referencia
+        for _ in range(quantidade):
+            meses.append(referencia)
+            mes = referencia.month - 1
+            ano = referencia.year
+            if mes == 0:
+                ano, mes = ano - 1, 12
+            referencia = date(ano, mes, 1)
+        return list(reversed(meses))
+
+    def criar_grafico_historico_categorias(self):
+        meses_referencia = self.ultimos_meses_relatorio()
+        dados_por_mes = [self.dados_mes(mes) for mes in meses_referencia]
+        totais_categoria = {}
+        itens_por_mes = []
+
+        for dados in dados_por_mes:
+            grupos = {}
+            for item in dados["pagamentos"] + dados["gastos"]:
+                categoria = item.get("categoria") or "Sem categoria"
+                grupos.setdefault(categoria, []).append(item)
+                totais_categoria[categoria] = totais_categoria.get(categoria, 0) + float(item.get("valor", 0) or 0)
+            itens_por_mes.append(grupos)
+
+        categorias_principais = [
+            categoria for categoria, _total in sorted(
+                totais_categoria.items(), key=lambda grupo: grupo[1], reverse=True
+            )[:3]
+        ]
+        tem_outras = len(totais_categoria) > len(categorias_principais)
+        categorias = list(categorias_principais)
+        if tem_outras:
+            categorias.append("Outras categorias")
+
+        cores = ["#3b82f6", "#ef4444", "#a855f7", "#14b8a6"]
+        series = []
+        for indice, categoria in enumerate(categorias):
+            valores, conjuntos = [], []
+            for grupos in itens_por_mes:
+                if categoria == "Outras categorias":
+                    itens = [
+                        item
+                        for nome, grupo in grupos.items()
+                        if nome not in categorias_principais
+                        for item in grupo
+                    ]
+                else:
+                    itens = grupos.get(categoria, [])
+                conjuntos.append(itens)
+                valores.append(sum(float(item.get("valor", 0) or 0) for item in itens))
+            series.append({
+                "nome": categoria,
+                "cor": cores[indice % len(cores)],
+                "valores": valores,
+                "conjuntos": conjuntos,
+            })
+
+        caixa = QFrame()
+        caixa.setObjectName("cardBase")
+        caixa.setFixedHeight(316)
+        caixa.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        layout = QVBoxLayout(caixa)
+        layout.setContentsMargins(18, 16, 18, 16)
+        layout.setSpacing(9)
+
+        linha_titulo = QHBoxLayout()
+        titulo = QLabel("Gastos por categoria")
+        titulo.setObjectName("secaoRelatorio")
+        descricao = QLabel("Últimos 6 meses • clique em uma barra para detalhar")
+        descricao.setObjectName("textoSuave")
+        descricao.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        linha_titulo.addWidget(titulo)
+        linha_titulo.addStretch()
+        linha_titulo.addWidget(descricao)
+        layout.addLayout(linha_titulo)
+
+        legenda = QHBoxLayout()
+        legenda.setSpacing(14)
+        for serie in series:
+            item_legenda = QLabel(f"■ {serie['nome']}")
+            item_legenda.setStyleSheet(f"color: {serie['cor']}; font-size: 12px; font-weight: 700;")
+            legenda.addWidget(item_legenda)
+        legenda.addStretch()
+        layout.addLayout(legenda)
+
+        meses = [
+            {"data": mes, "rotulo": self.nome_mes(mes).split(" de ")[0][:3]}
+            for mes in meses_referencia
+        ]
+
+        def abrir_detalhes(mes, serie, _valor):
+            indice = meses.index(mes)
+            itens = serie["conjuntos"][indice]
+            titulo_detalhe = f"{serie['nome']} — {self.nome_mes(mes['data'])}"
+            self.mostrar_detalhes_lancamentos(titulo_detalhe, itens)
+
+        grafico = GraficoBarrasInterativo(meses, series, abrir_detalhes, caixa)
+        layout.addWidget(grafico)
+        return caixa
+
+    def criar_resumo_comparacao(self, dados_atual, dados_anterior):
+        diferenca = dados_atual["total_pago"] - dados_anterior["total_pago"]
+        if diferenca > 0:
+            texto = f"Você gastou {self.formatar_moeda(diferenca)} a mais que no mês anterior."
+            cor = "valorVermelho"
+        elif diferenca < 0:
+            texto = f"Você gastou {self.formatar_moeda(abs(diferenca))} a menos que no mês anterior."
+            cor = "valorVerde"
+        else:
+            texto = "Seus gastos ficaram iguais aos do mês anterior."
+            cor = "valorAzul"
+        caixa = QFrame()
+        caixa.setObjectName("linhaResumo")
+        layout = QHBoxLayout(caixa)
+        layout.setContentsMargins(16, 9, 16, 9)
+        titulo = QLabel("Comparação mensal")
+        titulo.setObjectName("itemTitulo")
+        resultado = QLabel(texto)
+        resultado.setObjectName(cor)
+        resultado.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        layout.addWidget(titulo)
+        layout.addWidget(resultado, 1)
+        return caixa
+
+    def criar_planejamento_compacto(self, dados):
+        caixa = QFrame()
+        caixa.setObjectName("linhaResumo")
+        layout = QVBoxLayout(caixa)
+        layout.setContentsMargins(12, 8, 12, 8)
+        layout.setSpacing(3)
+        titulo = QLabel("Planejamento do mês")
+        titulo.setObjectName("itemTitulo")
+        resumo = QLabel(
+            f"A pagar: {self.formatar_moeda(dados['total_pendente'])}  •  "
+            f"A receber previsto: {self.formatar_moeda(dados['total_a_receber'])}  •  "
+            f"Saldo planejado: {self.formatar_moeda(dados['resultado_planejado'])}"
+        )
+        resumo.setObjectName("valorVerde" if dados["resultado_planejado"] >= 0 else "valorVermelho")
+        resumo.setWordWrap(True)
+        layout.addWidget(titulo)
+        layout.addWidget(resumo)
+        return caixa
+
+    def criar_alertas(self, dados):
+        alertas = []
+        if dados["total_atrasado"] > 0:
+            alertas.append(f"Contas atrasadas: {self.formatar_moeda(dados['total_atrasado'])}")
+        if dados["total_a_receber_atrasado"] > 0:
+            alertas.append(f"Valores a receber atrasados: {self.formatar_moeda(dados['total_a_receber_atrasado'])}")
+        if dados["total_acrescimos"] > 0:
+            alertas.append(f"Juros e multas pagos: {self.formatar_moeda(dados['total_acrescimos'])}")
+        if not alertas:
+            return None
+        caixa = QFrame()
+        caixa.setObjectName("cardPendenteRelatorio")
+        layout = QHBoxLayout(caixa)
+        layout.setContentsMargins(12, 8, 12, 8)
+        titulo = QLabel("Atenção")
+        titulo.setObjectName("itemTitulo")
+        texto = QLabel("  •  ".join(alertas))
+        texto.setObjectName("textoNormal")
+        texto.setWordWrap(True)
+        layout.addWidget(titulo)
+        layout.addWidget(texto, 1)
+        return caixa
+
+    def quantidade_colunas_cartoes(self, largura=None):
+        largura_util = self.width() if largura is None else largura
+        return 2 if largura_util < 1250 else 4
+
     def montar_tela(self):
         if self.layout() is None:
             principal = QVBoxLayout(self)
-            principal.setContentsMargins(28, 22, 28, 20)
-            principal.setSpacing(14)
+            principal.setContentsMargins(28, 18, 28, 16)
+            principal.setSpacing(10)
         else:
             self.limpar_tela()
             principal = self.layout()
 
         dados = self.dados_mes()
+        dados_anterior = self.dados_mes(self.referencia_mes_anterior())
 
         topo = QHBoxLayout()
-        topo.setSpacing(16)
-
+        topo.setSpacing(14)
         bloco_titulo = QVBoxLayout()
-        bloco_titulo.setSpacing(4)
-
+        bloco_titulo.setSpacing(2)
         titulo = QLabel("📊 Relatórios")
         titulo.setObjectName("tituloRelatorio")
-        titulo.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
-
-        subtitulo = QLabel("Resumo financeiro por mês, com entradas, valores pagos e contas em aberto")
+        subtitulo = QLabel("Entenda rapidamente o que entrou, saiu e mudou no seu mês.")
         subtitulo.setObjectName("subtituloRelatorio")
-        subtitulo.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
-        subtitulo.setWordWrap(True)
-        subtitulo.setMinimumHeight(34)
-
         bloco_titulo.addWidget(titulo)
         bloco_titulo.addWidget(subtitulo)
 
         controles = QHBoxLayout()
-        controles.setSpacing(10)
-        controles.setAlignment(Qt.AlignRight | Qt.AlignTop)
-
+        controles.setSpacing(7)
+        controles.setContentsMargins(0, 0, 0, 0)
         btn_anterior = QPushButton("‹")
         btn_anterior.setObjectName("btnMesRelatorio")
-        btn_anterior.setFixedSize(58, 52)
+        btn_anterior.setFixedSize(42, 40)
+        btn_anterior.setToolTip("Ver mês anterior")
         btn_anterior.clicked.connect(self.mes_anterior)
-
         periodo = QLabel(self.nome_mes(self.mes_referencia))
         periodo.setObjectName("periodoRelatorio")
         periodo.setAlignment(Qt.AlignCenter)
-        periodo.setFixedSize(170, 52)
-
+        periodo.setFixedSize(164, 40)
         btn_proximo = QPushButton("›")
         btn_proximo.setObjectName("btnMesRelatorio")
-        btn_proximo.setFixedSize(58, 52)
+        btn_proximo.setFixedSize(42, 40)
+        btn_proximo.setToolTip("Ver próximo mês")
         btn_proximo.clicked.connect(self.mes_proximo)
-
         btn_mes_atual = QPushButton("Mês atual")
         btn_mes_atual.setObjectName("btnMesAtualRelatorio")
-        btn_mes_atual.setFixedSize(154, 52)
+        btn_mes_atual.setFixedSize(126, 40)
         btn_mes_atual.clicked.connect(self.voltar_mes_atual)
-
         btn_atualizar = QPushButton("↻ Atualizar")
         btn_atualizar.setObjectName("btnAtualizarRelatorio")
-        btn_atualizar.setFixedSize(142, 52)
+        btn_atualizar.setFixedSize(128, 40)
         btn_atualizar.clicked.connect(self.recarregar)
-
-        controles.addWidget(btn_anterior)
-        controles.addWidget(periodo)
-        controles.addWidget(btn_proximo)
-        controles.addWidget(btn_mes_atual)
-        controles.addWidget(btn_atualizar)
+        for controle in (btn_anterior, periodo, btn_proximo, btn_mes_atual, btn_atualizar):
+            controles.addWidget(controle)
 
         topo.addLayout(bloco_titulo, 1)
-        topo.addLayout(controles, 0)
+        topo.addLayout(controles)
         principal.addLayout(topo)
 
         area = QScrollArea()
         area.setObjectName("areaRelatorios")
         area.setWidgetResizable(True)
-
         conteudo = QWidget()
         layout = QVBoxLayout(conteudo)
         layout.setContentsMargins(0, 0, 6, 0)
-        layout.setSpacing(14)
+        layout.setSpacing(10)
 
+        colunas_cartoes = self.quantidade_colunas_cartoes()
+        self._colunas_cartoes = colunas_cartoes
         cards = QGridLayout()
-        cards.setSpacing(12)
-        for coluna in range(3):
+        cards.setObjectName("cardsRelatorios")
+        cards.setHorizontalSpacing(10)
+        cards.setVerticalSpacing(8)
+        for coluna in range(colunas_cartoes):
             cards.setColumnStretch(coluna, 1)
-
-        cards.addWidget(self.criar_card_resumo(
-            "cardReceitaRelatorio", "💵", "Receitas do mês",
-            self.formatar_moeda(dados["total_receitas"]),
-            f"{len(dados['receitas'])} entrada(s) registrada(s)"
-        ), 0, 0)
-
-        cards.addWidget(self.criar_card_resumo(
-            "cardPagoRelatorio", "✅", "Pago no mês",
-            self.formatar_moeda(dados["total_pago"]),
-            f"{len(dados['pagamentos'])} conta(s) + {len(dados['gastos'])} gasto(s)"
-        ), 0, 1)
-
-        cards.addWidget(self.criar_card_resumo(
-            "cardPendenteRelatorio", "📌", "Ainda a pagar",
-            self.formatar_moeda(dados["total_pendente"]),
-            f"{len(dados['pendentes'])} conta(s) neste mês"
-        ), 0, 2)
-
-        cards.addWidget(self.criar_card_resumo(
-            "cardSaldoRelatorio", "💰", "Saldo realizado",
-            self.formatar_moeda(dados["saldo_mes"]),
-            "Receitas menos valores já pagos"
-        ), 1, 0)
-
-        cards.addWidget(self.criar_card_resumo(
-            "cardSaldoRelatorio" if dados["resultado_previsto"] >= 0 else "cardPendenteRelatorio",
-            "📈" if dados["resultado_previsto"] >= 0 else "📉",
-            "Resultado previsto",
-            self.formatar_moeda(dados["resultado_previsto"]),
-            "Após pagar todas as contas deste mês"
-        ), 1, 1)
-
-        cards.addWidget(self.criar_card_resumo(
-            "cardPendenteRelatorio" if dados["total_atrasado"] > 0 else "cardBase",
-            "⚠", "Contas atrasadas",
-            self.formatar_moeda(dados["total_atrasado"]),
-            f"{len(dados['atrasadas'])} conta(s) vencida(s)"
-        ), 1, 2)
-
+        itens_cartoes = [
+            self.criar_card_resumo(
+                "cardReceitaRelatorio", "💵", "Receitas", self.formatar_moeda(dados["total_receitas"]),
+                self.texto_quantidade(len(dados["receitas"]), "entrada", "entradas") + " no mês",
+            ),
+            self.criar_card_resumo(
+                "cardPagoRelatorio", "✅", "Gastos", self.formatar_moeda(dados["total_pago"]),
+                "Contas pagas e gastos do dia",
+            ),
+            self.criar_card_resumo(
+                "cardSaldoRelatorio", "💰", "Saldo realizado", self.formatar_moeda(dados["saldo_mes"]),
+                "Entradas menos valores já pagos",
+            ),
+            self.criar_card_resumo(
+                "cardSaldoRelatorio" if dados["resultado_previsto"] >= 0 else "cardPendenteRelatorio",
+                "📈" if dados["resultado_previsto"] >= 0 else "📉",
+                "Saldo previsto", self.formatar_moeda(dados["resultado_previsto"]),
+                "Considera as contas pendentes deste mês",
+            ),
+        ]
+        for indice, cartao in enumerate(itens_cartoes):
+            cards.addWidget(cartao, indice // colunas_cartoes, indice % colunas_cartoes)
         layout.addLayout(cards)
 
-        panorama = QFrame()
-        panorama.setObjectName("cardBase")
-        panorama_layout = QVBoxLayout(panorama)
-        panorama_layout.setContentsMargins(18, 14, 18, 16)
-        panorama_layout.setSpacing(10)
+        alerta = self.criar_alertas(dados)
+        if alerta is not None:
+            layout.addWidget(alerta)
 
-        linha_panorama = QHBoxLayout()
-        titulo_panorama = QLabel("Panorama do mês")
-        titulo_panorama.setObjectName("secaoRelatorio")
-        resumo_panorama = QLabel(
-            f"Compromissos: {self.formatar_moeda(dados['total_pago'] + dados['total_pendente'])}  •  "
-            f"Parcelamentos futuros: {self.formatar_moeda(dados['total_parcelamentos'])}"
+        layout.addWidget(self.criar_grafico_historico_categorias())
+        layout.addWidget(self.criar_resumo_comparacao(dados, dados_anterior))
+        layout.addWidget(self.criar_planejamento_compacto(dados))
+
+        rodape = QLabel(
+            "Clique nas barras para abrir os lançamentos. Valores previstos a receber não entram no saldo realizado."
         )
-        resumo_panorama.setObjectName("textoSuave")
-        resumo_panorama.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
-        linha_panorama.addWidget(titulo_panorama)
-        linha_panorama.addStretch()
-        linha_panorama.addWidget(resumo_panorama)
-        panorama_layout.addLayout(linha_panorama)
-
-        total_compromisso = dados["total_pago"] + dados["total_pendente"]
-        percentual_pago = 0 if total_compromisso <= 0 else (dados["total_pago"] / total_compromisso) * 100
-        percentual_pendente = 0 if total_compromisso <= 0 else (dados["total_pendente"] / total_compromisso) * 100
-
-        panorama_layout.addWidget(self.criar_barra(percentual_pago, "barraVerde"))
-        andamento = QLabel(
-            f"{int(percentual_pago)}% dos compromissos já pagos  •  "
-            f"{int(percentual_pendente)}% ainda pendentes"
-        )
-        andamento.setObjectName("textoSuave")
-        panorama_layout.addWidget(andamento)
-
-        ajustes = QHBoxLayout()
-        ajustes.setSpacing(12)
-        ajustes.addWidget(self.criar_linha_resumo(
-            "Juros e multas", self.formatar_moeda(dados["total_acrescimos"]),
-            "Acréscimos pagos no mês", "valorLaranja"
-        ), 1)
-        ajustes.addWidget(self.criar_linha_resumo(
-            "Descontos obtidos", self.formatar_moeda(dados["total_descontos"]),
-            "Economia registrada nos pagamentos", "valorVerde"
-        ), 1)
-        panorama_layout.addLayout(ajustes)
-        layout.addWidget(panorama)
-
-        listas = QGridLayout()
-        listas.setSpacing(12)
-
-        listas.addWidget(self.criar_secao_lista(
-            "Últimas receitas", sorted(dados["receitas"], key=lambda item: item["data"], reverse=True), "valorVerde", 4
-        ), 0, 0)
-        listas.addWidget(self.criar_secao_lista(
-            "Contas pagas", sorted(dados["pagamentos"], key=lambda item: item["data"], reverse=True), "valorAzul", 4
-        ), 0, 1)
-        listas.addWidget(self.criar_secao_lista(
-            "Gastos realizados", sorted(dados["gastos"], key=lambda item: item["data"], reverse=True), "valorLaranja", 4
-        ), 1, 0)
-        listas.addWidget(self.criar_secao_lista(
-            "Próximas contas", dados["pendentes"], "valorVermelho", 4
-        ), 1, 1)
-        listas.addWidget(self.criar_secao_lista(
-            "Contas atrasadas", dados["atrasadas"], "valorVermelho", 4
-        ), 2, 0)
-        listas.addWidget(self.criar_secao_lista(
-            "Parcelamentos em aberto", dados["parcelamentos"], "valorAzul", 8
-        ), 2, 1)
-
-        itens_acrescimos = []
-        for item in dados["pagamentos"]:
-            if item.get("acrescimo", 0) <= 0:
-                continue
-            detalhe = dict(item)
-            detalhe["valor"] = item["acrescimo"]
-            detalhe["descricao"] = f"{item['descricao']} — acréscimo"
-            itens_acrescimos.append(detalhe)
-        listas.addWidget(self.criar_secao_lista(
-            "Juros e multas pagos", itens_acrescimos, "valorLaranja", 6
-        ), 3, 0, 1, 2)
-
-        layout.addLayout(listas)
-
-        rodape = QLabel("Use as setas para navegar entre os meses. O relatório considera os lançamentos do período selecionado.")
         rodape.setObjectName("textoSuave")
         layout.addWidget(rodape)
+        layout.addStretch()
 
         area.setWidget(conteudo)
         area.verticalScrollBar().setValue(0)
         principal.addWidget(area, 1)
+
+    def resizeEvent(self, evento):
+        super().resizeEvent(evento)
+        colunas = self.quantidade_colunas_cartoes()
+        if self._colunas_cartoes is not None and colunas != self._colunas_cartoes:
+            QTimer.singleShot(0, self.montar_tela)
 
     def mes_anterior(self):
         ano = self.mes_referencia.year

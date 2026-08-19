@@ -44,8 +44,10 @@ desktop.ini
 *.tmp
 *.bak
 ~$*
+.qa-*/
 
 # Installer output
 instalador/
 Output/
 *.iss.bak
+beta-*/

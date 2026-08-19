@@ -1,15 +1,17 @@
-# LFinance 1.0.7
+# LFinance 2.1.5
 
 Sistema financeiro pessoal para Windows.
 
 ## Situação do projeto
 
-Versão de manutenção focada em estabilidade e segurança dos dados:
+Versão 2.0 em desenvolvimento, baseada na versão estável 1.0.7:
 
-- correções encontradas nos testes reais;
-- preservação do histórico de pagamentos;
-- backup e restauração validados;
-- geração do EXE e do instalador profissional.
+- nova tela Valores a receber, sem alterar a Tela inicial;
+- controle por pessoa ou empresa, previsão, categoria e situação;
+- recebimentos totais, parciais ou acima do previsto, vinculados automaticamente a Receitas;
+- recorrência quinzenal ou mensal, com histórico preservado;
+- compatibilidade com backups da versão 1.0.7;
+- testes executados somente em perfil temporário.
 
 ## Banco de dados
 

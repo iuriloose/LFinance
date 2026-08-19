@@ -17,10 +17,12 @@ class MenuLateral(QFrame):
             "tela_inicial": "Tela inicial\n\nResumo do mês, saldo, receitas, valores pagos, contas a pagar e próximos vencimentos.",
             "pesquisar": "Pesquisar\n\nEncontre contas, gastos do dia e receitas em uma tela própria.",
             "receitas": "Receitas\n\nCadastre e acompanhe todo dinheiro que entrou, como salário, vendas ou outros recebimentos.",
+            "a_receber": "A receber\n\nAcompanhe salários, comissões e valores previstos sem alterar o saldo atual.",
             "gastos": "Gastos do dia\n\nUse para saídas pagas na hora, como mercado, combustível, farmácia, lanche ou compras à vista.",
             "despesas": "Contas a pagar\n\nUse para boletos, mensalidades e compromissos que podem ficar pendentes até o pagamento.",
             "contas_fixas": "Contas fixas\n\nControle contas recorrentes que se repetem todo mês, como internet, aluguel, energia ou mensalidades.",
             "parcelamentos": "Parcelamentos\n\nControle compras divididas em parcelas e acompanhe automaticamente o andamento de cada parcela.",
+            "relatorios": "Relatórios\n\nAcompanhe o resumo mensal: entradas reais, contas pagas, pendências e valores previstos a receber.",
             "configuracoes": "Configurações\n\nFerramentas do sistema, backup, restauração e limpeza segura dos dados.",
         }
 
@@ -36,10 +38,12 @@ class MenuLateral(QFrame):
         self.adicionar_botao(layout, "tela_inicial", "menu_home.png", "Tela inicial")
         self.adicionar_botao(layout, "pesquisar", "menu_pesquisar.png", "🔎  Pesquisar")
         self.adicionar_botao(layout, "receitas", "menu_receitas.png", "Receitas")
+        self.adicionar_botao(layout, "a_receber", "menu_receitas.png", "A receber")
         self.adicionar_botao(layout, "gastos", "menu_gastos.png", "Gastos do dia")
         self.adicionar_botao(layout, "despesas", "menu_despesas.png", "Contas a pagar")
         self.adicionar_botao(layout, "contas_fixas", "menu_contas.png", "Contas fixas")
         self.adicionar_botao(layout, "parcelamentos", "menu_parcelamentos.png", "Parcelamentos")
+        self.adicionar_botao(layout, "relatorios", "menu_relatorios.png", "Relatórios")
 
         layout.addStretch()
 

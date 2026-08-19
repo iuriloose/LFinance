@@ -5,10 +5,12 @@ from PySide6.QtGui import QColor
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QComboBox,
     QTableWidget, QTableWidgetItem, QHeaderView, QPushButton, QFrame,
-    QSizePolicy,
+    QSizePolicy, QMessageBox,
 )
 
 from banco.banco import listar_despesas, listar_receitas, listar_gastos
+from banco.valores_receber import listar_ids_receitas_vinculadas, listar_valores_receber
+from telas.detalhes_valor_receber import DetalhesValorReceber
 from telas.nova_despesa import NovaDespesa
 from telas.nova_receita import NovaReceita
 from telas.novo_gasto import NovoGasto
@@ -30,7 +32,7 @@ class TelaPesquisa(QWidget):
         titulo = QLabel("🔎 Pesquisar")
         titulo.setObjectName("titulo")
 
-        subtitulo = QLabel("Encontre contas, gastos do dia e receitas em um só lugar")
+        subtitulo = QLabel("Encontre contas, gastos, receitas e valores a receber")
         subtitulo.setObjectName("subtitulo")
 
         layout.addWidget(titulo)
@@ -86,6 +88,7 @@ class TelaPesquisa(QWidget):
         self.filtro_tipo.addItem("Contas a pagar", "conta")
         self.filtro_tipo.addItem("Gastos do dia", "gasto")
         self.filtro_tipo.addItem("Receitas", "receita")
+        self.filtro_tipo.addItem("Valores a receber", "a_receber")
         self.filtro_tipo.currentIndexChanged.connect(self.filtrar)
 
         busca_layout.addWidget(self.campo_busca, 1)
@@ -226,8 +229,9 @@ class TelaPesquisa(QWidget):
                 "registro": gasto,
             })
 
+        receitas_vinculadas = listar_ids_receitas_vinculadas()
         for receita in listar_receitas():
-            _, descricao, valor, data_recebimento, categoria, observacao = receita
+            id_receita, descricao, valor, data_recebimento, categoria, observacao = receita
             registros.append({
                 "grupo": "receita",
                 "data_banco": data_recebimento or "",
@@ -238,7 +242,29 @@ class TelaPesquisa(QWidget):
                 "situacao": "Recebida",
                 "valor": float(valor or 0),
                 "observacao": observacao or "",
+                "vinculada": id_receita in receitas_vinculadas,
                 "registro": receita,
+            })
+
+        for valor_receber in listar_valores_receber("todos"):
+            situacao = {
+                "em_aberto": "Em aberto",
+                "parcial": "Parcial",
+                "atrasado": "Atrasado",
+                "recebido": "Recebido",
+                "cancelado": "Cancelado",
+            }[valor_receber[11]]
+            registros.append({
+                "grupo": "a_receber",
+                "data_banco": valor_receber[4] or "",
+                "data": self.formatar_data(valor_receber[4]),
+                "descricao": f"{valor_receber[2]} — {valor_receber[1]}",
+                "categoria": valor_receber[5] or "",
+                "tipo": "A receber",
+                "situacao": situacao,
+                "valor": float(valor_receber[10] or 0),
+                "observacao": valor_receber[8] or "",
+                "registro": valor_receber,
             })
 
         self.registros = sorted(registros, key=lambda item: item["data_banco"], reverse=True)
@@ -275,6 +301,10 @@ class TelaPesquisa(QWidget):
             "Pago": "#22c55e",
             "Recebida": "#22c55e",
             "Em aberto": "#f59e0b",
+            "Parcial": "#f59e0b",
+            "Atrasado": "#ef4444",
+            "Recebido": "#22c55e",
+            "Cancelado": "#94a3b8",
         }
 
         for linha, item in enumerate(resultados):
@@ -326,6 +356,16 @@ class TelaPesquisa(QWidget):
             janela = NovaDespesa(item["registro"])
         elif item["grupo"] == "gasto":
             janela = NovoGasto(item["registro"])
+        elif item["grupo"] == "a_receber":
+            janela = DetalhesValorReceber(item["registro"][0], self)
+        elif item["grupo"] == "receita" and item.get("vinculada"):
+            QMessageBox.information(
+                self,
+                "Receita vinculada",
+                "Esta entrada foi criada por Valores a receber.\n\n"
+                "Use a tela A receber para consultar ou desfazer o recebimento.",
+            )
+            return
         else:
             janela = NovaReceita(item["registro"])
 
