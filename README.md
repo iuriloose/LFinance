@@ -2,6 +2,12 @@
 
 Sistema financeiro pessoal para Windows.
 
+![Tela inicial do LFinance](docs/lfinance-tela-inicial.png)
+
+## Conheça o LFinance
+
+Uma visão simples das receitas, contas a pagar, gastos, parcelamentos e valores a receber, com os próximos vencimentos sempre em destaque.
+
 ## Situação do projeto
 
 Versão 2.0 em desenvolvimento, baseada na versão estável 1.0.7:
