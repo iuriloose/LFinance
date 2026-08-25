@@ -5,6 +5,7 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import QDate
 
 from banco.banco import inserir_gasto, atualizar_gasto
+from componentes.categorias import configurar_combo_categoria, salvar_categoria_do_combo
 from servicos.valores import converter_texto_moeda
 
 
@@ -119,7 +120,7 @@ class NovoGasto(QDialog):
         self.data_gasto.setText(QDate.currentDate().toString("dd/MM/yyyy"))
 
         self.categoria = QComboBox()
-        self.categoria.addItems(["Mercado", "Gasolina", "Farmácia", "Casa", "Comida", "Carro", "PIX", "Outros"])
+        configurar_combo_categoria(self.categoria)
 
         self.observacao = QLineEdit()
         self.observacao.setPlaceholderText("Observação opcional")
@@ -185,16 +186,14 @@ class NovoGasto(QDialog):
         if data.isValid():
             self.data_gasto.setText(data.toString("dd/MM/yyyy"))
 
-        indice = self.categoria.findText(categoria or "")
-        if indice >= 0:
-            self.categoria.setCurrentIndex(indice)
+        configurar_combo_categoria(self.categoria, categoria)
 
         self.observacao.setText(observacao or "")
 
     def salvar_gasto(self):
         descricao = self.descricao.text().strip()
         data_texto = self.data_gasto.text().strip()
-        categoria = self.categoria.currentText()
+        categoria = self.categoria.currentText().strip()
         observacao = self.observacao.text().strip()
 
         if not descricao:
@@ -216,6 +215,13 @@ class NovoGasto(QDialog):
             return
 
         data_banco = data.toString("yyyy-MM-dd")
+
+        try:
+            categoria = salvar_categoria_do_combo(self.categoria)
+        except ValueError as erro:
+            QMessageBox.warning(self, "Atenção", str(erro))
+            self.categoria.setFocus()
+            return
 
         if self.modo_edicao:
             atualizar_gasto(self.gasto[0], descricao, valor, data_banco, categoria, observacao)

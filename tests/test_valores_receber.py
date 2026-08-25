@@ -50,7 +50,7 @@ class TesteValoresReceberIsolado(unittest.TestCase):
     def test_esquema_2_0_e_integridade(self):
         with closing(sqlite3.connect(CAMINHO_BANCO)) as conexao:
             self.assertEqual(conexao.execute("PRAGMA quick_check").fetchone()[0], "ok")
-            self.assertEqual(conexao.execute("PRAGMA user_version").fetchone()[0], 5)
+            self.assertEqual(conexao.execute("PRAGMA user_version").fetchone()[0], 6)
             tabelas = {
                 linha[0]
                 for linha in conexao.execute(
@@ -179,7 +179,7 @@ class TesteValoresReceberIsolado(unittest.TestCase):
         banco.criar_tabelas()
 
         with closing(sqlite3.connect(CAMINHO_BANCO)) as conexao:
-            self.assertEqual(conexao.execute("PRAGMA user_version").fetchone()[0], 5)
+            self.assertEqual(conexao.execute("PRAGMA user_version").fetchone()[0], 6)
             tabelas = {
                 linha[0]
                 for linha in conexao.execute(

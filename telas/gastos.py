@@ -1,10 +1,12 @@
+from datetime import date
+
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel,
     QPushButton, QFrame, QScrollArea, QDialog
 )
 from PySide6.QtCore import Qt
 
-from banco.banco import listar_gastos, excluir_gasto
+from banco.banco import listar_gastos_por_periodo, excluir_gasto
 from componentes.tabela_registros import TabelaRegistros, criar_botao_acao
 from telas.novo_gasto import NovoGasto
 
@@ -117,6 +119,7 @@ class TelaGastos(QWidget):
         super().__init__()
 
         self.ao_alterar = ao_alterar
+        self.mes_referencia = date.today().replace(day=1)
 
         self.layout_principal = QVBoxLayout(self)
         self.layout_principal.setContentsMargins(36, 30, 36, 24)
@@ -192,6 +195,56 @@ class TelaGastos(QWidget):
                 border: 1px solid #ef4444;
             }
 
+            QPushButton#btnMesGastos {
+                min-width: 42px;
+                min-height: 34px;
+                color: #ffffff;
+                background-color: #1e293b;
+                border: 1px solid #475569;
+                border-radius: 8px;
+                font-size: 18px;
+                font-weight: bold;
+            }
+
+            QPushButton#btnMesGastos:hover {
+                background-color: #273449;
+                border-color: #60a5fa;
+            }
+
+            QPushButton#btnMesAtualGastos {
+                min-height: 34px;
+                color: #ffffff;
+                background-color: #13223a;
+                border: 1px solid #3b82f6;
+                border-radius: 8px;
+                padding: 0 14px;
+                font-size: 12px;
+                font-weight: bold;
+            }
+
+            QPushButton#btnMesAtualGastos:hover {
+                background-color: #1e3a5f;
+                border-color: #60a5fa;
+            }
+
+            QLabel#periodoGastos {
+                min-width: 170px;
+                min-height: 34px;
+                color: #ffffff;
+                background-color: #1e293b;
+                border: 1px solid #475569;
+                border-radius: 8px;
+                padding: 0 12px;
+                font-size: 13px;
+                font-weight: 800;
+            }
+
+            QLabel#tituloPeriodoGastos {
+                color: #cbd5e1;
+                font-size: 13px;
+                font-weight: 700;
+            }
+
             QScrollArea#areaGastos {
                 border: none;
                 background-color: transparent;
@@ -252,6 +305,38 @@ class TelaGastos(QWidget):
 
     def formatar_moeda(self, valor):
         return f"R$ {float(valor):,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+
+    def nome_mes_referencia(self):
+        meses = (
+            "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
+            "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro",
+        )
+        return f"{meses[self.mes_referencia.month - 1]} de {self.mes_referencia.year}"
+
+    def periodo_mes_referencia(self):
+        inicio = self.mes_referencia
+        if inicio.month == 12:
+            proximo_mes = date(inicio.year + 1, 1, 1)
+        else:
+            proximo_mes = date(inicio.year, inicio.month + 1, 1)
+        fim = proximo_mes.fromordinal(proximo_mes.toordinal() - 1)
+        return inicio.isoformat(), fim.isoformat()
+
+    def mudar_mes(self, deslocamento):
+        ano = self.mes_referencia.year
+        mes = self.mes_referencia.month + deslocamento
+        if mes < 1:
+            ano -= 1
+            mes = 12
+        elif mes > 12:
+            ano += 1
+            mes = 1
+        self.mes_referencia = date(ano, mes, 1)
+        self.montar_tela()
+
+    def ir_para_mes_atual(self):
+        self.mes_referencia = date.today().replace(day=1)
+        self.montar_tela()
 
     def criar_card_gasto(self, gasto):
         id_gasto, descricao, valor, data_gasto, categoria, observacao = gasto
@@ -339,7 +424,8 @@ class TelaGastos(QWidget):
 
         self.layout_principal.addLayout(topo)
 
-        gastos = listar_gastos()
+        inicio, fim = self.periodo_mes_referencia()
+        gastos = listar_gastos_por_periodo(inicio, fim)
 
         painel = QFrame()
         painel.setObjectName("card")
@@ -347,12 +433,45 @@ class TelaGastos(QWidget):
         painel_layout.setContentsMargins(18, 16, 18, 16)
         painel_layout.setSpacing(12)
 
-        resumo = QLabel(f"{len(gastos)} gasto(s) cadastrado(s)")
+        periodo = QHBoxLayout()
+        periodo.setSpacing(10)
+
+        titulo_periodo = QLabel("Lançamentos do mês")
+        titulo_periodo.setObjectName("tituloPeriodoGastos")
+
+        btn_anterior = QPushButton("‹")
+        btn_anterior.setObjectName("btnMesGastos")
+        btn_anterior.setToolTip("Ver gastos do mês anterior")
+        btn_anterior.clicked.connect(lambda: self.mudar_mes(-1))
+
+        label_mes = QLabel(self.nome_mes_referencia())
+        label_mes.setObjectName("periodoGastos")
+        label_mes.setAlignment(Qt.AlignCenter)
+
+        btn_proximo = QPushButton("›")
+        btn_proximo.setObjectName("btnMesGastos")
+        btn_proximo.setToolTip("Ver gastos do próximo mês")
+        btn_proximo.clicked.connect(lambda: self.mudar_mes(1))
+
+        btn_mes_atual = QPushButton("Mês atual")
+        btn_mes_atual.setObjectName("btnMesAtualGastos")
+        btn_mes_atual.setToolTip("Voltar para o mês atual")
+        btn_mes_atual.clicked.connect(self.ir_para_mes_atual)
+
+        periodo.addWidget(titulo_periodo)
+        periodo.addStretch()
+        periodo.addWidget(btn_anterior)
+        periodo.addWidget(label_mes)
+        periodo.addWidget(btn_proximo)
+        periodo.addWidget(btn_mes_atual)
+        painel_layout.addLayout(periodo)
+
+        resumo = QLabel(f"{len(gastos)} gasto(s) em {self.nome_mes_referencia()}")
         resumo.setObjectName("cardInfo")
         painel_layout.addWidget(resumo)
 
         total_gastos = sum(float(g[2] or 0) for g in gastos)
-        total = QLabel(f"Total dos gastos: {self.formatar_moeda(total_gastos)}")
+        total = QLabel(f"Total dos gastos no mês: {self.formatar_moeda(total_gastos)}")
         total.setObjectName("cardInfo")
         painel_layout.addWidget(total)
 
@@ -362,7 +481,7 @@ class TelaGastos(QWidget):
             coluna_flexivel=1,
         )
         if not gastos:
-            tabela.mostrar_vazio("Nenhum gasto cadastrado.")
+            tabela.mostrar_vazio(f"Nenhum gasto em {self.nome_mes_referencia()}.")
         else:
             for gasto in gastos:
                 id_gasto, descricao, valor, data_gasto, categoria, observacao = gasto

@@ -3,6 +3,7 @@ import json
 import os
 import sqlite3
 import tempfile
+from datetime import date
 import unittest
 from contextlib import closing
 from pathlib import Path
@@ -62,7 +63,14 @@ class TesteLFinanceIsolado(unittest.TestCase):
         self.assertEqual(CAMINHO_BANCO.parent, Path(PERFIL_TEMPORARIO.name) / "LFinance")
         with closing(sqlite3.connect(CAMINHO_BANCO)) as conexao:
             self.assertEqual(conexao.execute("PRAGMA quick_check").fetchone()[0], "ok")
-            self.assertEqual(conexao.execute("PRAGMA user_version").fetchone()[0], 5)
+            self.assertEqual(conexao.execute("PRAGMA user_version").fetchone()[0], 6)
+            tabelas = {
+                linha[0]
+                for linha in conexao.execute(
+                    "SELECT name FROM sqlite_master WHERE type = 'table'"
+                )
+            }
+            self.assertIn("categorias_personalizadas", tabelas)
 
         self.assertEqual(converter_texto_moeda("1.234,56"), 1234.56)
         self.assertEqual(converter_texto_moeda("1234.56"), 1234.56)
@@ -70,6 +78,25 @@ class TesteLFinanceIsolado(unittest.TestCase):
             with self.subTest(valor=invalido):
                 with self.assertRaises(ValueError):
                     converter_texto_moeda(invalido)
+
+    def test_gastos_por_mes_e_categorias_personalizadas(self):
+        banco.inserir_gasto("Gasto de julho", 12.5, "2026-07-16", "Outros")
+        banco.inserir_gasto("Gasto de agosto", 25.0, "2026-08-20", "Bebidas")
+
+        gastos_agosto = banco.listar_gastos_por_periodo("2026-08-01", "2026-08-31")
+        self.assertEqual(len(gastos_agosto), 1)
+        self.assertEqual(gastos_agosto[0][1], "Gasto de agosto")
+
+        banco.registrar_categoria_personalizada("Cerveja artesanal")
+        self.assertEqual(banco.registrar_categoria_personalizada("cerveja artesanal"), "Cerveja artesanal")
+        categorias = banco.listar_categorias()
+        self.assertIn("Cerveja artesanal", categorias)
+        self.assertEqual(
+            sum(categoria.casefold() == "cerveja artesanal" for categoria in categorias),
+            1,
+        )
+        with self.assertRaises(ValueError):
+            banco.registrar_categoria_personalizada("   ")
 
     def test_inicializacao_repetida_nao_regrava_banco_pronto(self):
         conteudo_antes = CAMINHO_BANCO.read_bytes()
@@ -248,8 +275,9 @@ class TesteLFinanceIsolado(unittest.TestCase):
         banco.inserir_receita(
             "Receita visual de teste", 100, "2026-07-21", "Teste", "Observa??o visual"
         )
+        data_atual = date.today().isoformat()
         banco.inserir_gasto(
-            "Gasto visual de teste", 20, "2026-07-21", "Teste", "Observa??o visual"
+            "Gasto visual de teste", 20, data_atual, "Teste", "Observação visual"
         )
         banco.inserir_despesa(
             "Conta visual de teste", 30, "2026-07-25", "Teste", "Despesa ?nica"

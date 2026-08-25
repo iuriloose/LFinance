@@ -5,6 +5,7 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import QDate
 
 from banco.banco import inserir_despesa, atualizar_despesa, pagar_despesa, excluir_despesa_com_historico, excluir_despesa
+from componentes.categorias import configurar_combo_categoria, salvar_categoria_do_combo
 from servicos.valores import converter_texto_moeda
 from telas.pagamento import abrir_pagamento
 
@@ -184,7 +185,7 @@ class NovaDespesa(QDialog):
         self.vencimento.setText(QDate.currentDate().toString("dd/MM/yyyy"))
 
         self.categoria = QComboBox()
-        self.categoria.addItems(["Casa", "Mercado", "Internet", "Luz", "Água", "Carro", "Outros"])
+        configurar_combo_categoria(self.categoria)
 
         self.tipo = QComboBox()
         self.tipo.addItems(["Despesa única", "Conta fixa", "Parcelamento"])
@@ -343,7 +344,7 @@ class NovaDespesa(QDialog):
         data = QDate.fromString(vencimento, "yyyy-MM-dd")
         self.vencimento.setText(data.toString("dd/MM/yyyy"))
 
-        self.categoria.setCurrentText(categoria)
+        configurar_combo_categoria(self.categoria, categoria)
         self.tipo.setCurrentText(tipo)
 
         if parcela_atual:
@@ -494,7 +495,7 @@ class NovaDespesa(QDialog):
     def salvar_despesa(self):
         descricao = self.descricao.text().strip()
         data_texto = self.vencimento.text().strip()
-        categoria = self.categoria.currentText()
+        categoria = self.categoria.currentText().strip()
         tipo = self.tipo.currentText()
 
         parcela_atual = None
@@ -536,6 +537,13 @@ class NovaDespesa(QDialog):
             valor_total = valor * total_parcelas
 
         vencimento = data.toString("yyyy-MM-dd")
+
+        try:
+            categoria = salvar_categoria_do_combo(self.categoria)
+        except ValueError as erro:
+            QMessageBox.warning(self, "Atenção", str(erro))
+            self.categoria.setFocus()
+            return
 
         if self.modo_edicao:
             id_despesa = self.despesa[0]

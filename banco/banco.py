@@ -5,6 +5,13 @@ from dateutil.relativedelta import relativedelta
 from servicos.configuracoes_app import CAMINHO_BANCO, migrar_banco_antigo_se_necessario
 
 
+CATEGORIAS_PADRAO = (
+    "Casa", "Mercado", "Comida", "Lanche", "Pizza", "Hambúrguer",
+    "Bebidas", "Gasolina", "Farmácia", "Carro", "Transporte",
+    "Internet", "Luz", "Água", "Assinaturas", "Lazer", "PIX", "Outros",
+)
+
+
 def conectar():
     CAMINHO_BANCO.parent.mkdir(parents=True, exist_ok=True)
     conexao = sqlite3.connect(CAMINHO_BANCO, timeout=15)
@@ -12,10 +19,22 @@ def conectar():
     return conexao
 
 
+def _criar_tabela_categorias(cursor):
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS categorias_personalizadas (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            nome TEXT NOT NULL COLLATE NOCASE UNIQUE,
+            data_criacao TEXT DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+
+
 def criar_tabelas():
     migrar_banco_antigo_se_necessario()
     conexao = conectar()
     cursor = conexao.cursor()
+
+    _criar_tabela_categorias(cursor)
 
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS despesas (
@@ -131,8 +150,8 @@ def criar_tabelas():
         """)
 
     versao_esquema = cursor.execute("PRAGMA user_version").fetchone()[0]
-    if versao_esquema != 5:
-        cursor.execute("PRAGMA user_version = 5")
+    if versao_esquema != 6:
+        cursor.execute("PRAGMA user_version = 6")
 
     conexao.commit()
     conexao.close()
@@ -530,6 +549,74 @@ def listar_gastos():
     conexao.close()
     return gastos
 
+
+def listar_gastos_por_periodo(inicio, fim):
+    conexao = conectar()
+    cursor = conexao.cursor()
+
+    cursor.execute("""
+        SELECT id, descricao, valor, data_gasto, categoria, observacao
+        FROM gastos
+        WHERE data_gasto BETWEEN ? AND ?
+        ORDER BY data_gasto DESC, id DESC
+    """, (inicio, fim))
+
+    gastos = cursor.fetchall()
+    conexao.close()
+    return gastos
+
+
+def _normalizar_categoria(nome):
+    nome = " ".join(str(nome or "").split())
+    if not nome:
+        raise ValueError("Informe uma categoria.")
+    if len(nome) > 60:
+        raise ValueError("A categoria pode ter no máximo 60 caracteres.")
+    return nome
+
+
+def registrar_categoria_personalizada(nome):
+    nome = _normalizar_categoria(nome)
+    for categoria_padrao in CATEGORIAS_PADRAO:
+        if nome.casefold() == categoria_padrao.casefold():
+            return categoria_padrao
+
+    conexao = conectar()
+    cursor = conexao.cursor()
+    _criar_tabela_categorias(cursor)
+    cursor.execute(
+        "INSERT OR IGNORE INTO categorias_personalizadas (nome) VALUES (?)",
+        (nome,),
+    )
+    nome_salvo = cursor.execute(
+        "SELECT nome FROM categorias_personalizadas WHERE nome = ? COLLATE NOCASE",
+        (nome,),
+    ).fetchone()[0]
+    conexao.commit()
+    conexao.close()
+    return nome_salvo
+
+
+def listar_categorias():
+    conexao = conectar()
+    cursor = conexao.cursor()
+    _criar_tabela_categorias(cursor)
+    personalizadas = [
+        linha[0]
+        for linha in cursor.execute(
+            "SELECT nome FROM categorias_personalizadas ORDER BY nome COLLATE NOCASE"
+        )
+    ]
+    conexao.commit()
+    conexao.close()
+
+    categorias = list(CATEGORIAS_PADRAO)
+    existentes = {categoria.casefold() for categoria in categorias}
+    for categoria in personalizadas:
+        if categoria.casefold() not in existentes:
+            categorias.append(categoria)
+            existentes.add(categoria.casefold())
+    return categorias
 
 def buscar_gasto_por_id(id_gasto):
     conexao = conectar()

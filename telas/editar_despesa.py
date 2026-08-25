@@ -5,6 +5,7 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import QDate
 
 from banco.banco import atualizar_despesa
+from componentes.categorias import configurar_combo_categoria, salvar_categoria_do_combo
 from servicos.valores import converter_texto_moeda
 
 
@@ -33,8 +34,7 @@ class EditarDespesa(QDialog):
         self.vencimento.setDate(QDate.fromString(vencimento, "yyyy-MM-dd"))
 
         self.categoria = QComboBox()
-        self.categoria.addItems(["Casa", "Mercado", "Internet", "Luz", "Água", "Carro", "Outros"])
-        self.categoria.setCurrentText(categoria)
+        configurar_combo_categoria(self.categoria, categoria)
 
         self.tipo = QComboBox()
         self.tipo.addItems(["Despesa única", "Conta fixa", "Parcelamento"])
@@ -77,12 +77,19 @@ class EditarDespesa(QDialog):
             QMessageBox.warning(self, "Atenção", "Digite um valor maior que zero.")
             return
 
+        try:
+            categoria = salvar_categoria_do_combo(self.categoria)
+        except ValueError as erro:
+            QMessageBox.warning(self, "Atenção", str(erro))
+            self.categoria.setFocus()
+            return
+
         atualizar_despesa(
             self.id_despesa,
             descricao,
             valor,
             self.vencimento.date().toString("yyyy-MM-dd"),
-            self.categoria.currentText(),
+            categoria,
             self.tipo.currentText(),
         )
 
