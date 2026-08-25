@@ -27,7 +27,12 @@ def _criar_tabela_categorias(cursor):
             data_criacao TEXT DEFAULT CURRENT_TIMESTAMP
         )
     """)
-
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS categorias_ocultas (
+            nome TEXT PRIMARY KEY COLLATE NOCASE,
+            data_ocultacao TEXT DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
 
 def criar_tabelas():
     migrar_banco_antigo_se_necessario()
@@ -575,15 +580,31 @@ def _normalizar_categoria(nome):
     return nome
 
 
+def _listar_nomes_categorias_ocultas(cursor):
+    return {
+        linha[0].casefold()
+        for linha in cursor.execute(
+            "SELECT nome FROM categorias_ocultas ORDER BY nome COLLATE NOCASE"
+        )
+    }
+
+
 def registrar_categoria_personalizada(nome):
     nome = _normalizar_categoria(nome)
-    for categoria_padrao in CATEGORIAS_PADRAO:
-        if nome.casefold() == categoria_padrao.casefold():
-            return categoria_padrao
-
     conexao = conectar()
     cursor = conexao.cursor()
     _criar_tabela_categorias(cursor)
+
+    categoria_padrao = next(
+        (categoria for categoria in CATEGORIAS_PADRAO if nome.casefold() == categoria.casefold()),
+        None,
+    )
+    if categoria_padrao:
+        cursor.execute("DELETE FROM categorias_ocultas WHERE nome = ? COLLATE NOCASE", (categoria_padrao,))
+        conexao.commit()
+        conexao.close()
+        return categoria_padrao
+
     cursor.execute(
         "INSERT OR IGNORE INTO categorias_personalizadas (nome) VALUES (?)",
         (nome,),
@@ -592,15 +613,57 @@ def registrar_categoria_personalizada(nome):
         "SELECT nome FROM categorias_personalizadas WHERE nome = ? COLLATE NOCASE",
         (nome,),
     ).fetchone()[0]
+    cursor.execute("DELETE FROM categorias_ocultas WHERE nome = ? COLLATE NOCASE", (nome_salvo,))
     conexao.commit()
     conexao.close()
     return nome_salvo
+
+
+def listar_categorias_ocultas():
+    conexao = conectar()
+    cursor = conexao.cursor()
+    _criar_tabela_categorias(cursor)
+    categorias = [
+        linha[0]
+        for linha in cursor.execute(
+            "SELECT nome FROM categorias_ocultas ORDER BY nome COLLATE NOCASE"
+        )
+    ]
+    conexao.commit()
+    conexao.close()
+    return categorias
+
+
+def ocultar_categoria(nome):
+    """Remove uma categoria apenas da lista de sugestões, preservando registros."""
+    nome = _normalizar_categoria(nome)
+    conexao = conectar()
+    cursor = conexao.cursor()
+    _criar_tabela_categorias(cursor)
+    cursor.execute(
+        "INSERT OR IGNORE INTO categorias_ocultas (nome) VALUES (?)",
+        (nome,),
+    )
+    conexao.commit()
+    conexao.close()
+
+
+def restaurar_categoria(nome):
+    """Devolve uma categoria removida à lista de sugestões."""
+    nome = _normalizar_categoria(nome)
+    conexao = conectar()
+    cursor = conexao.cursor()
+    _criar_tabela_categorias(cursor)
+    cursor.execute("DELETE FROM categorias_ocultas WHERE nome = ? COLLATE NOCASE", (nome,))
+    conexao.commit()
+    conexao.close()
 
 
 def listar_categorias():
     conexao = conectar()
     cursor = conexao.cursor()
     _criar_tabela_categorias(cursor)
+    ocultas = _listar_nomes_categorias_ocultas(cursor)
     personalizadas = [
         linha[0]
         for linha in cursor.execute(
@@ -610,10 +673,13 @@ def listar_categorias():
     conexao.commit()
     conexao.close()
 
-    categorias = list(CATEGORIAS_PADRAO)
+    categorias = [
+        categoria for categoria in CATEGORIAS_PADRAO
+        if categoria.casefold() not in ocultas
+    ]
     existentes = {categoria.casefold() for categoria in categorias}
     for categoria in personalizadas:
-        if categoria.casefold() not in existentes:
+        if categoria.casefold() not in ocultas and categoria.casefold() not in existentes:
             categorias.append(categoria)
             existentes.add(categoria.casefold())
     return categorias

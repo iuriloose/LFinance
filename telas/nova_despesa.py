@@ -5,7 +5,7 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import QDate
 
 from banco.banco import inserir_despesa, atualizar_despesa, pagar_despesa, excluir_despesa_com_historico, excluir_despesa
-from componentes.categorias import configurar_combo_categoria, salvar_categoria_do_combo
+from componentes.categorias import adicionar_acoes_categoria, configurar_combo_categoria, salvar_categoria_do_combo
 from servicos.valores import converter_texto_moeda
 from telas.pagamento import abrir_pagamento
 
@@ -18,7 +18,7 @@ class NovaDespesa(QDialog):
         self.modo_edicao = despesa is not None
 
         self.setWindowTitle("Editar conta a pagar" if self.modo_edicao else "Adicionar conta a pagar")
-        self.setFixedSize(520, 460)
+        self.setFixedSize(520, 485)
 
         self.aplicar_estilo()
         self.montar_tela()
@@ -70,6 +70,20 @@ class NovaDespesa(QDialog):
                 width: 28px;
             }
 
+            QPushButton#btnListaCategorias, QPushButton#btnNovaCategoria, QPushButton#btnGerenciarCategorias {
+                min-height: 25px;
+                max-height: 25px;
+                padding: 0 4px;
+                font-size: 11px;
+                background-color: #202638;
+                color: #d7dcf0;
+                border: 1px solid #475569;
+            }
+
+            QPushButton#btnNovaCategoria {
+                border-color: #38bdf8;
+                color: #7dd3fc;
+            }
             QPushButton {
                 min-height: 34px;
                 border-radius: 9px;
@@ -222,6 +236,7 @@ class NovaDespesa(QDialog):
         linha_categoria_tipo = QHBoxLayout()
         linha_categoria_tipo.setSpacing(12)
         campo_categoria, _ = self.campo("Categoria", self.categoria)
+        adicionar_acoes_categoria(campo_categoria, self.categoria, self)
         campo_tipo, _ = self.campo("Tipo", self.tipo)
         linha_categoria_tipo.addLayout(campo_categoria)
         linha_categoria_tipo.addLayout(campo_tipo)

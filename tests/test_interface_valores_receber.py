@@ -114,6 +114,32 @@ class TesteInterfaceValoresReceberIsolada(unittest.TestCase):
             dialogo.deleteLater()
             app.processEvents()
 
+    def test_seletor_de_categoria_e_claro_nos_formularios_de_gasto(self):
+        from PySide6.QtWidgets import QApplication, QPushButton
+
+        from telas.nova_despesa import NovaDespesa
+        from telas.novo_gasto import NovoGasto
+
+        app = QApplication.instance() or QApplication([])
+        formulario_gasto = NovoGasto()
+        formulario_despesa = NovaDespesa()
+        try:
+            for formulario in (formulario_gasto, formulario_despesa):
+                self.assertFalse(formulario.categoria.isEditable())
+                self.assertEqual(formulario.categoria.currentIndex(), -1)
+                self.assertEqual(formulario.categoria.placeholderText(), "Selecione uma categoria")
+                for nome in (
+                    "btnListaCategorias",
+                    "btnNovaCategoria",
+                    "btnGerenciarCategorias",
+                ):
+                    self.assertIsNotNone(formulario.findChild(QPushButton, nome))
+        finally:
+            formulario_gasto.close()
+            formulario_despesa.close()
+            formulario_gasto.deleteLater()
+            formulario_despesa.deleteLater()
+            app.processEvents()
     def test_mes_futuro_projeta_quinzenas_sem_criar_lancamentos(self):
         from PySide6.QtWidgets import QApplication
 

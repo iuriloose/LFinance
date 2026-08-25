@@ -1,3 +1,9 @@
+# LFinance 2.1.8
+
+## 2.1.8
+
+- A escolha de categoria ficou mais clara ao cadastrar contas ou gastos: lista, criação e gerenciamento agora ficam visíveis.
+- Categorias personalizadas podem ser removidas apenas da lista de sugestões e restauradas depois, sem alterar lançamentos já salvos.
 # LFinance 2.1.7
 
 ## 2.1.7
