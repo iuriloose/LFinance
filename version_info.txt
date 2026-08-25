@@ -16,12 +16,12 @@ VSVersionInfo(
         '041604B0',
         [StringStruct('CompanyName', 'Iuri Loose'),
          StringStruct('FileDescription', 'Sistema de gerenciamento financeiro pessoal'),
-         StringStruct('FileVersion', '2.1.5'),
+         StringStruct('FileVersion', '2.1.6'),
          StringStruct('InternalName', 'LFinance'),
          StringStruct('LegalCopyright', '© 2026 Iuri Loose. Todos os direitos reservados.'),
          StringStruct('OriginalFilename', 'LFinance.exe'),
          StringStruct('ProductName', 'LFinance'),
-         StringStruct('ProductVersion', '2.1.5')])
+         StringStruct('ProductVersion', '2.1.6')])
     ]),
     VarFileInfo([VarStruct('Translation', [1046, 1200])])
   ]

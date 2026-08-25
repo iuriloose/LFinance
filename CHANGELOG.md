@@ -1,3 +1,10 @@
+# LFinance 2.1.6
+
+## 2.1.6
+
+- Gastos do dia agora mostram somente o mês selecionado, com navegação entre meses.
+- Categorias podem ser personalizadas diretamente ao cadastrar ou editar gastos e contas a pagar.
+- Categorias novas ficam disponíveis nos próximos lançamentos e aparecem nos relatórios após o pagamento.
 # LFinance 2.1.5
 
 ## 2.1.5
