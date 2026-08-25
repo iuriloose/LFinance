@@ -1,5 +1,5 @@
 #define MyAppName "LFinance"
-#define MyAppVersion "2.1.8"
+#define MyAppVersion "2.1.9"
 #define MyAppPublisher "Iuri Loose"
 #define MyAppExeName "LFinance.exe"
 
@@ -21,7 +21,7 @@ DefaultDirName={autopf}\{#MyAppName}
 DefaultGroupName={#MyAppName}
 DisableProgramGroupPage=yes
 OutputDir={#MyOutputDir}
-OutputBaseFilename=LFinance_Setup_v2.1.8
+OutputBaseFilename=LFinance_Setup_v2.1.9
 SetupIconFile=assets\logo.ico
 UninstallDisplayIcon={app}\{#MyAppExeName}
 VersionInfoVersion={#MyAppVersion}

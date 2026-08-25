@@ -354,6 +354,21 @@ class TelaRelatorios(QWidget):
                 max-width: 128px;
             }
 
+            QPushButton#btnDetalharJurosMultas {
+                background-color: rgba(127, 29, 29, 0.42);
+                color: #fecaca;
+                border: 1px solid #ef4444;
+                border-radius: 8px;
+                min-height: 30px;
+                padding: 0 12px;
+                font-size: 12px;
+                font-weight: 700;
+            }
+
+            QPushButton#btnDetalharJurosMultas:hover {
+                background-color: rgba(153, 27, 27, 0.65);
+                border-color: #f87171;
+            }
             QScrollArea#areaRelatorios {
                 border: none;
                 background-color: transparent;
@@ -739,7 +754,7 @@ class TelaRelatorios(QWidget):
     def mostrar_detalhes_ajustes(self, itens, titulo, campo, rotulo_campo):
         janela = QDialog(self)
         janela.setWindowTitle(titulo)
-        janela.resize(900, 470)
+        janela.resize(980, 540)
         janela.setModal(True)
         janela.setStyleSheet("""
             QDialog { background-color: #0f1726; }
@@ -775,10 +790,16 @@ class TelaRelatorios(QWidget):
         tabela.setEditTriggers(QTableWidget.NoEditTriggers)
         tabela.setSelectionBehavior(QTableWidget.SelectRows)
         tabela.setAlternatingRowColors(True)
-        tabela.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeToContents)
-        tabela.horizontalHeader().setSectionResizeMode(1, QHeaderView.Stretch)
-        tabela.horizontalHeader().setSectionResizeMode(5, QHeaderView.Stretch)
-
+        cabecalho = tabela.horizontalHeader()
+        cabecalho.setSectionResizeMode(0, QHeaderView.Fixed)
+        tabela.setColumnWidth(0, 78)
+        cabecalho.setSectionResizeMode(1, QHeaderView.Stretch)
+        for coluna in (2, 3, 4):
+            cabecalho.setSectionResizeMode(coluna, QHeaderView.Fixed)
+            tabela.setColumnWidth(coluna, 118)
+        cabecalho.setSectionResizeMode(5, QHeaderView.Interactive)
+        tabela.setColumnWidth(5, 190)
+        tabela.verticalHeader().setDefaultSectionSize(37)
         for linha, item in enumerate(sorted(itens, key=lambda i: i["data"], reverse=True)):
             valores = [
                 item.get("data_texto", ""),
@@ -913,7 +934,8 @@ class TelaRelatorios(QWidget):
         janela = QDialog(self)
         janela.setWindowTitle(titulo)
         janela.setModal(True)
-        janela.setMinimumWidth(760)
+        janela.setMinimumSize(820, 560)
+        janela.resize(1040, 650)
         janela.setSizeGripEnabled(True)
         janela.setStyleSheet("""
             QDialog { background-color: #0f1726; }
@@ -934,8 +956,8 @@ class TelaRelatorios(QWidget):
             QPushButton:hover { background-color: #334155; }
         """)
         layout = QVBoxLayout(janela)
-        layout.setContentsMargins(22, 20, 22, 20)
-        layout.setSpacing(12)
+        layout.setContentsMargins(20, 18, 20, 18)
+        layout.setSpacing(10)
 
         lbl_titulo = QLabel(titulo)
         lbl_titulo.setObjectName("tituloDetalhes")
@@ -945,24 +967,29 @@ class TelaRelatorios(QWidget):
             str(item.get("categoria") or "Sem categoria")
             for item in itens
         }, key=str.casefold)
-        linha_filtro = QHBoxLayout()
-        rotulo_filtro = QLabel("Mostrar categoria:")
-        rotulo_filtro.setObjectName("resumoDetalhes")
-        filtro_categoria = QComboBox(janela)
-        filtro_categoria.setObjectName("filtroCategoriaDetalhesRelatorio")
-        filtro_categoria.addItem("Todas as categorias", None)
-        for categoria in categorias:
-            filtro_categoria.addItem(categoria, categoria)
-        linha_filtro.addStretch()
-        linha_filtro.addWidget(rotulo_filtro)
-        linha_filtro.addWidget(filtro_categoria)
+        filtro_categoria = None
         if len(categorias) > 1:
+            linha_filtro = QHBoxLayout()
+            linha_filtro.setSpacing(8)
+            rotulo_filtro = QLabel("Filtrar lançamentos:")
+            rotulo_filtro.setObjectName("resumoDetalhes")
+            filtro_categoria = QComboBox(janela)
+            filtro_categoria.setObjectName("filtroCategoriaDetalhesRelatorio")
+            filtro_categoria.setMinimumWidth(220)
+            filtro_categoria.setMaximumWidth(270)
+            filtro_categoria.addItem("Todas as categorias", None)
+            for categoria in categorias:
+                filtro_categoria.addItem(categoria, categoria)
+            linha_filtro.addWidget(rotulo_filtro)
+            linha_filtro.addWidget(filtro_categoria)
+            linha_filtro.addStretch()
             layout.addLayout(linha_filtro)
 
         painel = QFrame()
         painel.setObjectName("resumoDetalhesPainel")
+        painel.setFixedHeight(52)
         painel_layout = QHBoxLayout(painel)
-        painel_layout.setContentsMargins(14, 10, 14, 10)
+        painel_layout.setContentsMargins(14, 7, 14, 7)
         painel_layout.setSpacing(12)
         quantidade = QLabel()
         quantidade.setObjectName("resumoDetalhes")
@@ -978,20 +1005,27 @@ class TelaRelatorios(QWidget):
         tabela.setObjectName("tabelaDetalhesRelatorio")
         tabela.setHorizontalHeaderLabels(["", "Data", "Descrição", "Categoria", "Tipo", "Valor"])
         tabela.verticalHeader().setVisible(False)
-        tabela.verticalHeader().setDefaultSectionSize(35)
+        tabela.verticalHeader().setDefaultSectionSize(37)
         tabela.setEditTriggers(QTableWidget.NoEditTriggers)
         tabela.setSelectionMode(QTableWidget.NoSelection)
         tabela.setFocusPolicy(Qt.NoFocus)
         tabela.setAlternatingRowColors(True)
-        tabela.horizontalHeader().setSectionResizeMode(0, QHeaderView.Fixed)
-        tabela.setColumnWidth(0, 38)
-        tabela.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeToContents)
-        tabela.horizontalHeader().setSectionResizeMode(2, QHeaderView.Stretch)
-        tabela.horizontalHeader().setSectionResizeMode(3, QHeaderView.ResizeToContents)
-        tabela.horizontalHeader().setSectionResizeMode(4, QHeaderView.ResizeToContents)
-        tabela.horizontalHeader().setSectionResizeMode(5, QHeaderView.ResizeToContents)
+        tabela.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        tabela.setMinimumHeight(330)
+        cabecalho = tabela.horizontalHeader()
+        cabecalho.setSectionResizeMode(0, QHeaderView.Fixed)
+        tabela.setColumnWidth(0, 42)
+        cabecalho.setSectionResizeMode(1, QHeaderView.Fixed)
+        tabela.setColumnWidth(1, 78)
+        cabecalho.setSectionResizeMode(2, QHeaderView.Stretch)
+        cabecalho.setSectionResizeMode(3, QHeaderView.Interactive)
+        tabela.setColumnWidth(3, 175)
+        cabecalho.setSectionResizeMode(4, QHeaderView.Interactive)
+        tabela.setColumnWidth(4, 135)
+        cabecalho.setSectionResizeMode(5, QHeaderView.Fixed)
+        tabela.setColumnWidth(5, 118)
         tabela.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
-        layout.addWidget(tabela)
+        layout.addWidget(tabela, 1)
 
         linha_selecao = QHBoxLayout()
         lbl_selecao = QLabel("Marque os lançamentos que deseja somar.")
@@ -1004,7 +1038,7 @@ class TelaRelatorios(QWidget):
         layout.addLayout(linha_selecao)
 
         def itens_filtrados():
-            categoria_selecionada = filtro_categoria.currentData()
+            categoria_selecionada = filtro_categoria.currentData() if filtro_categoria else None
             return [
                 item for item in itens
                 if not categoria_selecionada
@@ -1034,7 +1068,8 @@ class TelaRelatorios(QWidget):
                 reverse=True,
             )
             total = sum(float(item.get("valor", 0) or 0) for item in itens_visiveis)
-            quantidade.setText(f"{len(itens_visiveis)} lançamento(s) nesta categoria")
+            sufixo = "neste período" if filtro_categoria is None else "na categoria"
+            quantidade.setText(f"{len(itens_visiveis)} lançamento(s) {sufixo}")
             valor_total.setText(f"Total: {self.formatar_moeda(total)}")
 
             tabela.blockSignals(True)
@@ -1065,9 +1100,6 @@ class TelaRelatorios(QWidget):
                 item_vazio = QTableWidgetItem(texto_vazio)
                 item_vazio.setTextAlignment(Qt.AlignCenter)
                 tabela.setItem(0, 0, item_vazio)
-
-            linhas_visiveis = max(1, min(len(itens_visiveis), 7))
-            tabela.setFixedHeight(40 + linhas_visiveis * 35 + 3)
             tabela.blockSignals(False)
             atualizar_selecao()
 
@@ -1081,7 +1113,8 @@ class TelaRelatorios(QWidget):
             atualizar_selecao()
 
         tabela.itemChanged.connect(lambda item: atualizar_selecao() if item.column() == 0 else None)
-        filtro_categoria.currentIndexChanged.connect(lambda _indice: preencher_tabela())
+        if filtro_categoria:
+            filtro_categoria.currentIndexChanged.connect(lambda _indice: preencher_tabela())
         limpar_selecao.clicked.connect(limpar_marcacoes)
         preencher_tabela()
 
@@ -1091,8 +1124,8 @@ class TelaRelatorios(QWidget):
         fechar.clicked.connect(janela.accept)
         botoes.addWidget(fechar)
         layout.addLayout(botoes)
-        janela.resize(850, min(630, 255 + tabela.height()))
         return janela
+
     def mostrar_detalhes_lancamentos(self, titulo, itens, texto_vazio="Nenhum lançamento neste período."):
         self.criar_janela_detalhes_lancamentos(titulo, itens, texto_vazio).exec()
     def ultimos_meses_relatorio(self, quantidade=6):
@@ -1241,28 +1274,53 @@ class TelaRelatorios(QWidget):
         return caixa
 
     def criar_alertas(self, dados):
-        alertas = []
+        mensagens = []
         if dados["total_atrasado"] > 0:
-            alertas.append(f"Contas atrasadas: {self.formatar_moeda(dados['total_atrasado'])}")
+            mensagens.append(f"Contas atrasadas: {self.formatar_moeda(dados['total_atrasado'])}")
         if dados["total_a_receber_atrasado"] > 0:
-            alertas.append(f"Valores a receber atrasados: {self.formatar_moeda(dados['total_a_receber_atrasado'])}")
-        if dados["total_acrescimos"] > 0:
-            alertas.append(f"Juros e multas pagos: {self.formatar_moeda(dados['total_acrescimos'])}")
-        if not alertas:
+            mensagens.append(f"Valores a receber atrasados: {self.formatar_moeda(dados['total_a_receber_atrasado'])}")
+        tem_juros = dados["total_acrescimos"] > 0
+        if not mensagens and not tem_juros:
             return None
+
         caixa = QFrame()
         caixa.setObjectName("cardPendenteRelatorio")
         layout = QHBoxLayout(caixa)
         layout.setContentsMargins(12, 8, 12, 8)
+        layout.setSpacing(10)
         titulo = QLabel("Atenção")
         titulo.setObjectName("itemTitulo")
-        texto = QLabel("  •  ".join(alertas))
-        texto.setObjectName("textoNormal")
-        texto.setWordWrap(True)
         layout.addWidget(titulo)
-        layout.addWidget(texto, 1)
-        return caixa
 
+        if mensagens:
+            texto = QLabel("  •  ".join(mensagens))
+            texto.setObjectName("textoNormal")
+            texto.setWordWrap(True)
+            layout.addWidget(texto, 1)
+        else:
+            layout.addStretch()
+
+        if tem_juros:
+            ajustes = [
+                item for item in dados["pagamentos"]
+                if float(item.get("acrescimo", 0) or 0) > 0
+            ]
+            botao_juros = QPushButton(
+                f"Juros e multas: {self.formatar_moeda(dados['total_acrescimos'])}  › Ver contas"
+            )
+            botao_juros.setObjectName("btnDetalharJurosMultas")
+            botao_juros.setToolTip("Ver as contas em que houve juros ou multa")
+            botao_juros.setAccessibleName("Ver contas com juros e multas")
+            botao_juros.clicked.connect(
+                lambda: self.mostrar_detalhes_ajustes(
+                    ajustes,
+                    "Juros e multas pagos",
+                    "acrescimo",
+                    "Juros e multas",
+                )
+            )
+            layout.addWidget(botao_juros)
+        return caixa
     def quantidade_colunas_cartoes(self, largura=None):
         largura_util = self.width() if largura is None else largura
         return 2 if largura_util < 1250 else 4

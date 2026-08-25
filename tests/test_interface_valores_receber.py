@@ -280,9 +280,32 @@ class TesteInterfaceValoresReceberIsolada(unittest.TestCase):
             selecao = detalhes.findChild(QLabel, "selecaoDetalhes")
             self.assertIn("R$ 123,45", selecao.text())
             filtro = detalhes.findChild(QComboBox, "filtroCategoriaDetalhesRelatorio")
-            self.assertEqual(filtro.currentText(), "Todas as categorias")
-            self.assertLessEqual(detalhes.height(), 630)
+            self.assertIsNone(filtro)
+            self.assertGreaterEqual(detalhes.minimumHeight(), 560)
+            self.assertEqual(tabela.columnWidth(3), 175)
+            self.assertEqual(tabela.columnWidth(4), 135)
             detalhes.close()
+
+            alerta = tela.criar_alertas({
+                "total_atrasado": 0,
+                "total_a_receber_atrasado": 0,
+                "total_acrescimos": 9.91,
+                "pagamentos": [{
+                    "descricao": "Conta de teste",
+                    "acrescimo": 9.91,
+                    "valor": 109.91,
+                    "valor_original": 100.00,
+                    "data": date(2099, 5, 10),
+                    "data_texto": "10/05",
+                    "categoria": "Teste",
+                    "tipo": "Despesa única",
+                    "observacao": "Acréscimo de teste",
+                }],
+            })
+            botao_juros = alerta.findChild(QPushButton, "btnDetalharJurosMultas")
+            self.assertIsNotNone(botao_juros)
+            self.assertIn("R$ 9,91", botao_juros.text())
+            self.assertTrue(botao_juros.accessibleName())
 
             detalhes_por_categoria = tela.criar_janela_detalhes_lancamentos(
                 "Bebidas — Julho de 2026",

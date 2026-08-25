@@ -1,3 +1,10 @@
+# LFinance 2.1.9
+
+## 2.1.9
+
+- Corrige e simplifica a janela aberta pelo gráfico: a lista ganhou mais espaço e as colunas Categoria e Tipo ficaram legíveis.
+- O filtro de categoria aparece somente quando há mais de uma categoria, evitando o controle deslocado.
+- Juros e multas agora podem ser clicados para mostrar as contas em que o acréscimo ocorreu.
 # LFinance 2.1.8
 
 ## 2.1.8
