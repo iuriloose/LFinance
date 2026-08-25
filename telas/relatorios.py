@@ -3,7 +3,7 @@ from datetime import date, datetime, timedelta
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QFrame,
     QScrollArea, QGridLayout, QSizePolicy, QDialog, QTableWidget,
-    QTableWidgetItem, QHeaderView
+    QTableWidgetItem, QHeaderView, QComboBox
 )
 from PySide6.QtCore import Qt, QRectF, QTimer
 from PySide6.QtGui import QColor, QPainter, QPen
@@ -909,10 +909,11 @@ class TelaRelatorios(QWidget):
         return date(ano, mes, 1)
 
     def criar_janela_detalhes_lancamentos(self, titulo, itens, texto_vazio="Nenhum lançamento neste período."):
+        """Exibe os lançamentos de uma barra com filtro e soma de seleção."""
         janela = QDialog(self)
         janela.setWindowTitle(titulo)
         janela.setModal(True)
-        janela.setMinimumWidth(700)
+        janela.setMinimumWidth(760)
         janela.setSizeGripEnabled(True)
         janela.setStyleSheet("""
             QDialog { background-color: #0f1726; }
@@ -920,12 +921,16 @@ class TelaRelatorios(QWidget):
             QLabel#tituloDetalhes { font-size: 22px; font-weight: 800; }
             QLabel#resumoDetalhes { color: #a8b3c7; font-size: 13px; }
             QLabel#totalDetalhes { color: #22c55e; font-size: 18px; font-weight: 800; }
+            QLabel#selecaoDetalhes { color: #60a5fa; font-size: 13px; font-weight: 700; }
             QFrame#resumoDetalhesPainel { background-color: #152238; border: 1px solid #26364e; border-radius: 9px; }
+            QComboBox { background-color: #152238; color: #ffffff; border: 1px solid #38bdf8; border-radius: 7px; min-height: 32px; padding: 0 10px; font-weight: 700; }
+            QComboBox::drop-down { border: 0; width: 26px; }
+            QComboBox QAbstractItemView { background-color: #152238; color: #ffffff; selection-background-color: #1d4ed8; }
             QTableWidget { background-color: #111c2e; color: #ffffff; border: 1px solid #26364e; gridline-color: #26364e; font-size: 13px; alternate-background-color: #162238; selection-background-color: #1d4ed8; selection-color: #ffffff; }
             QTableWidget::item { color: #ffffff; padding: 6px; border-bottom: 1px solid #26364e; }
             QTableWidget::item:alternate { background-color: #162238; color: #ffffff; }
             QHeaderView::section { background-color: #1e293b; color: #ffffff; border: 0; border-right: 1px solid #334155; padding: 8px; font-weight: 700; }
-            QPushButton { background-color: #1f2937; color: #ffffff; border: 1px solid #475569; border-radius: 8px; min-height: 38px; padding: 0 22px; font-weight: 700; }
+            QPushButton { background-color: #1f2937; color: #ffffff; border: 1px solid #475569; border-radius: 8px; min-height: 38px; padding: 0 18px; font-weight: 700; }
             QPushButton:hover { background-color: #334155; }
         """)
         layout = QVBoxLayout(janela)
@@ -936,15 +941,32 @@ class TelaRelatorios(QWidget):
         lbl_titulo.setObjectName("tituloDetalhes")
         layout.addWidget(lbl_titulo)
 
-        total = sum(float(item.get("valor", 0) or 0) for item in itens)
+        categorias = sorted({
+            str(item.get("categoria") or "Sem categoria")
+            for item in itens
+        }, key=str.casefold)
+        linha_filtro = QHBoxLayout()
+        rotulo_filtro = QLabel("Mostrar categoria:")
+        rotulo_filtro.setObjectName("resumoDetalhes")
+        filtro_categoria = QComboBox(janela)
+        filtro_categoria.setObjectName("filtroCategoriaDetalhesRelatorio")
+        filtro_categoria.addItem("Todas as categorias", None)
+        for categoria in categorias:
+            filtro_categoria.addItem(categoria, categoria)
+        linha_filtro.addStretch()
+        linha_filtro.addWidget(rotulo_filtro)
+        linha_filtro.addWidget(filtro_categoria)
+        if len(categorias) > 1:
+            layout.addLayout(linha_filtro)
+
         painel = QFrame()
         painel.setObjectName("resumoDetalhesPainel")
         painel_layout = QHBoxLayout(painel)
         painel_layout.setContentsMargins(14, 10, 14, 10)
         painel_layout.setSpacing(12)
-        quantidade = QLabel(f"{len(itens)} lançamento(s) neste detalhe")
+        quantidade = QLabel()
         quantidade.setObjectName("resumoDetalhes")
-        valor_total = QLabel(self.formatar_moeda(total))
+        valor_total = QLabel()
         valor_total.setObjectName("totalDetalhes")
         valor_total.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
         painel_layout.addWidget(quantidade)
@@ -952,41 +974,116 @@ class TelaRelatorios(QWidget):
         painel_layout.addWidget(valor_total)
         layout.addWidget(painel)
 
-        tabela = QTableWidget(len(itens), 5)
+        tabela = QTableWidget(0, 6)
         tabela.setObjectName("tabelaDetalhesRelatorio")
-        tabela.setHorizontalHeaderLabels(["Data", "Descrição", "Categoria", "Tipo", "Valor"])
+        tabela.setHorizontalHeaderLabels(["", "Data", "Descrição", "Categoria", "Tipo", "Valor"])
         tabela.verticalHeader().setVisible(False)
         tabela.verticalHeader().setDefaultSectionSize(35)
         tabela.setEditTriggers(QTableWidget.NoEditTriggers)
         tabela.setSelectionMode(QTableWidget.NoSelection)
         tabela.setFocusPolicy(Qt.NoFocus)
         tabela.setAlternatingRowColors(True)
-        tabela.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeToContents)
-        tabela.horizontalHeader().setSectionResizeMode(1, QHeaderView.Stretch)
+        tabela.horizontalHeader().setSectionResizeMode(0, QHeaderView.Fixed)
+        tabela.setColumnWidth(0, 38)
+        tabela.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeToContents)
+        tabela.horizontalHeader().setSectionResizeMode(2, QHeaderView.Stretch)
+        tabela.horizontalHeader().setSectionResizeMode(3, QHeaderView.ResizeToContents)
+        tabela.horizontalHeader().setSectionResizeMode(4, QHeaderView.ResizeToContents)
+        tabela.horizontalHeader().setSectionResizeMode(5, QHeaderView.ResizeToContents)
         tabela.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
-        for linha, item in enumerate(sorted(itens, key=lambda registro: registro.get("data", date.min), reverse=True)):
-            valores = [
-                item.get("data_texto", "-"),
-                item.get("descricao", "-"),
-                item.get("categoria", "-") or "-",
-                item.get("tipo", "-") or "-",
-                self.formatar_moeda(item.get("valor", 0)),
-            ]
-            for coluna, valor in enumerate(valores):
-                item_tabela = QTableWidgetItem(str(valor))
-                if coluna == 4:
-                    item_tabela.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
-                tabela.setItem(linha, coluna, item_tabela)
-        if not itens:
-            tabela.setRowCount(1)
-            tabela.setSpan(0, 0, 1, 5)
-            item_vazio = QTableWidgetItem(texto_vazio)
-            item_vazio.setTextAlignment(Qt.AlignCenter)
-            tabela.setItem(0, 0, item_vazio)
-
-        linhas_visiveis = max(1, min(len(itens), 7))
-        tabela.setFixedHeight(40 + linhas_visiveis * 35 + 3)
         layout.addWidget(tabela)
+
+        linha_selecao = QHBoxLayout()
+        lbl_selecao = QLabel("Marque os lançamentos que deseja somar.")
+        lbl_selecao.setObjectName("selecaoDetalhes")
+        linha_selecao.addWidget(lbl_selecao)
+        linha_selecao.addStretch()
+        limpar_selecao = QPushButton("Limpar seleção")
+        limpar_selecao.setObjectName("btnLimparSelecaoDetalhes")
+        linha_selecao.addWidget(limpar_selecao)
+        layout.addLayout(linha_selecao)
+
+        def itens_filtrados():
+            categoria_selecionada = filtro_categoria.currentData()
+            return [
+                item for item in itens
+                if not categoria_selecionada
+                or (item.get("categoria") or "Sem categoria") == categoria_selecionada
+            ]
+
+        def atualizar_selecao():
+            quantidade_selecionada = 0
+            total_selecionado = 0.0
+            for linha in range(tabela.rowCount()):
+                marcador = tabela.item(linha, 0)
+                if marcador and marcador.checkState() == Qt.Checked:
+                    quantidade_selecionada += 1
+                    total_selecionado += float(marcador.data(Qt.UserRole) or 0)
+            if quantidade_selecionada:
+                sufixo = "item selecionado" if quantidade_selecionada == 1 else "itens selecionados"
+                lbl_selecao.setText(
+                    f"{quantidade_selecionada} {sufixo} • {self.formatar_moeda(total_selecionado)}"
+                )
+            else:
+                lbl_selecao.setText("Marque os lançamentos que deseja somar.")
+
+        def preencher_tabela():
+            itens_visiveis = sorted(
+                itens_filtrados(),
+                key=lambda registro: registro.get("data", date.min),
+                reverse=True,
+            )
+            total = sum(float(item.get("valor", 0) or 0) for item in itens_visiveis)
+            quantidade.setText(f"{len(itens_visiveis)} lançamento(s) nesta categoria")
+            valor_total.setText(f"Total: {self.formatar_moeda(total)}")
+
+            tabela.blockSignals(True)
+            tabela.clearContents()
+            tabela.setRowCount(len(itens_visiveis))
+            for linha, item in enumerate(itens_visiveis):
+                marcador = QTableWidgetItem()
+                marcador.setFlags(Qt.ItemIsEnabled | Qt.ItemIsUserCheckable)
+                marcador.setCheckState(Qt.Unchecked)
+                marcador.setData(Qt.UserRole, float(item.get("valor", 0) or 0))
+                marcador.setToolTip("Marcar para somar este lançamento")
+                tabela.setItem(linha, 0, marcador)
+                valores = [
+                    item.get("data_texto", "-"),
+                    item.get("descricao", "-"),
+                    item.get("categoria", "-") or "-",
+                    item.get("tipo", "-") or "-",
+                    self.formatar_moeda(item.get("valor", 0)),
+                ]
+                for coluna, valor in enumerate(valores, start=1):
+                    item_tabela = QTableWidgetItem(str(valor))
+                    if coluna == 5:
+                        item_tabela.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
+                    tabela.setItem(linha, coluna, item_tabela)
+            if not itens_visiveis:
+                tabela.setRowCount(1)
+                tabela.setSpan(0, 0, 1, 6)
+                item_vazio = QTableWidgetItem(texto_vazio)
+                item_vazio.setTextAlignment(Qt.AlignCenter)
+                tabela.setItem(0, 0, item_vazio)
+
+            linhas_visiveis = max(1, min(len(itens_visiveis), 7))
+            tabela.setFixedHeight(40 + linhas_visiveis * 35 + 3)
+            tabela.blockSignals(False)
+            atualizar_selecao()
+
+        def limpar_marcacoes():
+            tabela.blockSignals(True)
+            for linha in range(tabela.rowCount()):
+                marcador = tabela.item(linha, 0)
+                if marcador and marcador.flags() & Qt.ItemIsUserCheckable:
+                    marcador.setCheckState(Qt.Unchecked)
+            tabela.blockSignals(False)
+            atualizar_selecao()
+
+        tabela.itemChanged.connect(lambda item: atualizar_selecao() if item.column() == 0 else None)
+        filtro_categoria.currentIndexChanged.connect(lambda _indice: preencher_tabela())
+        limpar_selecao.clicked.connect(limpar_marcacoes)
+        preencher_tabela()
 
         botoes = QHBoxLayout()
         botoes.addStretch()
@@ -994,9 +1091,8 @@ class TelaRelatorios(QWidget):
         fechar.clicked.connect(janela.accept)
         botoes.addWidget(fechar)
         layout.addLayout(botoes)
-        janela.resize(790, min(560, 175 + tabela.height()))
+        janela.resize(850, min(630, 255 + tabela.height()))
         return janela
-
     def mostrar_detalhes_lancamentos(self, titulo, itens, texto_vazio="Nenhum lançamento neste período."):
         self.criar_janela_detalhes_lancamentos(titulo, itens, texto_vazio).exec()
     def ultimos_meses_relatorio(self, quantidade=6):

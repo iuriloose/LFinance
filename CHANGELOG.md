@@ -1,3 +1,10 @@
+# LFinance 2.1.7
+
+## 2.1.7
+
+- Ao abrir um detalhe no gráfico de Relatórios, permite filtrar os lançamentos por categoria.
+- Mostra automaticamente o total da categoria escolhida, inclusive quando ela estiver agrupada em “Outras categorias”.
+- Permite marcar lançamentos individuais e ver a soma da seleção, com opção de limpar a marcação.
 # LFinance 2.1.6
 
 ## 2.1.6

@@ -155,7 +155,8 @@ class TesteInterfaceValoresReceberIsolada(unittest.TestCase):
             tela.deleteLater()
             app.processEvents()
     def test_detalhes_e_filtro_usam_padrao_visual_e_texto_formatado(self):
-        from PySide6.QtWidgets import QApplication, QFrame, QLabel, QPushButton, QTableWidget
+        from PySide6.QtCore import Qt
+        from PySide6.QtWidgets import QApplication, QComboBox, QFrame, QLabel, QPushButton, QTableWidget
 
         from telas.detalhes_valor_receber import DetalhesValorReceber
         from telas.valores_receber import TelaValoresReceber
@@ -199,7 +200,8 @@ class TesteInterfaceValoresReceberIsolada(unittest.TestCase):
             app.processEvents()
 
     def test_relatorios_resumo_comparacao_e_categorias(self):
-        from PySide6.QtWidgets import QApplication, QFrame, QLabel, QPushButton, QTableWidget
+        from PySide6.QtCore import Qt
+        from PySide6.QtWidgets import QApplication, QComboBox, QFrame, QLabel, QPushButton, QTableWidget
 
         from telas.relatorios import GraficoBarrasInterativo, TelaRelatorios
 
@@ -245,8 +247,48 @@ class TesteInterfaceValoresReceberIsolada(unittest.TestCase):
             )
             tabela = detalhes.findChild(QTableWidget, "tabelaDetalhesRelatorio")
             self.assertEqual(tabela.selectionMode(), QTableWidget.NoSelection)
-            self.assertLessEqual(detalhes.height(), 560)
+            self.assertEqual(tabela.columnCount(), 6)
+            self.assertTrue(tabela.item(0, 0).flags() & Qt.ItemIsUserCheckable)
+            tabela.item(0, 0).setCheckState(Qt.Checked)
+            app.processEvents()
+            selecao = detalhes.findChild(QLabel, "selecaoDetalhes")
+            self.assertIn("R$ 123,45", selecao.text())
+            filtro = detalhes.findChild(QComboBox, "filtroCategoriaDetalhesRelatorio")
+            self.assertEqual(filtro.currentText(), "Todas as categorias")
+            self.assertLessEqual(detalhes.height(), 630)
             detalhes.close()
+
+            detalhes_por_categoria = tela.criar_janela_detalhes_lancamentos(
+                "Bebidas — Julho de 2026",
+                [
+                    {
+                        "data": date(2026, 7, 20),
+                        "data_texto": "20/07",
+                        "descricao": "Bebidas ZN",
+                        "categoria": "Bebidas",
+                        "tipo": "Gasto",
+                        "valor": 70.00,
+                    },
+                    {
+                        "data": date(2026, 7, 19),
+                        "data_texto": "19/07",
+                        "descricao": "Lanche",
+                        "categoria": "Lanche",
+                        "tipo": "Gasto",
+                        "valor": 25.00,
+                    },
+                ],
+            )
+            filtro = detalhes_por_categoria.findChild(
+                QComboBox, "filtroCategoriaDetalhesRelatorio"
+            )
+            filtro.setCurrentText("Bebidas")
+            app.processEvents()
+            tabela = detalhes_por_categoria.findChild(QTableWidget, "tabelaDetalhesRelatorio")
+            self.assertEqual(tabela.rowCount(), 1)
+            total = detalhes_por_categoria.findChild(QLabel, "totalDetalhes")
+            self.assertIn("R$ 70,00", total.text())
+            detalhes_por_categoria.close()
             dados_anterior = tela.dados_mes(tela.referencia_mes_anterior())
             self.assertIn("total_pago", dados_anterior)
         finally:
