@@ -632,7 +632,10 @@ class TelaPrincipal(QMainWindow):
         )
         if descricao_release:
             detalhes += f"\n\nNovidades desta versão:\n{descricao_release}"
-        detalhes += "\n\nClique em Baixar atualização para abrir o instalador."
+        detalhes += (
+            "\n\nClique em Baixar atualização. O LFinance será fechado "
+            "para permitir a instalação da nova versão."
+        )
 
         baixar, nao_avisar = self._mostrar_dialogo_atualizacao(
             "Nova versão disponível",
@@ -650,7 +653,14 @@ class TelaPrincipal(QMainWindow):
 
         if baixar:
             destino = resultado.url_download or resultado.url_release
-            QDesktopServices.openUrl(QUrl(destino))
+            if QDesktopServices.openUrl(QUrl(destino)):
+                self.close()
+            else:
+                QMessageBox.warning(
+                    self,
+                    "Não foi possível abrir",
+                    "O LFinance não conseguiu abrir o download da atualização.",
+                )
 
     def _falha_verificacao_atualizacao(self, erro):
         self._verificacao_atualizacao_em_andamento = False
