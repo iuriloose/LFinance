@@ -2,11 +2,14 @@ from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel,
     QPushButton, QFrame, QScrollArea, QDialog, QMessageBox
 )
+from datetime import date
+
 from PySide6.QtCore import Qt
 
 from banco.banco import listar_receitas, excluir_receita
 from banco.valores_receber import listar_ids_receitas_vinculadas
 from componentes.tabela_registros import TabelaRegistros, criar_botao_acao
+from componentes.filtro_mensal import FiltroMensal, mover_mes, nome_mes, pertence_ao_mes
 from telas.nova_receita import NovaReceita
 
 
@@ -118,6 +121,7 @@ class TelaReceitas(QWidget):
         super().__init__()
 
         self.ao_alterar = ao_alterar
+        self.mes_referencia = date.today().replace(day=1)
 
         self.layout_principal = QVBoxLayout(self)
         self.layout_principal.setContentsMargins(36, 30, 36, 24)
@@ -311,6 +315,13 @@ class TelaReceitas(QWidget):
 
         return card
 
+    def mudar_mes(self, deslocamento):
+        self.mes_referencia = mover_mes(self.mes_referencia, deslocamento)
+        self.montar_tela()
+
+    def ir_para_mes_atual(self):
+        self.mes_referencia = date.today().replace(day=1)
+        self.montar_tela()
     def montar_tela(self):
         self.limpar_tela()
 
@@ -340,7 +351,10 @@ class TelaReceitas(QWidget):
 
         self.layout_principal.addLayout(topo)
 
-        receitas = listar_receitas()
+        receitas = [
+            receita for receita in listar_receitas()
+            if pertence_ao_mes(receita[3], self.mes_referencia)
+        ]
         receitas_vinculadas = listar_ids_receitas_vinculadas()
 
         painel = QFrame()
@@ -349,10 +363,20 @@ class TelaReceitas(QWidget):
         painel_layout.setContentsMargins(18, 16, 18, 16)
         painel_layout.setSpacing(12)
 
+        painel_layout.addWidget(
+            FiltroMensal(
+                "Receitas do mês",
+                self.mes_referencia,
+                lambda: self.mudar_mes(-1),
+                lambda: self.mudar_mes(1),
+                self.ir_para_mes_atual,
+            )
+        )
+
         total_receitas = sum(float(receita[2] or 0) for receita in receitas)
         resumo = QLabel(
-            f"{len(receitas)} receita(s) cadastrada(s)  •  "
-            f"Total recebido: {self.formatar_moeda(total_receitas)}"
+            f"{len(receitas)} receita(s) em {nome_mes(self.mes_referencia)}  •  "
+            f"Total recebido no mês: {self.formatar_moeda(total_receitas)}"
         )
         resumo.setObjectName("cardInfo")
         painel_layout.addWidget(resumo)
@@ -363,7 +387,7 @@ class TelaReceitas(QWidget):
             coluna_flexivel=1,
         )
         if not receitas:
-            tabela.mostrar_vazio("Nenhuma receita cadastrada.")
+            tabela.mostrar_vazio(f"Nenhuma receita em {nome_mes(self.mes_referencia)}.")
         else:
             for receita in receitas:
                 id_receita, descricao, valor, data_recebimento, categoria, observacao = receita

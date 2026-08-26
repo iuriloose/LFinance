@@ -36,9 +36,9 @@ class MenuLateral(QFrame):
         self.criar_logo(layout)
 
         self.adicionar_botao(layout, "tela_inicial", "menu_home.png", "Tela inicial")
+        self.adicionar_botao(layout, "a_receber", "menu_receitas.png", "A receber")
         self.adicionar_botao(layout, "pesquisar", "menu_pesquisar.png", "🔎  Pesquisar")
         self.adicionar_botao(layout, "receitas", "menu_receitas.png", "Receitas")
-        self.adicionar_botao(layout, "a_receber", "menu_receitas.png", "A receber")
         self.adicionar_botao(layout, "gastos", "menu_gastos.png", "Gastos do dia")
         self.adicionar_botao(layout, "despesas", "menu_despesas.png", "Contas a pagar")
         self.adicionar_botao(layout, "contas_fixas", "menu_contas.png", "Contas fixas")

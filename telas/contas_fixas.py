@@ -2,6 +2,8 @@ from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel,
     QPushButton, QFrame, QScrollArea, QDialog, QMessageBox
 )
+from datetime import date
+
 from PySide6.QtCore import QDate, Qt
 
 from banco.banco import (
@@ -14,6 +16,7 @@ from banco.banco import (
     desfazer_pagamento,
 )
 from componentes.tabela_registros import TabelaRegistros, cor_status, criar_botao_acao
+from componentes.filtro_mensal import FiltroMensal, mover_mes, nome_mes, pertence_ao_mes
 from telas.pagamento import abrir_pagamento
 from telas.nova_despesa import NovaDespesa
 
@@ -179,6 +182,7 @@ class TelaContasFixas(QWidget):
         super().__init__()
 
         self.ao_alterar = ao_alterar
+        self.mes_referencia = date.today().replace(day=1)
 
         self.layout_principal = QVBoxLayout(self)
         self.layout_principal.setContentsMargins(36, 30, 36, 24)
@@ -550,6 +554,13 @@ class TelaContasFixas(QWidget):
 
         return card
 
+    def mudar_mes(self, deslocamento):
+        self.mes_referencia = mover_mes(self.mes_referencia, deslocamento)
+        self.montar_tela()
+
+    def ir_para_mes_atual(self):
+        self.mes_referencia = date.today().replace(day=1)
+        self.montar_tela()
     def montar_tela(self):
         self.limpar_tela()
 
@@ -579,7 +590,10 @@ class TelaContasFixas(QWidget):
 
         self.layout_principal.addLayout(topo)
 
-        contas = self.obter_contas_fixas()
+        contas = [
+            conta for conta in self.obter_contas_fixas()
+            if pertence_ao_mes(self.separar_despesa(conta)[3], self.mes_referencia)
+        ]
 
         painel = QFrame()
         painel.setObjectName("card")
@@ -587,17 +601,31 @@ class TelaContasFixas(QWidget):
         painel_layout.setContentsMargins(18, 16, 18, 16)
         painel_layout.setSpacing(12)
 
+        painel_layout.addWidget(
+            FiltroMensal(
+                "Vencimentos do mês",
+                self.mes_referencia,
+                lambda: self.mudar_mes(-1),
+                lambda: self.mudar_mes(1),
+                self.ir_para_mes_atual,
+            )
+        )
+
         abertas = sum(1 for c in contas if self.separar_despesa(c)[9] != "paga")
         pagas = sum(1 for c in contas if self.separar_despesa(c)[9] == "paga")
-        resumo = QLabel(f"{len(contas)} conta(s) fixa(s) cadastrada(s)  •  {abertas} em aberto  •  {pagas} paga(s)")
+        resumo = QLabel(f"{len(contas)} conta(s) fixa(s) com vencimento em {nome_mes(self.mes_referencia)}  •  {abertas} em aberto  •  {pagas} paga(s)")
         resumo.setObjectName("cardInfo")
         painel_layout.addWidget(resumo)
 
         total_mensal = sum(float(self.separar_despesa(c)[2] or 0) for c in contas)
-        total_pago = sum(float(p[3] or 0) for p in listar_pagamentos() if p[6] == "Conta fixa")
+        total_pago = sum(
+            float(p[3] or 0)
+            for p in listar_pagamentos()
+            if p[6] == "Conta fixa" and pertence_ao_mes(p[4], self.mes_referencia)
+        )
         totais = QLabel(
             f"Total mensal: {self.formatar_moeda(total_mensal)}  •  "
-            f"Total pago no histórico: {self.formatar_moeda(total_pago)}"
+            f"Total pago no mês: {self.formatar_moeda(total_pago)}"
         )
         totais.setObjectName("cardInfo")
         painel_layout.addWidget(totais)
@@ -610,7 +638,7 @@ class TelaContasFixas(QWidget):
         )
         if not contas:
             tabela.mostrar_vazio(
-                "Nenhuma conta fixa cadastrada. Adicione uma conta recorrente para ela aparecer aqui."
+                f"Nenhuma conta fixa com vencimento em {nome_mes(self.mes_referencia)}."
             )
         else:
             for conta in contas:

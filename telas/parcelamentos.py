@@ -2,6 +2,8 @@ from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel,
     QPushButton, QFrame, QScrollArea, QDialog
 )
+from datetime import date
+
 from PySide6.QtCore import QDate, Qt
 
 from banco.banco import (
@@ -12,6 +14,7 @@ from banco.banco import (
     listar_pagamentos,
 )
 from componentes.tabela_registros import TabelaRegistros, cor_status, criar_botao_acao
+from componentes.filtro_mensal import FiltroMensal, mover_mes, nome_mes, pertence_ao_mes
 from telas.pagamento import abrir_pagamento
 from telas.nova_despesa import NovaDespesa
 
@@ -124,6 +127,7 @@ class TelaParcelamentos(QWidget):
         super().__init__()
 
         self.ao_alterar = ao_alterar
+        self.mes_referencia = date.today().replace(day=1)
 
         self.layout_principal = QVBoxLayout(self)
         self.layout_principal.setContentsMargins(36, 30, 36, 24)
@@ -452,6 +456,13 @@ class TelaParcelamentos(QWidget):
 
         return card
 
+    def mudar_mes(self, deslocamento):
+        self.mes_referencia = mover_mes(self.mes_referencia, deslocamento)
+        self.montar_tela()
+
+    def ir_para_mes_atual(self):
+        self.mes_referencia = date.today().replace(day=1)
+        self.montar_tela()
     def montar_tela(self):
         self.limpar_tela()
 
@@ -481,7 +492,10 @@ class TelaParcelamentos(QWidget):
 
         self.layout_principal.addLayout(topo)
 
-        parcelamentos = self.obter_parcelamentos()
+        parcelamentos = [
+            parcelamento for parcelamento in self.obter_parcelamentos()
+            if pertence_ao_mes(self.separar_despesa(parcelamento)[3], self.mes_referencia)
+        ]
 
         painel = QFrame()
         painel.setObjectName("card")
@@ -489,9 +503,19 @@ class TelaParcelamentos(QWidget):
         painel_layout.setContentsMargins(18, 16, 18, 16)
         painel_layout.setSpacing(12)
 
+        painel_layout.addWidget(
+            FiltroMensal(
+                "Vencimentos do mês",
+                self.mes_referencia,
+                lambda: self.mudar_mes(-1),
+                lambda: self.mudar_mes(1),
+                self.ir_para_mes_atual,
+            )
+        )
+
         abertas = sum(1 for c in parcelamentos if self.separar_despesa(c)[9] != "paga")
         pagas = sum(1 for c in parcelamentos if self.separar_despesa(c)[9] == "paga")
-        resumo = QLabel(f"{len(parcelamentos)} parcelamento(s) cadastrado(s)  •  {abertas} em aberto  •  {pagas} paga(s)")
+        resumo = QLabel(f"{len(parcelamentos)} parcelamento(s) com vencimento em {nome_mes(self.mes_referencia)}  •  {abertas} em aberto  •  {pagas} paga(s)")
         resumo.setObjectName("cardInfo")
         painel_layout.addWidget(resumo)
 
@@ -501,10 +525,14 @@ class TelaParcelamentos(QWidget):
             if dados[9] != "paga":
                 restantes = max((dados[7] or 1) - (dados[6] or 1) + 1, 1)
                 saldo_restante += float(dados[2] or 0) * restantes
-        total_pago = sum(float(p[3] or 0) for p in listar_pagamentos() if p[6] == "Parcelamento")
+        total_pago = sum(
+            float(p[3] or 0)
+            for p in listar_pagamentos()
+            if p[6] == "Parcelamento" and pertence_ao_mes(p[4], self.mes_referencia)
+        )
         totais = QLabel(
             f"Saldo restante: {self.formatar_moeda(saldo_restante)}  •  "
-            f"Total pago: {self.formatar_moeda(total_pago)}"
+            f"Total pago no mês: {self.formatar_moeda(total_pago)}"
         )
         totais.setObjectName("cardInfo")
         painel_layout.addWidget(totais)
@@ -517,7 +545,7 @@ class TelaParcelamentos(QWidget):
         )
         if not parcelamentos:
             tabela.mostrar_vazio(
-                "Nenhum parcelamento cadastrado. Adicione uma compra parcelada para ela aparecer aqui."
+                f"Nenhum parcelamento com vencimento em {nome_mes(self.mes_referencia)}."
             )
         else:
             for parcelamento in parcelamentos:

@@ -2,6 +2,8 @@ from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel,
     QPushButton, QFrame, QScrollArea, QDialog
 )
+from datetime import date
+
 from PySide6.QtCore import QDate, Qt
 
 from banco.banco import (
@@ -14,6 +16,7 @@ from banco.banco import (
     listar_pagamentos,
 )
 from componentes.tabela_registros import TabelaRegistros, cor_status, criar_botao_acao
+from componentes.filtro_mensal import FiltroMensal, mover_mes, nome_mes, pertence_ao_mes
 from telas.pagamento import abrir_pagamento
 
 from telas.nova_despesa import NovaDespesa
@@ -127,6 +130,7 @@ class TelaDespesas(QWidget):
         super().__init__()
 
         self.ao_alterar = ao_alterar
+        self.mes_referencia = date.today().replace(day=1)
 
         self.layout_principal = QVBoxLayout(self)
         self.layout_principal.setContentsMargins(36, 30, 36, 24)
@@ -435,6 +439,13 @@ class TelaDespesas(QWidget):
 
         return card
 
+    def mudar_mes(self, deslocamento):
+        self.mes_referencia = mover_mes(self.mes_referencia, deslocamento)
+        self.montar_tela()
+
+    def ir_para_mes_atual(self):
+        self.mes_referencia = date.today().replace(day=1)
+        self.montar_tela()
     def montar_tela(self):
         self.limpar_tela()
 
@@ -464,7 +475,12 @@ class TelaDespesas(QWidget):
 
         self.layout_principal.addLayout(topo)
 
-        despesas = self.ordenar_despesas(listar_despesas())
+        despesas = self.ordenar_despesas(
+            [
+                despesa for despesa in listar_despesas()
+                if pertence_ao_mes(self.separar_despesa(despesa)[3], self.mes_referencia)
+            ]
+        )
 
         painel = QFrame()
         painel.setObjectName("card")
@@ -472,16 +488,30 @@ class TelaDespesas(QWidget):
         painel_layout.setContentsMargins(18, 16, 18, 16)
         painel_layout.setSpacing(12)
 
+        painel_layout.addWidget(
+            FiltroMensal(
+                "Vencimentos do mês",
+                self.mes_referencia,
+                lambda: self.mudar_mes(-1),
+                lambda: self.mudar_mes(1),
+                self.ir_para_mes_atual,
+            )
+        )
+
         abertas = sum(1 for d in despesas if self.separar_despesa(d)[9] != "paga")
         pagas = sum(1 for d in despesas if self.separar_despesa(d)[9] == "paga")
         total_aberto = sum(float(self.separar_despesa(d)[2] or 0) for d in despesas if self.separar_despesa(d)[9] != "paga")
-        total_pago = sum(float(p[3] or 0) for p in listar_pagamentos())
+        total_pago = sum(
+            float(p[3] or 0)
+            for p in listar_pagamentos()
+            if pertence_ao_mes(p[4], self.mes_referencia)
+        )
 
         resumo = QLabel(
-            f"{len(despesas)} contas  •  {abertas} em aberto  •  {pagas} pagas  •  "
+            f"{len(despesas)} conta(s) com vencimento em {nome_mes(self.mes_referencia)}  •  "
+            f"{abertas} em aberto  •  {pagas} pagas  •  "
             f"Em aberto: {self.formatar_moeda(total_aberto)}  •  "
-            f"Pago: {self.formatar_moeda(total_pago)}  •  "
-            f"Total: {self.formatar_moeda(total_aberto + total_pago)}"
+            f"Pago no mês: {self.formatar_moeda(total_pago)}"
         )
         resumo.setObjectName("cardInfo")
         resumo.setWordWrap(False)
@@ -494,7 +524,7 @@ class TelaDespesas(QWidget):
             colunas_ocultar_compacto=(2,),
         )
         if not despesas:
-            tabela.mostrar_vazio("Nenhuma conta a pagar cadastrada.")
+            tabela.mostrar_vazio(f"Nenhuma conta com vencimento em {nome_mes(self.mes_referencia)}.")
         else:
             for despesa in despesas:
                 (

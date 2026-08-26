@@ -1297,17 +1297,19 @@ class TelaRelatorios(QWidget):
             texto.setObjectName("textoNormal")
             texto.setWordWrap(True)
             layout.addWidget(texto, 1)
-        else:
-            layout.addStretch()
 
         if tem_juros:
             ajustes = [
                 item for item in dados["pagamentos"]
                 if float(item.get("acrescimo", 0) or 0) > 0
             ]
-            botao_juros = QPushButton(
-                f"Juros e multas: {self.formatar_moeda(dados['total_acrescimos'])}  › Ver contas"
-            )
+            if not mensagens:
+                texto_juros = QLabel(
+                    f"Juros e multas pagos: {self.formatar_moeda(dados['total_acrescimos'])}"
+                )
+                texto_juros.setObjectName("textoNormal")
+                layout.addWidget(texto_juros)
+            botao_juros = QPushButton("Ver contas")
             botao_juros.setObjectName("btnDetalharJurosMultas")
             botao_juros.setToolTip("Ver as contas em que houve juros ou multa")
             botao_juros.setAccessibleName("Ver contas com juros e multas")
@@ -1320,6 +1322,7 @@ class TelaRelatorios(QWidget):
                 )
             )
             layout.addWidget(botao_juros)
+        layout.addStretch()
         return caixa
     def quantidade_colunas_cartoes(self, largura=None):
         largura_util = self.width() if largura is None else largura
