@@ -1,56 +1,57 @@
-# LFinance 2.1.10
+# LFinance
 
-Sistema financeiro pessoal para Windows.
+Sistema financeiro pessoal para Windows, desenvolvido em Python, PySide6 e SQLite.
 
 ![Tela inicial do LFinance](docs/lfinance-tela-inicial.png)
 
-## Conheça o LFinance
+## Versão atual
 
-Uma visão simples das receitas, contas a pagar, gastos, parcelamentos e valores a receber, com os próximos vencimentos sempre em destaque.
+**LFinance 2.1.11**
 
-## Situação do projeto
+[Baixar a versão mais recente](https://github.com/iuriloose/LFinance/releases/latest)
 
-Versão 2.0 em desenvolvimento, baseada na versão estável 1.0.7:
+## Principais recursos
 
-- nova tela Valores a receber, sem alterar a Tela inicial;
-- controle por pessoa ou empresa, previsão, categoria e situação;
-- recebimentos totais, parciais ou acima do previsto, vinculados automaticamente a Receitas;
-- recorrência quinzenal ou mensal, com histórico preservado;
-- compatibilidade com backups da versão 1.0.7;
-- testes executados somente em perfil temporário.
+- Tela inicial com resumo financeiro e próximos vencimentos.
+- Área **A receber** para valores previstos e recebimentos.
+- Receitas, gastos do dia, contas a pagar, contas fixas e parcelamentos.
+- Filtros e navegação por mês nas principais telas financeiras.
+- Categorias personalizadas.
+- Relatórios detalhados.
+- Backup e restauração do banco de dados.
+- Verificação automática de novas versões.
 
-## Banco de dados
+## Dados do usuário
 
-O banco do usuário não deve ficar dentro da pasta do programa instalado.
-
-No Windows, o LFinance usa:
+Os dados ficam fora da pasta de instalação:
 
 `%LOCALAPPDATA%\LFinance\lfinance.db`
 
-Isso evita perda de dados ao atualizar ou substituir o executável.
+Assim, as atualizações do programa não substituem o banco de dados.
 
 ## Atualizações
 
-Ao iniciar, o LFinance consulta automaticamente a Release mais recente no repositório oficial.
-Se houver uma versão nova, mostra as novidades e oferece o instalador oficial somente após confirmação do usuário.
-A verificação manual continua disponível em Configurações > Sobre o LFinance.
+O LFinance verifica automaticamente a Release mais recente no GitHub.
 
-## Gerar EXE
+Quando houver uma nova versão, o programa avisa o usuário e oferece o instalador oficial.
 
-Execute sem atualizar dependências implicitamente:
+> Antes de instalar uma atualização, feche o LFinance.
+
+## Desenvolvimento
+
+Gerar executável:
 
 `python -m PyInstaller --clean --noconfirm LFinance.spec`
 
-O arquivo final será criado em:
+Executável:
 
-`dist\LFinance.exe`
+`dist\LFinance\LFinance.exe`
 
-## Testes seguros
+Gerar instalador:
 
-Os testes usam um perfil temporário e nunca apontam para o banco real do usuário:
+`& "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" ".\LFinance.iss"`
 
-`python -m unittest discover -s tests -v`
+---
 
-
-Desenvolvido por Iuri Loose.
-© 2026 Iuri Loose. Todos os direitos reservados.
+Desenvolvido por **Iuri Loose**.  
+© 2026 Iuri Loose.
