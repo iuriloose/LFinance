@@ -53,13 +53,13 @@ class ConfirmacaoExclusaoParcelamento(QDialog):
                 color: #ffffff;
                 background-color: #151c2b;
                 border: 1px solid #26364e;
-                border-radius: 12px;
+                border-radius: 10px;
                 padding: 12px;
             }
 
             QPushButton {
                 min-height: 42px;
-                border-radius: 11px;
+                border-radius: 9px;
                 font-size: 12px;
                 font-weight: bold;
                 color: #ffffff;
@@ -131,13 +131,42 @@ class TelaParcelamentos(QWidget):
 
         self.layout_principal = QVBoxLayout(self)
         self.layout_principal.setContentsMargins(36, 30, 36, 24)
-        self.layout_principal.setSpacing(16)
+        self.layout_principal.setSpacing(14)
 
         self.aplicar_estilo_local()
         self.montar_tela()
 
     def aplicar_estilo_local(self):
         self.setStyleSheet("""
+            /* Polimento das telas de lançamentos */
+            QLabel#titulo {
+                color: #ffffff;
+                font-family: "Segoe UI";
+                font-size: 30px;
+                font-weight: 700;
+            }
+
+            QLabel#subtitulo {
+                color: #b8c4d6;
+                font-family: "Segoe UI";
+                font-size: 14px;
+                font-weight: 400;
+            }
+
+            QLabel#resumoListagem {
+                color: #c6d0df;
+                font-family: "Segoe UI";
+                font-size: 13px;
+                font-weight: 500;
+                padding: 3px 2px 5px 2px;
+            }
+
+            QFrame#card {
+                background-color: rgba(17, 24, 39, 0.82);
+                border: 1px solid #26364e;
+                border-radius: 14px;
+            }
+
             QFrame#cardParcelamentoLista {
                 background-color: qlineargradient(
                     x1:0, y1:0, x2:1, y2:1,
@@ -163,7 +192,7 @@ class TelaParcelamentos(QWidget):
             QLabel#valorParcelamentoLista {
                 color: #ffffff;
                 font-size: 16px;
-                font-weight: 900;
+                font-weight: 800;
             }
 
             QLabel#infoParcelamentoLista {
@@ -193,7 +222,7 @@ class TelaParcelamentos(QWidget):
                 background-color: rgba(30, 41, 59, 0.78);
                 color: white;
                 padding: 10px 18px;
-                border-radius: 11px;
+                border-radius: 9px;
                 font-size: 12px;
                 font-weight: bold;
                 border: 1px solid #ef4444;
@@ -472,7 +501,7 @@ class TelaParcelamentos(QWidget):
         textos = QVBoxLayout()
         textos.setSpacing(4)
 
-        titulo = QLabel("📄 Parcelamentos")
+        titulo = QLabel("Parcelamentos")
         titulo.setObjectName("titulo")
 
         subtitulo = QLabel("Compras parceladas cadastradas no LFinance")
@@ -500,8 +529,8 @@ class TelaParcelamentos(QWidget):
         painel = QFrame()
         painel.setObjectName("card")
         painel_layout = QVBoxLayout(painel)
-        painel_layout.setContentsMargins(18, 16, 18, 16)
-        painel_layout.setSpacing(12)
+        painel_layout.setContentsMargins(20, 15, 20, 16)
+        painel_layout.setSpacing(10)
 
         painel_layout.addWidget(
             FiltroMensal(
@@ -515,10 +544,6 @@ class TelaParcelamentos(QWidget):
 
         abertas = sum(1 for c in parcelamentos if self.separar_despesa(c)[9] != "paga")
         pagas = sum(1 for c in parcelamentos if self.separar_despesa(c)[9] == "paga")
-        resumo = QLabel(f"{len(parcelamentos)} parcelamento(s) com vencimento em {nome_mes(self.mes_referencia)}  •  {abertas} em aberto  •  {pagas} paga(s)")
-        resumo.setObjectName("cardInfo")
-        painel_layout.addWidget(resumo)
-
         saldo_restante = 0
         for item in parcelamentos:
             dados = self.separar_despesa(item)
@@ -530,12 +555,18 @@ class TelaParcelamentos(QWidget):
             for p in listar_pagamentos()
             if p[6] == "Parcelamento" and pertence_ao_mes(p[4], self.mes_referencia)
         )
-        totais = QLabel(
-            f"Saldo restante: {self.formatar_moeda(saldo_restante)}  •  "
-            f"Total pago no mês: {self.formatar_moeda(total_pago)}"
+        quantidade = "1 parcelamento" if len(parcelamentos) == 1 else f"{len(parcelamentos)} parcelamentos"
+        resumo = QLabel(
+            f"{quantidade}  <span style='color:#64748b'>•</span>  "
+            f"{abertas} em aberto  <span style='color:#64748b'>•</span>  "
+            f"{pagas} pagas  <span style='color:#64748b'>•</span>  "
+            f"<b style='color:#f8fafc'>{self.formatar_moeda(saldo_restante)}</b> restante  "
+            f"<span style='color:#64748b'>•</span>  "
+            f"<b style='color:#f8fafc'>{self.formatar_moeda(total_pago)}</b> pagos no mês"
         )
-        totais.setObjectName("cardInfo")
-        painel_layout.addWidget(totais)
+        resumo.setTextFormat(Qt.RichText)
+        resumo.setObjectName("resumoListagem")
+        painel_layout.addWidget(resumo)
 
         tabela = TabelaRegistros(
             ["Vencimento", "Descrição", "Categoria", "Parcela", "Situação", "Valor da parcela", "Ação"],
@@ -577,7 +608,8 @@ class TelaParcelamentos(QWidget):
                         "",
                     ],
                     dados=parcelamento,
-                    colunas_esquerda=(),
+                    colunas_esquerda=(1, 2),
+                    colunas_direita=(5,),
                     cores={4: cor_status(status_texto)},
                     tooltips={
                         3: (

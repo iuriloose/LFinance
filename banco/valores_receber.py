@@ -1,3 +1,4 @@
+from calendar import monthrange
 from datetime import date, datetime
 
 from dateutil.relativedelta import relativedelta
@@ -55,6 +56,14 @@ def criar_estrutura_valores_receber(cursor):
         cursor.execute(
             "ALTER TABLE valores_receber ADD COLUMN frequencia TEXT NOT NULL DEFAULT 'unico'"
         )
+    if "dia_quinzena_1" not in colunas_valores:
+        cursor.execute(
+            "ALTER TABLE valores_receber ADD COLUMN dia_quinzena_1 INTEGER"
+        )
+    if "dia_quinzena_2" not in colunas_valores:
+        cursor.execute(
+            "ALTER TABLE valores_receber ADD COLUMN dia_quinzena_2 INTEGER"
+        )
     cursor.execute("""
         UPDATE valores_receber
         SET frequencia = CASE WHEN recorrente = 1 THEN 'mensal' ELSE 'unico' END
@@ -94,10 +103,60 @@ def _normalizar_frequencia(frequencia=None, recorrente=False):
     return "mensal" if recorrente else "unico"
 
 
-def _proxima_data(data_prevista, frequencia):
-    data_base = datetime.strptime(data_prevista, "%Y-%m-%d")
+def _normalizar_dias_quinzena(dia_1=None, dia_2=None):
+    if dia_1 is None or dia_2 is None:
+        return None, None
+    try:
+        dias = sorted((int(dia_1), int(dia_2)))
+    except (TypeError, ValueError) as erro:
+        raise ValueError("Informe dias válidos para a quinzena.") from erro
+    if any(dia < 1 or dia > 31 for dia in dias):
+        raise ValueError("Os dias da quinzena devem ficar entre 1 e 31.")
+    if dias[0] == dias[1]:
+        raise ValueError("Os dois dias da quinzena precisam ser diferentes.")
+    return dias[0], dias[1]
+
+
+def _data_ancorada(ano, mes, dia):
+    ultimo_dia = monthrange(ano, mes)[1]
+    return date(ano, mes, min(int(dia), ultimo_dia))
+
+
+def _proxima_data_quinzenal(data_base, dia_1, dia_2):
+    dia_1, dia_2 = _normalizar_dias_quinzena(dia_1, dia_2)
+    if dia_1 is None or dia_2 is None:
+        return data_base + relativedelta(days=15)
+
+    candidatos = sorted({
+        _data_ancorada(data_base.year, data_base.month, dia_1),
+        _data_ancorada(data_base.year, data_base.month, dia_2),
+    })
+    for candidato in candidatos:
+        if candidato > data_base:
+            return candidato
+
+    proximo_mes = data_base + relativedelta(months=1)
+    candidatos = sorted({
+        _data_ancorada(proximo_mes.year, proximo_mes.month, dia_1),
+        _data_ancorada(proximo_mes.year, proximo_mes.month, dia_2),
+    })
+    return candidatos[0]
+
+
+def _buscar_dias_quinzena(conexao, id_valor):
+    linha = conexao.execute(
+        "SELECT dia_quinzena_1, dia_quinzena_2 FROM valores_receber WHERE id = ?",
+        (id_valor,),
+    ).fetchone()
+    return (linha[0], linha[1]) if linha else (None, None)
+
+
+def _proxima_data(data_prevista, frequencia, dia_quinzena_1=None, dia_quinzena_2=None):
+    data_base = datetime.strptime(data_prevista, "%Y-%m-%d").date()
     if frequencia == "quinzenal":
-        return (data_base + relativedelta(days=15)).strftime("%Y-%m-%d")
+        return _proxima_data_quinzenal(
+            data_base, dia_quinzena_1, dia_quinzena_2
+        ).strftime("%Y-%m-%d")
     return (data_base + relativedelta(months=1)).strftime("%Y-%m-%d")
 
 
@@ -187,12 +246,20 @@ def inserir_valor_receber(
     recorrente=False,
     observacao="",
     frequencia=None,
+    dia_quinzena_1=None,
+    dia_quinzena_2=None,
 ):
     pagador = str(pagador or "").strip()
     descricao = str(descricao or "").strip()
     categoria = str(categoria or "").strip()
     valor = round(float(valor), 2)
     frequencia = _normalizar_frequencia(frequencia, recorrente)
+    if frequencia == "quinzenal":
+        dia_quinzena_1, dia_quinzena_2 = _normalizar_dias_quinzena(
+            dia_quinzena_1, dia_quinzena_2
+        )
+    else:
+        dia_quinzena_1, dia_quinzena_2 = None, None
     _validar_data(data_prevista)
 
     if not pagador:
@@ -209,9 +276,10 @@ def inserir_valor_receber(
     cursor.execute("""
         INSERT INTO valores_receber (
             pagador, descricao, valor, data_prevista, categoria,
-            recorrente, frequencia, observacao
+            recorrente, frequencia, observacao,
+            dia_quinzena_1, dia_quinzena_2
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     """, (
         pagador,
         descricao,
@@ -221,6 +289,8 @@ def inserir_valor_receber(
         int(frequencia != "unico"),
         frequencia,
         str(observacao or "").strip(),
+        dia_quinzena_1,
+        dia_quinzena_2,
     ))
     id_valor = cursor.lastrowid
     conexao.commit()
@@ -269,6 +339,8 @@ def atualizar_valor_receber(
     recorrente=False,
     observacao="",
     frequencia=None,
+    dia_quinzena_1=None,
+    dia_quinzena_2=None,
 ):
     atual = buscar_valor_receber_por_id(id_valor)
     if not atual:
@@ -281,6 +353,12 @@ def atualizar_valor_receber(
     categoria = str(categoria or "").strip()
     valor = round(float(valor), 2)
     frequencia = _normalizar_frequencia(frequencia, recorrente)
+    if frequencia == "quinzenal":
+        dia_quinzena_1, dia_quinzena_2 = _normalizar_dias_quinzena(
+            dia_quinzena_1, dia_quinzena_2
+        )
+    else:
+        dia_quinzena_1, dia_quinzena_2 = None, None
     _validar_data(data_prevista)
 
     if not pagador or not descricao or not categoria:
@@ -300,7 +378,9 @@ def atualizar_valor_receber(
             categoria = ?,
             recorrente = ?,
             frequencia = ?,
-            observacao = ?
+            observacao = ?,
+            dia_quinzena_1 = ?,
+            dia_quinzena_2 = ?
         WHERE id = ?
     """, (
         pagador,
@@ -311,6 +391,8 @@ def atualizar_valor_receber(
         int(frequencia != "unico"),
         frequencia,
         str(observacao or "").strip(),
+        dia_quinzena_1,
+        dia_quinzena_2,
         id_valor,
     ))
     conexao.commit()
@@ -388,13 +470,17 @@ def registrar_recebimento(id_valor, valor_recebido, data_recebimento, observacao
                 (id_valor,),
             )
             if atual[12] != "unico":
-                proxima_data = _proxima_data(atual[4], atual[12])
+                dia_quinzena_1, dia_quinzena_2 = _buscar_dias_quinzena(conexao, id_valor)
+                proxima_data = _proxima_data(
+                    atual[4], atual[12], dia_quinzena_1, dia_quinzena_2
+                )
                 cursor.execute("""
                     INSERT OR IGNORE INTO valores_receber (
                         pagador, descricao, valor, data_prevista, categoria,
-                        recorrente, frequencia, status, observacao, gerado_de_id
+                        recorrente, frequencia, status, observacao, gerado_de_id,
+                        dia_quinzena_1, dia_quinzena_2
                     )
-                    VALUES (?, ?, ?, ?, ?, 1, ?, 'aberto', ?, ?)
+                    VALUES (?, ?, ?, ?, ?, 1, ?, 'aberto', ?, ?, ?, ?)
                 """, (
                     atual[1],
                     atual[2],
@@ -404,6 +490,8 @@ def registrar_recebimento(id_valor, valor_recebido, data_recebimento, observacao
                     atual[12],
                     atual[8],
                     id_valor,
+                    dia_quinzena_1,
+                    dia_quinzena_2,
                 ))
                 proxima_competencia = cursor.rowcount > 0
         conexao.commit()
@@ -421,6 +509,14 @@ def registrar_recebimento(id_valor, valor_recebido, data_recebimento, observacao
     if completo:
         return True, "Recebimento concluído."
     return True, "Recebimento parcial registrado."
+
+
+def buscar_dias_quinzena(id_valor):
+    conexao = _conectar()
+    try:
+        return _buscar_dias_quinzena(conexao, id_valor)
+    finally:
+        conexao.close()
 
 
 def listar_recebimentos_valor(id_valor):

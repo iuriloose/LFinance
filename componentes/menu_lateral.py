@@ -12,7 +12,7 @@ class MenuLateral(QFrame):
         self.ao_clicar = ao_clicar
         self.botoes = {}
         self.assets_path = caminho_recurso("assets")
-        self.logo_path = self.assets_path / "logo.png"
+        self.logo_path = self.assets_path / "logo_sidebar.png"
         self.tooltips_menu = {
             "tela_inicial": "Tela inicial\n\nResumo do mês, saldo, receitas, valores pagos, contas a pagar e próximos vencimentos.",
             "pesquisar": "Pesquisar\n\nEncontre contas, gastos do dia e receitas em uma tela própria.",
@@ -35,15 +35,15 @@ class MenuLateral(QFrame):
 
         self.criar_logo(layout)
 
-        self.adicionar_botao(layout, "tela_inicial", "menu_home.png", "Tela inicial")
-        self.adicionar_botao(layout, "a_receber", "menu_receitas.png", "A receber")
-        self.adicionar_botao(layout, "pesquisar", "menu_pesquisar.png", "🔎  Pesquisar")
-        self.adicionar_botao(layout, "receitas", "menu_receitas.png", "Receitas")
-        self.adicionar_botao(layout, "gastos", "menu_gastos.png", "Gastos do dia")
-        self.adicionar_botao(layout, "despesas", "menu_despesas.png", "Contas a pagar")
-        self.adicionar_botao(layout, "contas_fixas", "menu_contas.png", "Contas fixas")
-        self.adicionar_botao(layout, "parcelamentos", "menu_parcelamentos.png", "Parcelamentos")
-        self.adicionar_botao(layout, "relatorios", "menu_relatorios.png", "Relatórios")
+        self.adicionar_botao(layout, "tela_inicial", "icons_lfinance/home.png", "Tela inicial")
+        self.adicionar_botao(layout, "a_receber", "icons_lfinance/a_receber.png", "A receber")
+        self.adicionar_botao(layout, "pesquisar", "icons_lfinance/pesquisar.png", "Pesquisar")
+        self.adicionar_botao(layout, "receitas", "icons_lfinance/receitas.png", "Receitas")
+        self.adicionar_botao(layout, "gastos", "icons_lfinance/gastos.png", "Gastos do dia")
+        self.adicionar_botao(layout, "despesas", "icons_lfinance/contas_pagar.png", "Contas a pagar")
+        self.adicionar_botao(layout, "contas_fixas", "icons_lfinance/contas_fixas.png", "Contas fixas")
+        self.adicionar_botao(layout, "parcelamentos", "icons_lfinance/parcelamentos.png", "Parcelamentos")
+        self.adicionar_botao(layout, "relatorios", "icons_lfinance/relatorios.png", "Relatórios")
 
         layout.addStretch()
 
@@ -53,7 +53,7 @@ class MenuLateral(QFrame):
         layout.addWidget(divisor)
         layout.addSpacing(10)
 
-        self.adicionar_botao(layout, "configuracoes", "menu_configuracoes.png", "Configurações")
+        self.adicionar_botao(layout, "configuracoes", "icons_lfinance/configuracoes.png", "Configurações")
 
         self.setStyleSheet("""
             QFrame#sidebar {
@@ -67,9 +67,21 @@ class MenuLateral(QFrame):
             }
 
             QFrame#logoCard {
-                background-color: rgba(9, 22, 37, 0.78);
+                background-color: transparent;
                 border: none;
-                border-radius: 16px;
+                border-radius: 0px;
+            }
+
+            QFrame#logoInner {
+                background-color: transparent;
+                border: none;
+            }
+
+            QLabel#logoImage {
+                background-color: transparent;
+                border: none;
+                padding: 0px;
+                margin: 0px;
             }
 
             QFrame#divisorMenu {
@@ -83,7 +95,7 @@ class MenuLateral(QFrame):
                 background-color: transparent;
                 color: #c4d0e3;
                 border: none;
-                border-radius: 12px;
+                border-radius: 10px;
                 font-family: 'Segoe UI';
                 font-size: 14px;
                 font-weight: 700;
@@ -93,18 +105,19 @@ class MenuLateral(QFrame):
             }
 
             QPushButton#menuButton:hover {
-                background-color: rgba(30, 41, 59, 0.92);
+                background-color: rgba(25, 42, 62, 0.92);
                 color: #ffffff;
             }
 
             QPushButton#menuButton:checked {
                 background-color: qlineargradient(
                     x1:0, y1:0, x2:1, y2:0,
-                    stop:0 #2563eb,
-                    stop:1 #1d4ed8
+                    stop:0 #1f5fbf,
+                    stop:1 #204d8f
                 );
                 color: #ffffff;
-                font-weight: 800;
+                border-left: 3px solid #60a5fa;
+                font-weight: 700;
             }
         """)
 
@@ -113,37 +126,44 @@ class MenuLateral(QFrame):
     def criar_logo(self, layout):
         logo_card = QFrame()
         logo_card.setObjectName("logoCard")
-        logo_card.setToolTip("LFinance\n\nControle financeiro pessoal para organizar receitas, gastos, despesas, contas fixas e parcelamentos.")
-        logo_card.setFixedHeight(160)
+        logo_card.setToolTip(
+            "LFinance\n\nControle financeiro pessoal para organizar receitas, "
+            "gastos, despesas, contas fixas e parcelamentos."
+        )
+        logo_card.setFixedHeight(176)
 
         logo_layout = QVBoxLayout(logo_card)
-        logo_layout.setContentsMargins(6, 4, 6, 4)
+        logo_layout.setContentsMargins(2, 2, 2, 2)
         logo_layout.setSpacing(0)
 
         lbl_logo = QLabel()
+        lbl_logo.setObjectName("logoImage")
         lbl_logo.setAlignment(Qt.AlignCenter)
         lbl_logo.setAccessibleName("Logotipo do LFinance")
-        lbl_logo.setStyleSheet("background: transparent; padding: 0px; margin: 0px;")
 
         if self.logo_path.exists():
             pixmap = QPixmap(str(self.logo_path))
             lbl_logo.setPixmap(
-                pixmap.scaled(180, 145, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+                pixmap.scaled(
+                    184,
+                    164,
+                    Qt.KeepAspectRatio,
+                    Qt.SmoothTransformation,
+                )
             )
         else:
             lbl_logo.setText("LFinance")
-            lbl_logo.setStyleSheet("font-size: 24px; font-weight: 800; color: #ffffff; background: transparent;")
 
         logo_layout.addWidget(lbl_logo, alignment=Qt.AlignCenter)
         layout.addWidget(logo_card)
-        layout.addSpacing(12)
+        layout.addSpacing(8)
 
     def adicionar_botao(self, layout, chave, icone_arquivo, texto):
         botao = QPushButton(texto)
         botao.setObjectName("menuButton")
         botao.setCheckable(True)
         botao.setCursor(Qt.PointingHandCursor)
-        botao.setIconSize(QSize(28, 28))
+        botao.setIconSize(QSize(24, 24))
         descricao = self.tooltips_menu.get(chave, texto)
         botao.setToolTip(descricao)
         botao.setAccessibleName(texto.replace("🔎", "").strip())

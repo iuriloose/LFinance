@@ -29,7 +29,7 @@ class TelaPrincipal(QMainWindow):
     def __init__(self):
         super().__init__()
 
-        self.setWindowTitle(f"LFinance {APP_VERSAO}")
+        self.setWindowTitle("LFinance")
         icone = caminho_recurso("assets", "logo.ico")
         if icone.exists():
             self.setWindowIcon(QIcon(str(icone)))
@@ -56,8 +56,8 @@ class TelaPrincipal(QMainWindow):
             QToolTip {
                 background-color: #101b2d;
                 color: #f8fafc;
-                border: 1px solid #3b82f6;
-                border-radius: 8px;
+                border: 1px solid #334155;
+                border-radius: 7px;
                 padding: 8px 10px;
                 font-family: Segoe UI;
                 font-size: 12px;
@@ -80,14 +80,14 @@ class TelaPrincipal(QMainWindow):
             }
 
             QLabel#titulo {
-                font-size: 31px;
-                font-weight: 800;
+                font-size: 30px;
+                font-weight: 750;
                 color: #ffffff;
             }
 
             QLabel#subtitulo {
-                font-size: 14px;
-                color: #a8b3c7;
+                font-size: 13px;
+                color: #b2bfd0;
             }
 
             QFrame#card {
@@ -97,22 +97,22 @@ class TelaPrincipal(QMainWindow):
                     stop:1 rgba(12, 23, 38, 0.98)
                 );
                 border: 1px solid #26364e;
-                border-radius: 18px;
+                border-radius: 9px;
             }
 
             QLabel#cardTitulo {
-                font-size: 14px;
-                color: #a8b3c7;
+                font-size: 13px;
+                color: #b2bfd0;
             }
 
             QLabel#cardValor {
-                font-size: 28px;
-                font-weight: bold;
+                font-size: 27px;
+                font-weight: 700;
                 color: #ffffff;
             }
 
             QLabel#cardInfo {
-                font-size: 14px;
+                font-size: 13px;
                 color: #d7dcf0;
             }
 
@@ -136,7 +136,7 @@ class TelaPrincipal(QMainWindow):
                 background-color: rgba(18, 29, 46, 0.96);
                 color: #ffffff;
                 border: 1px solid #26364e;
-                border-radius: 14px;
+                border-radius: 9px;
                 padding: 12px 18px;
                 font-size: 14px;
                 selection-background-color: #1d4ed8;
@@ -151,7 +151,7 @@ class TelaPrincipal(QMainWindow):
                 background-color: rgba(30, 41, 59, 0.78);
                 color: white;
                 padding: 10px 18px;
-                border-radius: 11px;
+                border-radius: 9px;
                 font-size: 14px;
                 font-weight: bold;
                 border: 1px solid #4b2f36;
@@ -166,7 +166,7 @@ class TelaPrincipal(QMainWindow):
                 background-color: rgba(30, 41, 59, 0.78);
                 color: white;
                 padding: 10px 18px;
-                border-radius: 11px;
+                border-radius: 9px;
                 font-size: 14px;
                 font-weight: bold;
                 border: 1px solid #26513a;
@@ -227,9 +227,9 @@ class TelaPrincipal(QMainWindow):
             QFrame#cardReceita,
             QFrame#cardDespesa,
             QFrame#cardAtrasada {
-                border-radius: 16px;
-                min-height: 78px;
-                max-height: 78px;
+                border-radius: 10px;
+                min-height: 80px;
+                max-height: 80px;
             }
 
             QFrame#cardSaldo {
@@ -303,24 +303,24 @@ class TelaPrincipal(QMainWindow):
             }
 
             QLabel#cardIcone {
-                font-size: 21px;
-                min-width: 44px;
-                max-width: 44px;
-                min-height: 44px;
-                max-height: 44px;
-                border-radius: 22px;
+                font-size: 19px;
+                min-width: 40px;
+                max-width: 40px;
+                min-height: 40px;
+                max-height: 40px;
+                border-radius: 20px;
                 background-color: rgba(255,255,255,0.07);
                 border: 1px solid rgba(255,255,255,0.10);
                 qproperty-alignment: AlignCenter;
             }
 
             QLabel#cardIconeNegativo {
-                font-size: 21px;
-                min-width: 44px;
-                max-width: 44px;
-                min-height: 44px;
-                max-height: 44px;
-                border-radius: 22px;
+                font-size: 19px;
+                min-width: 40px;
+                max-width: 40px;
+                min-height: 40px;
+                max-height: 40px;
+                border-radius: 20px;
                 background-color: rgba(239,68,68,0.14);
                 border: 1px solid rgba(248,113,113,0.25);
                 qproperty-alignment: AlignCenter;

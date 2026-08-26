@@ -47,13 +47,13 @@ class ConfirmacaoExclusaoReceita(QDialog):
                 color: #ffffff;
                 background-color: #151c2b;
                 border: 1px solid #26364e;
-                border-radius: 12px;
+                border-radius: 10px;
                 padding: 12px;
             }
 
             QPushButton {
                 min-height: 42px;
-                border-radius: 11px;
+                border-radius: 9px;
                 font-size: 12px;
                 font-weight: bold;
                 color: #ffffff;
@@ -125,13 +125,42 @@ class TelaReceitas(QWidget):
 
         self.layout_principal = QVBoxLayout(self)
         self.layout_principal.setContentsMargins(36, 30, 36, 24)
-        self.layout_principal.setSpacing(16)
+        self.layout_principal.setSpacing(14)
 
         self.aplicar_estilo_local()
         self.montar_tela()
 
     def aplicar_estilo_local(self):
         self.setStyleSheet("""
+            /* Polimento das telas de lançamentos */
+            QLabel#titulo {
+                color: #ffffff;
+                font-family: "Segoe UI";
+                font-size: 30px;
+                font-weight: 700;
+            }
+
+            QLabel#subtitulo {
+                color: #b8c4d6;
+                font-family: "Segoe UI";
+                font-size: 14px;
+                font-weight: 400;
+            }
+
+            QLabel#resumoListagem {
+                color: #c6d0df;
+                font-family: "Segoe UI";
+                font-size: 13px;
+                font-weight: 500;
+                padding: 3px 2px 5px 2px;
+            }
+
+            QFrame#card {
+                background-color: rgba(17, 24, 39, 0.82);
+                border: 1px solid #26364e;
+                border-radius: 14px;
+            }
+
             QFrame#cardReceitaLista {
                 background-color: qlineargradient(
                     x1:0, y1:0, x2:1, y2:1,
@@ -157,7 +186,7 @@ class TelaReceitas(QWidget):
             QLabel#valorReceitaLista {
                 color: #ffffff;
                 font-size: 16px;
-                font-weight: 900;
+                font-weight: 800;
             }
 
             QLabel#infoReceitaLista {
@@ -360,8 +389,8 @@ class TelaReceitas(QWidget):
         painel = QFrame()
         painel.setObjectName("card")
         painel_layout = QVBoxLayout(painel)
-        painel_layout.setContentsMargins(18, 16, 18, 16)
-        painel_layout.setSpacing(12)
+        painel_layout.setContentsMargins(20, 15, 20, 16)
+        painel_layout.setSpacing(10)
 
         painel_layout.addWidget(
             FiltroMensal(
@@ -374,11 +403,13 @@ class TelaReceitas(QWidget):
         )
 
         total_receitas = sum(float(receita[2] or 0) for receita in receitas)
+        quantidade = "1 receita" if len(receitas) == 1 else f"{len(receitas)} receitas"
         resumo = QLabel(
-            f"{len(receitas)} receita(s) em {nome_mes(self.mes_referencia)}  •  "
-            f"Total recebido no mês: {self.formatar_moeda(total_receitas)}"
+            f"{quantidade}  <span style='color:#64748b'>•</span>  "
+            f"<b style='color:#f8fafc'>{self.formatar_moeda(total_receitas)}</b> recebidos no mês"
         )
-        resumo.setObjectName("cardInfo")
+        resumo.setTextFormat(Qt.RichText)
+        resumo.setObjectName("resumoListagem")
         painel_layout.addWidget(resumo)
 
         tabela = TabelaRegistros(
@@ -401,7 +432,8 @@ class TelaReceitas(QWidget):
                         "",
                     ],
                     dados=receita,
-                    colunas_esquerda=(),
+                    colunas_esquerda=(1, 2, 3),
+                    colunas_direita=(4,),
                 )
                 if id_receita in receitas_vinculadas:
                     btn_vinculada = criar_botao_acao(

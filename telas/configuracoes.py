@@ -41,7 +41,7 @@ class TelaConfiguracoes(QWidget):
                     stop:1 rgba(12, 23, 38, 0.98)
                 );
                 border: 1px solid #26364e;
-                border-radius: 16px;
+                border-radius: 10px;
             }
 
             QFrame#configLinhaVerde,
@@ -52,14 +52,14 @@ class TelaConfiguracoes(QWidget):
                 border-radius: 10px;
             }
 
-            QFrame#configLinhaVerde { border-left: 4px solid #22c55e; }
-            QFrame#configLinhaAzul { border-left: 4px solid #1e88ff; }
-            QFrame#configLinhaVermelha { border-left: 4px solid #ef4444; }
+            QFrame#configLinhaVerde { border-left: 3px solid #22c55e; }
+            QFrame#configLinhaAzul { border-left: 3px solid #1e88ff; }
+            QFrame#configLinhaVermelha { border-left: 3px solid #ef4444; }
 
             QLabel#configTituloCard {
                 color: #ffffff;
-                font-size: 22px;
-                font-weight: 800;
+                font-size: 20px;
+                font-weight: 750;
                 background: transparent;
                 border: none;
             }

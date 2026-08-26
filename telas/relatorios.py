@@ -1,12 +1,13 @@
+from servicos.configuracoes_app import caminho_recurso, carregar_configuracoes, salvar_configuracoes
 from datetime import date, datetime, timedelta
 
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QFrame,
     QScrollArea, QGridLayout, QSizePolicy, QDialog, QTableWidget,
-    QTableWidgetItem, QHeaderView, QComboBox
+    QTableWidgetItem, QHeaderView, QComboBox, QListWidget, QListWidgetItem
 )
 from PySide6.QtCore import Qt, QRectF, QTimer
-from PySide6.QtGui import QColor, QPainter, QPen
+from PySide6.QtGui import QPixmap, QColor, QPainter, QPen, QIcon
 
 from banco.banco import (
     listar_despesas,
@@ -15,6 +16,7 @@ from banco.banco import (
     listar_pagamentos_detalhados,
 )
 
+from banco.banco import listar_categorias
 from banco.valores_receber import listar_valores_receber
 
 
@@ -143,8 +145,8 @@ class TelaRelatorios(QWidget):
 
             QLabel#tituloRelatorio {
                 color: #ffffff;
-                font-size: 31px;
-                font-weight: 800;
+                font-size: 29px;
+                font-weight: 750;
             }
 
             QLabel#subtituloRelatorio {
@@ -158,7 +160,7 @@ class TelaRelatorios(QWidget):
                 font-size: 15px;
                 font-weight: 800;
                 padding: 9px 14px;
-                border-radius: 11px;
+                border-radius: 9px;
                 background-color: rgba(30, 41, 59, 0.72);
                 border: 1px solid #26364e;
             }
@@ -181,13 +183,14 @@ class TelaRelatorios(QWidget):
 
             QLabel#cardTituloRelatorio {
                 color: #a8b3c7;
-                font-size: 13px;
+                font-size: 12px;
+                font-weight: 600;
             }
 
             QLabel#cardValorRelatorio {
                 color: #ffffff;
-                font-size: 21px;
-                font-weight: 800;
+                font-size: 20px;
+                font-weight: 750;
             }
 
             QLabel#cardInfoRelatorio {
@@ -243,59 +246,59 @@ class TelaRelatorios(QWidget):
                     stop:1 rgba(12, 23, 38, 0.98)
                 );
                 border: 1px solid #26364e;
-                border-radius: 16px;
+                border-radius: 10px;
             }
 
             QFrame#cardReceitaRelatorio {
                 background-color: qlineargradient(
                     x1:0, y1:0, x2:1, y2:1,
-                    stop:0 rgba(16, 65, 40, 0.96),
+                    stop:0 rgba(15, 58, 37, 0.94),
                     stop:1 rgba(12, 23, 38, 0.98)
                 );
                 border: 1px solid #22c55e;
-                border-radius: 16px;
+                border-radius: 10px;
             }
 
             QFrame#cardPagoRelatorio {
                 background-color: qlineargradient(
                     x1:0, y1:0, x2:1, y2:1,
-                    stop:0 rgba(74, 48, 11, 0.96),
+                    stop:0 rgba(65, 43, 13, 0.94),
                     stop:1 rgba(12, 23, 38, 0.98)
                 );
                 border: 1px solid #f59e0b;
-                border-radius: 16px;
+                border-radius: 10px;
             }
 
             QFrame#cardPendenteRelatorio {
                 background-color: qlineargradient(
                     x1:0, y1:0, x2:1, y2:1,
-                    stop:0 rgba(79, 24, 24, 0.96),
+                    stop:0 rgba(68, 24, 28, 0.94),
                     stop:1 rgba(12, 23, 38, 0.98)
                 );
                 border: 1px solid #ef4444;
-                border-radius: 16px;
+                border-radius: 10px;
             }
 
             QFrame#cardSaldoRelatorio {
                 background-color: qlineargradient(
                     x1:0, y1:0, x2:1, y2:1,
-                    stop:0 rgba(15, 46, 83, 0.98),
+                    stop:0 rgba(15, 42, 72, 0.96),
                     stop:1 rgba(12, 23, 38, 0.98)
                 );
                 border: 1px solid #1e88ff;
-                border-radius: 16px;
+                border-radius: 10px;
             }
 
             QFrame#linhaResumo {
                 background-color: rgba(15, 23, 42, 0.54);
                 border: 1px solid #26364e;
-                border-radius: 12px;
+                border-radius: 10px;
             }
 
             QFrame#itemLista {
                 background-color: rgba(15, 23, 42, 0.54);
                 border: 1px solid #25364f;
-                border-radius: 12px;
+                border-radius: 10px;
             }
 
             QFrame#barraFundo {
@@ -319,11 +322,28 @@ class TelaRelatorios(QWidget):
                 border-radius: 7px;
             }
 
+            QPushButton#btnPersonalizarGrafico {
+                background-color: rgba(30, 41, 59, 0.78);
+                color: #dbeafe;
+                border: 1px solid #334155;
+                border-radius: 8px;
+                min-height: 30px;
+                padding: 0 11px;
+                font-size: 12px;
+                font-weight: 700;
+            }
+
+            QPushButton#btnPersonalizarGrafico:hover {
+                background-color: rgba(37, 99, 235, 0.20);
+                border-color: #3b82f6;
+                color: #ffffff;
+            }
+
             QPushButton#btnAtualizarRelatorio, QPushButton#btnMesRelatorio, QPushButton#btnMesAtualRelatorio {
                 background-color: rgba(30, 41, 59, 0.78);
                 color: #ffffff;
                 padding: 10px 18px;
-                border-radius: 11px;
+                border-radius: 9px;
                 font-size: 14px;
                 font-weight: bold;
                 border: 1px solid #2563eb;
@@ -688,20 +708,36 @@ class TelaRelatorios(QWidget):
     def criar_card_resumo(self, objeto, icone, titulo, valor, info):
         card = QFrame()
         card.setObjectName(objeto)
-        card.setFixedHeight(76)
+        card.setFixedHeight(62)
         card.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        card.setToolTip(titulo + "\n\n" + info)
 
         layout = QHBoxLayout(card)
-        layout.setContentsMargins(12, 8, 12, 8)
-        layout.setSpacing(10)
+        layout.setContentsMargins(11, 7, 11, 7)
+        layout.setSpacing(8)
 
-        lbl_icone = QLabel(icone)
-        lbl_icone.setObjectName("cardValorRelatorio")
-        lbl_icone.setFixedWidth(30)
-        lbl_icone.setAlignment(Qt.AlignCenter)
+        lbl_icone = QLabel()
+        icone_path = caminho_recurso("assets", "icons_lfinance", icone)
+        if icone_path.exists():
+            pixmap = QPixmap(str(icone_path))
+            lbl_icone.setPixmap(
+                pixmap.scaled(
+                    34,
+                    34,
+                    Qt.KeepAspectRatio,
+                    Qt.SmoothTransformation,
+                )
+            )
+            lbl_icone.setFixedSize(38, 38)
+            lbl_icone.setAlignment(Qt.AlignCenter)
+            lbl_icone.setStyleSheet("background: transparent; border: none;")
+        else:
+            lbl_icone.setText(icone)
+            lbl_icone.setFixedWidth(28)
+            lbl_icone.setAlignment(Qt.AlignCenter)
 
         textos = QVBoxLayout()
-        textos.setSpacing(2)
+        textos.setSpacing(0)
 
         lbl_titulo = QLabel(titulo)
         lbl_titulo.setObjectName("cardTituloRelatorio")
@@ -709,12 +745,8 @@ class TelaRelatorios(QWidget):
         lbl_valor = QLabel(valor)
         lbl_valor.setObjectName("cardValorRelatorio")
 
-        lbl_info = QLabel(info)
-        lbl_info.setObjectName("cardInfoRelatorio")
-
         textos.addWidget(lbl_titulo)
         textos.addWidget(lbl_valor)
-        textos.addWidget(lbl_info)
 
         layout.addWidget(lbl_icone)
         layout.addLayout(textos, 1)
@@ -1128,21 +1160,269 @@ class TelaRelatorios(QWidget):
 
     def mostrar_detalhes_lancamentos(self, titulo, itens, texto_vazio="Nenhum lançamento neste período."):
         self.criar_janela_detalhes_lancamentos(titulo, itens, texto_vazio).exec()
-    def ultimos_meses_relatorio(self, quantidade=6):
+    def configuracao_grafico_relatorios(self):
+        config = carregar_configuracoes().get("relatorios_grafico", {})
+        if not isinstance(config, dict):
+            config = {}
+
+        periodo = config.get("periodo", 5)
+        if periodo not in (5, 12):
+            periodo = 5
+
+        categorias = config.get("categorias", [])
+        if not isinstance(categorias, list):
+            categorias = []
+
+        categorias = [
+            str(categoria).strip()
+            for categoria in categorias
+            if str(categoria).strip()
+        ][:5]
+
+        return {"periodo": periodo, "categorias": categorias}
+
+    def abrir_personalizacao_grafico(self):
+        atual = self.configuracao_grafico_relatorios()
+
+        janela = QDialog(self)
+        janela.setWindowTitle("Personalizar gráfico")
+        janela.setModal(True)
+        janela.setFixedSize(500, 500)
+        janela.setStyleSheet("""
+            QDialog { background-color: #0f1726; }
+            QLabel {
+                color: #ffffff;
+                font-family: 'Segoe UI';
+                font-size: 13px;
+            }
+            QLabel#tituloPersonalizacao {
+                font-size: 20px;
+                font-weight: 800;
+            }
+            QLabel#ajudaPersonalizacao, QLabel#avisoPersonalizacao {
+                color: #a8b3c7;
+            }
+            QComboBox, QListWidget {
+                background-color: #152238;
+                color: #ffffff;
+                border: 1px solid #334155;
+                border-radius: 8px;
+                font-size: 13px;
+            }
+
+            QComboBox {
+                padding: 7px 40px 7px 10px;
+            }
+
+            QComboBox::drop-down {
+                subcontrol-origin: padding;
+                subcontrol-position: top right;
+                width: 32px;
+                border: none;
+                border-left: 1px solid #334155;
+                background-color: rgba(30, 41, 59, 0.72);
+                border-top-right-radius: 8px;
+                border-bottom-right-radius: 8px;
+            }
+
+            QComboBox::drop-down:hover {
+                background-color: rgba(37, 99, 235, 0.20);
+            }
+
+            QComboBox::down-arrow {
+                width: 10px;
+                height: 10px;
+            }
+
+            QComboBox QAbstractItemView {
+                background-color: #152238;
+                color: #ffffff;
+                border: 1px solid #334155;
+                selection-background-color: #1f3a5a;
+                selection-color: #ffffff;
+                outline: none;
+                padding: 3px;
+            }
+
+            QListWidget {
+                padding: 7px 9px;
+            }
+
+            QListWidget::item { padding: 5px; }
+            QListWidget::item:selected { background-color: #1f3a5a; }
+            QPushButton {
+                background-color: #1f2937;
+                color: #ffffff;
+                border: 1px solid #475569;
+                border-radius: 8px;
+                min-height: 36px;
+                padding: 0 15px;
+                font-weight: 700;
+            }
+            QPushButton:hover { background-color: #334155; }
+            QPushButton#btnAplicarGrafico {
+                background-color: #2459a6;
+                border-color: #3b82f6;
+            }
+            QPushButton#btnAplicarGrafico:disabled {
+                background-color: #293241;
+                border-color: #475569;
+                color: #94a3b8;
+            }
+        """)
+
+        layout = QVBoxLayout(janela)
+        layout.setContentsMargins(22, 20, 22, 18)
+        layout.setSpacing(10)
+
+        titulo = QLabel("Personalizar gráfico")
+        titulo.setObjectName("tituloPersonalizacao")
+
+        ajuda = QLabel(
+            "Escolha o período e até 5 categorias. "
+            "Se nenhuma categoria ficar marcada, o LFinance usa o modo automático."
+        )
+        ajuda.setObjectName("ajudaPersonalizacao")
+        ajuda.setWordWrap(True)
+
+        rotulo_periodo = QLabel("Período")
+        periodo = QComboBox()
+        periodo.addItem("5 meses • mês selecionado ao centro", 5)
+        periodo.addItem("12 meses • histórico até o mês selecionado", 12)
+        indice_periodo = periodo.findData(atual["periodo"])
+        periodo.setCurrentIndex(max(0, indice_periodo))
+
+        rotulo_categorias = QLabel("Categorias")
+        lista = QListWidget()
+
+        categorias_disponiveis = list(listar_categorias())
+        for salva in atual["categorias"]:
+            if salva not in categorias_disponiveis:
+                categorias_disponiveis.append(salva)
+
+        for categoria in categorias_disponiveis:
+            item = QListWidgetItem(categoria)
+            item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
+            item.setCheckState(
+                Qt.Checked if categoria in atual["categorias"] else Qt.Unchecked
+            )
+            lista.addItem(item)
+
+        aviso = QLabel()
+        aviso.setObjectName("avisoPersonalizacao")
+
+        botoes = QHBoxLayout()
+        restaurar = QPushButton("Restaurar padrão")
+        cancelar = QPushButton("Cancelar")
+        aplicar = QPushButton("Aplicar")
+        aplicar.setObjectName("btnAplicarGrafico")
+
+        botoes.addWidget(restaurar)
+        botoes.addStretch()
+        botoes.addWidget(cancelar)
+        botoes.addWidget(aplicar)
+
+        def categorias_marcadas():
+            return [
+                lista.item(indice).text()
+                for indice in range(lista.count())
+                if lista.item(indice).checkState() == Qt.Checked
+            ]
+
+        def atualizar_aviso():
+            quantidade = len(categorias_marcadas())
+            if quantidade == 0:
+                aviso.setText(
+                    "Modo automático: o LFinance destaca as categorias mais relevantes."
+                )
+                aviso.setStyleSheet("color: #a8b3c7;")
+                aplicar.setEnabled(True)
+            elif quantidade <= 5:
+                aviso.setText(f"{quantidade}/5 categorias selecionadas.")
+                aviso.setStyleSheet("color: #a8b3c7;")
+                aplicar.setEnabled(True)
+            else:
+                aviso.setText(
+                    "Escolha no máximo 5 categorias para manter o gráfico legível."
+                )
+                aviso.setStyleSheet("color: #fca5a5;")
+                aplicar.setEnabled(False)
+
+        def salvar():
+            categorias = categorias_marcadas()
+            if len(categorias) > 5:
+                return
+            salvar_configuracoes({
+                "relatorios_grafico": {
+                    "periodo": int(periodo.currentData()),
+                    "categorias": categorias,
+                }
+            })
+            janela.accept()
+            QTimer.singleShot(0, self.montar_tela)
+
+        def restaurar_padrao():
+            salvar_configuracoes({
+                "relatorios_grafico": {
+                    "periodo": 5,
+                    "categorias": [],
+                }
+            })
+            janela.accept()
+            QTimer.singleShot(0, self.montar_tela)
+
+        lista.itemChanged.connect(lambda _item: atualizar_aviso())
+        aplicar.clicked.connect(salvar)
+        restaurar.clicked.connect(restaurar_padrao)
+        cancelar.clicked.connect(janela.reject)
+
+        layout.addWidget(titulo)
+        layout.addWidget(ajuda)
+        layout.addSpacing(4)
+        layout.addWidget(rotulo_periodo)
+        layout.addWidget(periodo)
+        layout.addSpacing(4)
+        layout.addWidget(rotulo_categorias)
+        layout.addWidget(lista, 1)
+        layout.addWidget(aviso)
+        layout.addLayout(botoes)
+
+        atualizar_aviso()
+        janela.exec()
+
+    def ultimos_meses_relatorio(self, quantidade=None):
+        config = self.configuracao_grafico_relatorios()
+        quantidade = quantidade or config["periodo"]
+
+        if quantidade == 12:
+            meses = []
+            referencia = self.mes_referencia
+            for _ in range(12):
+                meses.append(referencia)
+                mes = referencia.month - 1
+                ano = referencia.year
+                if mes == 0:
+                    ano, mes = ano - 1, 12
+                referencia = date(ano, mes, 1)
+            return list(reversed(meses))
+
         meses = []
-        referencia = self.mes_referencia
-        for _ in range(quantidade):
-            meses.append(referencia)
-            mes = referencia.month - 1
-            ano = referencia.year
-            if mes == 0:
-                ano, mes = ano - 1, 12
-            referencia = date(ano, mes, 1)
-        return list(reversed(meses))
+        for deslocamento in range(-2, 3):
+            indice_mes = (
+                self.mes_referencia.year * 12
+                + (self.mes_referencia.month - 1)
+                + deslocamento
+            )
+            ano = indice_mes // 12
+            mes = (indice_mes % 12) + 1
+            meses.append(date(ano, mes, 1))
+        return meses
 
     def criar_grafico_historico_categorias(self):
-        meses_referencia = self.ultimos_meses_relatorio()
+        config = self.configuracao_grafico_relatorios()
+        meses_referencia = self.ultimos_meses_relatorio(config["periodo"])
         dados_por_mes = [self.dados_mes(mes) for mes in meses_referencia]
+
         totais_categoria = {}
         itens_por_mes = []
 
@@ -1151,23 +1431,37 @@ class TelaRelatorios(QWidget):
             for item in dados["pagamentos"] + dados["gastos"]:
                 categoria = item.get("categoria") or "Sem categoria"
                 grupos.setdefault(categoria, []).append(item)
-                totais_categoria[categoria] = totais_categoria.get(categoria, 0) + float(item.get("valor", 0) or 0)
+                totais_categoria[categoria] = (
+                    totais_categoria.get(categoria, 0)
+                    + float(item.get("valor", 0) or 0)
+                )
             itens_por_mes.append(grupos)
 
-        categorias_principais = [
-            categoria for categoria, _total in sorted(
-                totais_categoria.items(), key=lambda grupo: grupo[1], reverse=True
-            )[:3]
-        ]
-        tem_outras = len(totais_categoria) > len(categorias_principais)
-        categorias = list(categorias_principais)
-        if tem_outras:
-            categorias.append("Outras categorias")
+        categorias_escolhidas = config["categorias"]
 
-        cores = ["#3b82f6", "#ef4444", "#a855f7", "#14b8a6"]
+        if categorias_escolhidas:
+            categorias_principais = list(categorias_escolhidas[:5])
+            categorias = list(categorias_principais)
+        else:
+            categorias_principais = [
+                categoria
+                for categoria, _total in sorted(
+                    totais_categoria.items(),
+                    key=lambda grupo: grupo[1],
+                    reverse=True,
+                )[:3]
+            ]
+            categorias = list(categorias_principais)
+            if len(totais_categoria) > len(categorias_principais):
+                categorias.append("Outras categorias")
+
+        cores = ["#3b82f6", "#ef4444", "#a855f7", "#14b8a6", "#f59e0b"]
         series = []
+
         for indice, categoria in enumerate(categorias):
-            valores, conjuntos = [], []
+            valores = []
+            conjuntos = []
+
             for grupos in itens_por_mes:
                 if categoria == "Outras categorias":
                     itens = [
@@ -1178,8 +1472,12 @@ class TelaRelatorios(QWidget):
                     ]
                 else:
                     itens = grupos.get(categoria, [])
+
                 conjuntos.append(itens)
-                valores.append(sum(float(item.get("valor", 0) or 0) for item in itens))
+                valores.append(
+                    sum(float(item.get("valor", 0) or 0) for item in itens)
+                )
+
             series.append({
                 "nome": categoria,
                 "cor": cores[indice % len(cores)],
@@ -1191,43 +1489,81 @@ class TelaRelatorios(QWidget):
         caixa.setObjectName("cardBase")
         caixa.setFixedHeight(316)
         caixa.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+
         layout = QVBoxLayout(caixa)
-        layout.setContentsMargins(18, 16, 18, 16)
-        layout.setSpacing(9)
+        layout.setContentsMargins(18, 14, 18, 16)
+        layout.setSpacing(8)
 
         linha_titulo = QHBoxLayout()
+
         titulo = QLabel("Gastos por categoria")
         titulo.setObjectName("secaoRelatorio")
-        descricao = QLabel("Últimos 6 meses • clique em uma barra para detalhar")
+
+        if config["periodo"] == 12:
+            texto_periodo = "12 meses • histórico até o mês selecionado"
+        else:
+            texto_periodo = "5 meses • mês selecionado ao centro"
+
+        if categorias_escolhidas:
+            texto_periodo += f" • {len(categorias_escolhidas)} categoria(s)"
+
+        descricao = QLabel(texto_periodo)
         descricao.setObjectName("textoSuave")
         descricao.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+
+        personalizar = QPushButton("Personalizar")
+        personalizar.setObjectName("btnPersonalizarGrafico")
+        personalizar.setToolTip("Escolher período e categorias do gráfico")
+        icone_config = caminho_recurso(
+            "assets", "icons_lfinance", "configuracoes.png"
+        )
+        if icone_config.exists():
+            personalizar.setIcon(QIcon(str(icone_config)))
+        personalizar.clicked.connect(self.abrir_personalizacao_grafico)
+
         linha_titulo.addWidget(titulo)
         linha_titulo.addStretch()
         linha_titulo.addWidget(descricao)
+        linha_titulo.addWidget(personalizar)
         layout.addLayout(linha_titulo)
 
         legenda = QHBoxLayout()
         legenda.setSpacing(14)
+
         for serie in series:
             item_legenda = QLabel(f"■ {serie['nome']}")
-            item_legenda.setStyleSheet(f"color: {serie['cor']}; font-size: 12px; font-weight: 700;")
+            item_legenda.setStyleSheet(
+                f"color: {serie['cor']}; font-size: 12px; font-weight: 700;"
+            )
             legenda.addWidget(item_legenda)
+
         legenda.addStretch()
         layout.addLayout(legenda)
 
         meses = [
-            {"data": mes, "rotulo": self.nome_mes(mes).split(" de ")[0][:3]}
+            {
+                "data": mes,
+                "rotulo": self.nome_mes(mes).split(" de ")[0][:3],
+            }
             for mes in meses_referencia
         ]
 
         def abrir_detalhes(mes, serie, _valor):
             indice = meses.index(mes)
             itens = serie["conjuntos"][indice]
-            titulo_detalhe = f"{serie['nome']} — {self.nome_mes(mes['data'])}"
+            titulo_detalhe = (
+                f"{serie['nome']} — {self.nome_mes(mes['data'])}"
+            )
             self.mostrar_detalhes_lancamentos(titulo_detalhe, itens)
 
-        grafico = GraficoBarrasInterativo(meses, series, abrir_detalhes, caixa)
+        grafico = GraficoBarrasInterativo(
+            meses,
+            series,
+            abrir_detalhes,
+            caixa,
+        )
         layout.addWidget(grafico)
+
         return caixa
 
     def criar_resumo_comparacao(self, dados_atual, dados_anterior):
@@ -1326,7 +1662,7 @@ class TelaRelatorios(QWidget):
         return caixa
     def quantidade_colunas_cartoes(self, largura=None):
         largura_util = self.width() if largura is None else largura
-        return 2 if largura_util < 1250 else 4
+        return 2 if largura_util < 980 else 4
 
     def montar_tela(self):
         if self.layout() is None:
@@ -1344,7 +1680,7 @@ class TelaRelatorios(QWidget):
         topo.setSpacing(14)
         bloco_titulo = QVBoxLayout()
         bloco_titulo.setSpacing(2)
-        titulo = QLabel("📊 Relatórios")
+        titulo = QLabel("Relatórios")
         titulo.setObjectName("tituloRelatorio")
         subtitulo = QLabel("Entenda rapidamente o que entrou, saiu e mudou no seu mês.")
         subtitulo.setObjectName("subtituloRelatorio")
@@ -1396,25 +1732,25 @@ class TelaRelatorios(QWidget):
         cards = QGridLayout()
         cards.setObjectName("cardsRelatorios")
         cards.setHorizontalSpacing(10)
-        cards.setVerticalSpacing(8)
+        cards.setVerticalSpacing(6)
         for coluna in range(colunas_cartoes):
             cards.setColumnStretch(coluna, 1)
         itens_cartoes = [
             self.criar_card_resumo(
-                "cardReceitaRelatorio", "💵", "Receitas", self.formatar_moeda(dados["total_receitas"]),
+                "cardReceitaRelatorio", "card_receitas.png", "Receitas", self.formatar_moeda(dados["total_receitas"]),
                 self.texto_quantidade(len(dados["receitas"]), "entrada", "entradas") + " no mês",
             ),
             self.criar_card_resumo(
-                "cardPagoRelatorio", "✅", "Gastos", self.formatar_moeda(dados["total_pago"]),
+                "cardPagoRelatorio", "card_pago.png", "Gastos", self.formatar_moeda(dados["total_pago"]),
                 "Contas pagas e gastos do dia",
             ),
             self.criar_card_resumo(
-                "cardSaldoRelatorio", "💰", "Saldo realizado", self.formatar_moeda(dados["saldo_mes"]),
+                "cardSaldoRelatorio", "card_saldo.png", "Saldo realizado", self.formatar_moeda(dados["saldo_mes"]),
                 "Entradas menos valores já pagos",
             ),
             self.criar_card_resumo(
                 "cardSaldoRelatorio" if dados["resultado_previsto"] >= 0 else "cardPendenteRelatorio",
-                "📈" if dados["resultado_previsto"] >= 0 else "📉",
+                "card_previsto.png",
                 "Saldo previsto", self.formatar_moeda(dados["resultado_previsto"]),
                 "Considera as contas pendentes deste mês",
             ),

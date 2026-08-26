@@ -45,13 +45,13 @@ class ConfirmacaoExclusao(QDialog):
                 color: #ffffff;
                 background-color: #151c2b;
                 border: 1px solid #26364e;
-                border-radius: 12px;
+                border-radius: 10px;
                 padding: 12px;
             }
 
             QPushButton {
                 min-height: 42px;
-                border-radius: 11px;
+                border-radius: 9px;
                 font-size: 12px;
                 font-weight: bold;
                 color: #ffffff;
@@ -123,13 +123,42 @@ class TelaGastos(QWidget):
 
         self.layout_principal = QVBoxLayout(self)
         self.layout_principal.setContentsMargins(36, 30, 36, 24)
-        self.layout_principal.setSpacing(16)
+        self.layout_principal.setSpacing(14)
 
         self.aplicar_estilo_local()
         self.montar_tela()
 
     def aplicar_estilo_local(self):
         self.setStyleSheet("""
+            /* Polimento das telas de lançamentos */
+            QLabel#titulo {
+                color: #ffffff;
+                font-family: "Segoe UI";
+                font-size: 30px;
+                font-weight: 700;
+            }
+
+            QLabel#subtitulo {
+                color: #b8c4d6;
+                font-family: "Segoe UI";
+                font-size: 14px;
+                font-weight: 400;
+            }
+
+            QLabel#resumoListagem {
+                color: #c6d0df;
+                font-family: "Segoe UI";
+                font-size: 13px;
+                font-weight: 500;
+                padding: 3px 2px 5px 2px;
+            }
+
+            QFrame#card {
+                background-color: rgba(17, 24, 39, 0.82);
+                border: 1px solid #26364e;
+                border-radius: 14px;
+            }
+
             QFrame#cardGasto {
                 background-color: qlineargradient(
                     x1:0, y1:0, x2:1, y2:1,
@@ -155,7 +184,7 @@ class TelaGastos(QWidget):
             QLabel#valorGasto {
                 color: #ffffff;
                 font-size: 16px;
-                font-weight: 900;
+                font-weight: 800;
             }
 
             QLabel#infoGasto {
@@ -430,8 +459,8 @@ class TelaGastos(QWidget):
         painel = QFrame()
         painel.setObjectName("card")
         painel_layout = QVBoxLayout(painel)
-        painel_layout.setContentsMargins(18, 16, 18, 16)
-        painel_layout.setSpacing(12)
+        painel_layout.setContentsMargins(20, 15, 20, 16)
+        painel_layout.setSpacing(10)
 
         periodo = QHBoxLayout()
         periodo.setSpacing(10)
@@ -466,14 +495,15 @@ class TelaGastos(QWidget):
         periodo.addWidget(btn_mes_atual)
         painel_layout.addLayout(periodo)
 
-        resumo = QLabel(f"{len(gastos)} gasto(s) em {self.nome_mes_referencia()}")
-        resumo.setObjectName("cardInfo")
-        painel_layout.addWidget(resumo)
-
         total_gastos = sum(float(g[2] or 0) for g in gastos)
-        total = QLabel(f"Total dos gastos no mês: {self.formatar_moeda(total_gastos)}")
-        total.setObjectName("cardInfo")
-        painel_layout.addWidget(total)
+        quantidade = "1 gasto" if len(gastos) == 1 else f"{len(gastos)} gastos"
+        resumo = QLabel(
+            f"{quantidade}  <span style='color:#64748b'>•</span>  "
+            f"<b style='color:#f8fafc'>{self.formatar_moeda(total_gastos)}</b> no mês"
+        )
+        resumo.setTextFormat(Qt.RichText)
+        resumo.setObjectName("resumoListagem")
+        painel_layout.addWidget(resumo)
 
         tabela = TabelaRegistros(
             ["Data", "Descrição", "Categoria", "Observação", "Valor", "Ação"],
@@ -495,7 +525,8 @@ class TelaGastos(QWidget):
                         "",
                     ],
                     dados=gasto,
-                    colunas_esquerda=(),
+                    colunas_esquerda=(1, 2, 3),
+                    colunas_direita=(4,),
                 )
                 btn_editar = criar_botao_acao(
                     "Editar",

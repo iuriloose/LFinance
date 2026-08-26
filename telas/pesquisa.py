@@ -44,7 +44,7 @@ class TelaPesquisa(QWidget):
             QFrame#painelPesquisa {
                 background-color: rgba(17, 28, 46, 0.96);
                 border: 1px solid #26364e;
-                border-radius: 14px;
+                border-radius: 9px;
             }
             QLineEdit {
                 background-color: #0f1a2b;

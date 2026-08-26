@@ -1,3 +1,4 @@
+from calendar import monthrange
 from datetime import date
 
 from dateutil.relativedelta import relativedelta
@@ -16,6 +17,7 @@ from PySide6.QtWidgets import (
 
 from banco.valores_receber import (
     buscar_valor_receber_por_id,
+    buscar_dias_quinzena,
     desfazer_ultimo_recebimento,
     excluir_valor_receber,
     listar_recebimentos_valor,
@@ -70,7 +72,7 @@ class TelaValoresReceber(QWidget):
                 background-color: #10263a;
                 color: #ffffff;
                 border: 1px solid #38bdf8;
-                border-radius: 12px;
+                border-radius: 10px;
                 min-height: 42px;
                 padding: 0 20px;
                 font-size: 13px;
@@ -82,24 +84,24 @@ class TelaValoresReceber(QWidget):
             }
             QFrame#cardAReceberPrincipal, QFrame#cardPrevistoMes,
             QFrame#cardAtrasadosReceber, QFrame#cardRecebidoMes {
-                border-radius: 14px;
+                border-radius: 9px;
                 min-height: 88px;
                 max-height: 92px;
             }
             QFrame#cardAReceberPrincipal {
-                background: #0b2b32;
+                background: #0d2730;
                 border: 1px solid #22c55e;
             }
             QFrame#cardPrevistoMes {
-                background: #10263a;
-                border: 1px solid #38bdf8;
+                background: #10243a;
+                border: 1px solid #3b82f6;
             }
             QFrame#cardAtrasadosReceber {
-                background: #34151c;
+                background: #2d171c;
                 border: 1px solid #ef4444;
             }
             QFrame#cardRecebidoMes {
-                background: #2d230d;
+                background: #29210f;
                 border: 1px solid #f59e0b;
             }
             QLabel#iconeResumoReceber {
@@ -113,7 +115,7 @@ class TelaValoresReceber(QWidget):
             QLabel#valorResumoReceber {
                 color: #ffffff;
                 font-size: 19px;
-                font-weight: 800;
+                font-weight: 750;
             }
             QLabel#infoResumoReceber {
                 color: #d7dcf0;
@@ -145,8 +147,8 @@ class TelaValoresReceber(QWidget):
             }
             QPushButton#btnMesAtualValores {
                 color: #ffffff;
-                background: #10263a;
-                border: 1px solid #38bdf8;
+                background: #10243a;
+                border: 1px solid #3b82f6;
                 border-radius: 8px;
                 min-height: 28px;
                 padding: 0 9px;
@@ -204,10 +206,33 @@ class TelaValoresReceber(QWidget):
         return meses[data_referencia.month - 1]
 
     @staticmethod
-    def avancar_previsao(data_previsao, frequencia):
-        if frequencia == "quinzenal":
+    def data_ancorada(ano, mes, dia):
+        ultimo_dia = monthrange(ano, mes)[1]
+        return date(ano, mes, min(int(dia), ultimo_dia))
+
+    def avancar_previsao(
+        self, data_previsao, frequencia, dia_quinzena_1=None, dia_quinzena_2=None
+    ):
+        if frequencia != "quinzenal":
+            return data_previsao + relativedelta(months=1)
+        if dia_quinzena_1 is None or dia_quinzena_2 is None:
             return data_previsao + relativedelta(days=15)
-        return data_previsao + relativedelta(months=1)
+
+        dias = sorted((int(dia_quinzena_1), int(dia_quinzena_2)))
+        candidatos = sorted({
+            self.data_ancorada(data_previsao.year, data_previsao.month, dias[0]),
+            self.data_ancorada(data_previsao.year, data_previsao.month, dias[1]),
+        })
+        for candidato in candidatos:
+            if candidato > data_previsao:
+                return candidato
+
+        proximo_mes = data_previsao + relativedelta(months=1)
+        candidatos = sorted({
+            self.data_ancorada(proximo_mes.year, proximo_mes.month, dias[0]),
+            self.data_ancorada(proximo_mes.year, proximo_mes.month, dias[1]),
+        })
+        return candidatos[0]
 
     def previsoes_ativas_no_mes(self, ativos):
         """Gera somente para exibição as próximas competências recorrentes."""
@@ -218,6 +243,10 @@ class TelaValoresReceber(QWidget):
         for item in ativos:
             frequencia = item[12]
             data_previsao = date.fromisoformat(item[4])
+            dia_quinzena_1 = None
+            dia_quinzena_2 = None
+            if frequencia == "quinzenal":
+                dia_quinzena_1, dia_quinzena_2 = buscar_dias_quinzena(item[0])
 
             if frequencia not in {"quinzenal", "mensal"}:
                 if inicio <= data_previsao < fim:
@@ -225,7 +254,12 @@ class TelaValoresReceber(QWidget):
                 continue
 
             while data_previsao < inicio:
-                data_previsao = self.avancar_previsao(data_previsao, frequencia)
+                data_previsao = self.avancar_previsao(
+                    data_previsao,
+                    frequencia,
+                    dia_quinzena_1,
+                    dia_quinzena_2,
+                )
 
             while data_previsao < fim:
                 if data_previsao == date.fromisoformat(item[4]):
@@ -237,7 +271,12 @@ class TelaValoresReceber(QWidget):
                     previsto[10] = previsto[3]
                     previsto[11] = "previsto"
                     previsoes.append((tuple(previsto), True))
-                data_previsao = self.avancar_previsao(data_previsao, frequencia)
+                data_previsao = self.avancar_previsao(
+                    data_previsao,
+                    frequencia,
+                    dia_quinzena_1,
+                    dia_quinzena_2,
+                )
 
         return sorted(
             previsoes,

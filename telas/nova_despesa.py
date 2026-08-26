@@ -35,8 +35,8 @@ class NovaDespesa(QDialog):
             }
 
             QLabel#titulo {
-                font-size: 26px;
-                font-weight: bold;
+                font-size: 24px;
+                font-weight: 750;
             }
 
             QLabel#subtitulo {
@@ -54,7 +54,7 @@ class NovaDespesa(QDialog):
                 background-color: #181d29;
                 color: white;
                 border: 1px solid #252b3a;
-                border-radius: 8px;
+                border-radius: 7px;
                 padding: 5px 10px;
                 min-height: 28px;
                 font-size: 14px;
@@ -86,9 +86,9 @@ class NovaDespesa(QDialog):
             }
             QPushButton {
                 min-height: 34px;
-                border-radius: 9px;
-                font-size: 14px;
-                font-weight: bold;
+                border-radius: 8px;
+                font-size: 13px;
+                font-weight: 700;
                 border: none;
             }
 

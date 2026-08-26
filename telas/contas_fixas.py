@@ -55,13 +55,13 @@ class ConfirmacaoExclusaoContaFixa(QDialog):
                 color: #ffffff;
                 background-color: #151c2b;
                 border: 1px solid #26364e;
-                border-radius: 12px;
+                border-radius: 10px;
                 padding: 12px;
             }
 
             QPushButton {
                 min-height: 42px;
-                border-radius: 11px;
+                border-radius: 9px;
                 font-size: 12px;
                 font-weight: bold;
                 color: #ffffff;
@@ -186,7 +186,7 @@ class TelaContasFixas(QWidget):
 
         self.layout_principal = QVBoxLayout(self)
         self.layout_principal.setContentsMargins(36, 30, 36, 24)
-        self.layout_principal.setSpacing(16)
+        self.layout_principal.setSpacing(14)
 
         self.aplicar_estilo_local()
         self.montar_tela()
@@ -234,6 +234,35 @@ class TelaContasFixas(QWidget):
 
     def aplicar_estilo_local(self):
         self.setStyleSheet("""
+            /* Polimento das telas de lançamentos */
+            QLabel#titulo {
+                color: #ffffff;
+                font-family: "Segoe UI";
+                font-size: 30px;
+                font-weight: 700;
+            }
+
+            QLabel#subtitulo {
+                color: #b8c4d6;
+                font-family: "Segoe UI";
+                font-size: 14px;
+                font-weight: 400;
+            }
+
+            QLabel#resumoListagem {
+                color: #c6d0df;
+                font-family: "Segoe UI";
+                font-size: 13px;
+                font-weight: 500;
+                padding: 3px 2px 5px 2px;
+            }
+
+            QFrame#card {
+                background-color: rgba(17, 24, 39, 0.82);
+                border: 1px solid #26364e;
+                border-radius: 14px;
+            }
+
             QFrame#cardContaFixaLista {
                 background-color: qlineargradient(
                     x1:0, y1:0, x2:1, y2:1,
@@ -259,7 +288,7 @@ class TelaContasFixas(QWidget):
             QLabel#valorContaFixaLista {
                 color: #ffffff;
                 font-size: 16px;
-                font-weight: 900;
+                font-weight: 800;
             }
 
             QLabel#infoContaFixaLista {
@@ -289,7 +318,7 @@ class TelaContasFixas(QWidget):
                 background-color: rgba(30, 41, 59, 0.78);
                 color: white;
                 padding: 10px 18px;
-                border-radius: 11px;
+                border-radius: 9px;
                 font-size: 12px;
                 font-weight: bold;
                 border: 1px solid #92400e;
@@ -570,7 +599,7 @@ class TelaContasFixas(QWidget):
         textos = QVBoxLayout()
         textos.setSpacing(4)
 
-        titulo = QLabel("📅 Contas Fixas")
+        titulo = QLabel("Contas fixas")
         titulo.setObjectName("titulo")
 
         subtitulo = QLabel("Contas recorrentes cadastradas como tipo Conta fixa")
@@ -598,8 +627,8 @@ class TelaContasFixas(QWidget):
         painel = QFrame()
         painel.setObjectName("card")
         painel_layout = QVBoxLayout(painel)
-        painel_layout.setContentsMargins(18, 16, 18, 16)
-        painel_layout.setSpacing(12)
+        painel_layout.setContentsMargins(20, 15, 20, 16)
+        painel_layout.setSpacing(10)
 
         painel_layout.addWidget(
             FiltroMensal(
@@ -613,22 +642,24 @@ class TelaContasFixas(QWidget):
 
         abertas = sum(1 for c in contas if self.separar_despesa(c)[9] != "paga")
         pagas = sum(1 for c in contas if self.separar_despesa(c)[9] == "paga")
-        resumo = QLabel(f"{len(contas)} conta(s) fixa(s) com vencimento em {nome_mes(self.mes_referencia)}  •  {abertas} em aberto  •  {pagas} paga(s)")
-        resumo.setObjectName("cardInfo")
-        painel_layout.addWidget(resumo)
-
         total_mensal = sum(float(self.separar_despesa(c)[2] or 0) for c in contas)
         total_pago = sum(
             float(p[3] or 0)
             for p in listar_pagamentos()
             if p[6] == "Conta fixa" and pertence_ao_mes(p[4], self.mes_referencia)
         )
-        totais = QLabel(
-            f"Total mensal: {self.formatar_moeda(total_mensal)}  •  "
-            f"Total pago no mês: {self.formatar_moeda(total_pago)}"
+        quantidade = "1 conta fixa" if len(contas) == 1 else f"{len(contas)} contas fixas"
+        resumo = QLabel(
+            f"{quantidade}  <span style='color:#64748b'>•</span>  "
+            f"{abertas} em aberto  <span style='color:#64748b'>•</span>  "
+            f"{pagas} pagas  <span style='color:#64748b'>•</span>  "
+            f"<b style='color:#f8fafc'>{self.formatar_moeda(total_mensal)}</b> mensal  "
+            f"<span style='color:#64748b'>•</span>  "
+            f"<b style='color:#f8fafc'>{self.formatar_moeda(total_pago)}</b> pagos no mês"
         )
-        totais.setObjectName("cardInfo")
-        painel_layout.addWidget(totais)
+        resumo.setTextFormat(Qt.RichText)
+        resumo.setObjectName("resumoListagem")
+        painel_layout.addWidget(resumo)
 
         tabela = TabelaRegistros(
             ["Vencimento", "Descrição", "Categoria", "Recorrência", "Situação", "Valor mensal", "Ação"],
@@ -666,7 +697,8 @@ class TelaContasFixas(QWidget):
                         "",
                     ],
                     dados=conta,
-                    colunas_esquerda=(),
+                    colunas_esquerda=(1, 2, 3),
+                    colunas_direita=(5,),
                     cores={4: cor_status(status_texto)},
                 )
 

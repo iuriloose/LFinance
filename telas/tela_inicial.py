@@ -6,7 +6,7 @@ from PySide6.QtWidgets import (
     QGridLayout, QSizePolicy, QLineEdit, QMessageBox, QComboBox
 )
 from PySide6.QtCore import Qt, QItemSelectionModel
-from PySide6.QtGui import QColor
+from PySide6.QtGui import QColor, QPixmap
 
 from componentes.tabela import TabelaFinanceira
 from componentes.tabela_registros import TabelaRegistros, cor_status, criar_botao_acao
@@ -14,7 +14,7 @@ from telas.nova_despesa import NovaDespesa
 from telas.nova_receita import NovaReceita
 from telas.novo_gasto import NovoGasto
 from telas.pagamento import abrir_pagamento
-from servicos.configuracoes_app import obter_nome_usuario
+from servicos.configuracoes_app import obter_nome_usuario, caminho_recurso
 from banco.banco import (
     listar_despesas,
     buscar_despesa_por_id,
@@ -362,11 +362,22 @@ class TelaInicial(QWidget):
         layout.setContentsMargins(14, 8, 14, 8)
         layout.setSpacing(10)
 
-        lbl_icone = QLabel(icone)
-        if objeto == "cardSaldoNegativo":
-            lbl_icone.setObjectName("cardIconeNegativo")
+        lbl_icone = QLabel()
+        icone_path = caminho_recurso("assets", "icons_lfinance", icone)
+        if icone_path.exists():
+            pixmap = QPixmap(str(icone_path))
+            lbl_icone.setPixmap(
+                pixmap.scaled(40, 40, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+            )
+            lbl_icone.setFixedSize(44, 44)
+            lbl_icone.setAlignment(Qt.AlignCenter)
+            lbl_icone.setStyleSheet("background: transparent; border: none;")
         else:
-            lbl_icone.setObjectName("cardIcone")
+            lbl_icone.setText(icone)
+            if objeto == "cardSaldoNegativo":
+                lbl_icone.setObjectName("cardIconeNegativo")
+            else:
+                lbl_icone.setObjectName("cardIcone")
 
         textos = QVBoxLayout()
         textos.setSpacing(0)
@@ -554,7 +565,7 @@ class TelaInicial(QWidget):
         textos = QVBoxLayout()
         textos.setSpacing(2)
 
-        titulo = QLabel(f"{self.saudacao_atual()}, {obter_nome_usuario()} 👋")
+        titulo = QLabel(f"{self.saudacao_atual()}, {obter_nome_usuario()}")
         titulo.setObjectName("titulo")
 
         subtitulo = QLabel("Resumo financeiro deste mês")
@@ -590,13 +601,13 @@ class TelaInicial(QWidget):
         resumo.setSpacing(12)
 
         if saldo_mes < 0:
-            resumo.addWidget(self.criar_card_resumo("cardSaldoNegativo", "💸", "Saldo do mês", self.formatar_moeda(saldo_mes), tooltip="Saldo do mês\n\nReceitas do mês menos tudo que foi efetivamente pago no mês.\nInclui gastos registrados e contas marcadas como pagas."))
+            resumo.addWidget(self.criar_card_resumo("cardSaldoNegativo", "card_saldo_negativo.png", "Saldo do mês", self.formatar_moeda(saldo_mes), tooltip="Saldo do mês\n\nReceitas do mês menos tudo que foi efetivamente pago no mês.\nInclui gastos registrados e contas marcadas como pagas."))
         else:
-            resumo.addWidget(self.criar_card_resumo("cardSaldo", "💰", "Saldo do mês", self.formatar_moeda(saldo_mes), tooltip="Saldo do mês\n\nReceitas do mês menos tudo que foi efetivamente pago no mês.\nInclui gastos registrados e contas marcadas como pagas."))
-        resumo.addWidget(self.criar_card_resumo("cardReceita", "📈", "Receitas do mês", self.formatar_moeda(total_receitas_mes), f"{len(receitas_mes)} entradas", tooltip="Receitas do mês\n\nTotal de entradas cadastradas dentro do mês atual."))
+            resumo.addWidget(self.criar_card_resumo("cardSaldo", "card_saldo.png", "Saldo do mês", self.formatar_moeda(saldo_mes), tooltip="Saldo do mês\n\nReceitas do mês menos tudo que foi efetivamente pago no mês.\nInclui gastos registrados e contas marcadas como pagas."))
+        resumo.addWidget(self.criar_card_resumo("cardReceita", "card_receitas.png", "Receitas do mês", self.formatar_moeda(total_receitas_mes), f"{len(receitas_mes)} entradas", tooltip="Receitas do mês\n\nTotal de entradas cadastradas dentro do mês atual."))
         resumo.addWidget(self.criar_card_resumo(
             "cardDespesa",
-            "✅",
+            "card_pago.png",
             "Pago no mês",
             self.formatar_moeda(total_pago_mes),
             f"{len(itens_pagos_contas)} contas + {len(gastos_mes)} gastos",
@@ -605,7 +616,7 @@ class TelaInicial(QWidget):
         ))
         resumo.addWidget(self.criar_card_resumo(
             "cardAtrasada",
-            "📌",
+            "card_pagar.png",
             "A pagar",
             self.formatar_moeda(total_a_pagar_mes),
             f"{len(despesas_pendentes_mes)} pendentes",

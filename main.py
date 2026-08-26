@@ -15,6 +15,7 @@ from PySide6.QtWidgets import (
 
 from banco.banco import criar_tabelas
 from telas.principal import TelaPrincipal
+from servicos.janela_windows import instalar_tema_janelas
 from servicos.configuracoes_app import (
     APP_VERSAO,
     caminho_recurso,
@@ -100,6 +101,7 @@ def main():
     app = QApplication(sys.argv)
     app.setApplicationName("LFinance")
     app.setApplicationVersion(APP_VERSAO)
+    tema_janelas = instalar_tema_janelas(app)
 
     try:
         criar_tabelas()
