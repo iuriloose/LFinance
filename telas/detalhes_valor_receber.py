@@ -70,7 +70,7 @@ class DetalhesValorReceber(QDialog):
             QFrame#cardDetalhes {
                 background: #131d2e;
                 border: 1px solid #2a3a52;
-                border-radius: 11px;
+                border-radius: 9px;
             }
             QPushButton {
                 min-height: 38px;

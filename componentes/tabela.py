@@ -44,9 +44,9 @@ class TabelaFinanceira(QTableWidget):
                 border: 1px solid #263244;
                 border-radius: 0px;
                 alternate-background-color: #162033;
-                selection-background-color: #1d4ed8;
+                selection-background-color: #1f3a5a;
                 selection-color: white;
-                font-size: 14px;
+                font-size: 13px;
             }
 
             QTableWidget#tabelaFinanceira::item {
@@ -56,7 +56,7 @@ class TabelaFinanceira(QTableWidget):
             }
 
             QTableWidget#tabelaFinanceira::item:selected {
-                background-color: #1d4ed8;
+                background-color: #1f3a5a;
                 color: #ffffff;
             }
 
@@ -68,7 +68,7 @@ class TabelaFinanceira(QTableWidget):
                 border-bottom: 1px solid #334155;
                 padding: 0px 8px;
                 font-weight: bold;
-                font-size: 14px;
+                font-size: 13px;
             }
 
             QTableCornerButton::section {
@@ -158,8 +158,8 @@ class TabelaFinanceira(QTableWidget):
             QLabel {{
                 background-color: {cor_fundo};
                 color: {cor_texto};
-                border-radius: 8px;
-                padding: 3px 10px;
+                border-radius: 6px;
+                padding: 3px 9px;
                 font-weight: bold;
                 font-size: 12px;
             }}

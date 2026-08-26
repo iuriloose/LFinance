@@ -42,12 +42,12 @@ class FiltroMensal(QWidget):
         super().__init__(parent)
         self.setObjectName("filtroMensal")
         self.setStyleSheet("""
-            QWidget#filtroMensal { background-color: #111c2d; border: 1px solid #2b405d; border-radius: 10px; }
-            QLabel#tituloFiltroMensal { color: #e2e8f0; font-size: 13px; font-weight: 800; background: transparent; border: none; }
-            QLabel#periodoFiltroMensal { color: #ffffff; background-color: #1a2940; border: 1px solid #344a68; border-radius: 8px; font-size: 13px; font-weight: 700; padding: 0 14px; }
-            QPushButton#btnNavegarMes { color: #ffffff; background-color: #1e293b; border: 1px solid #475569; border-radius: 8px; font-size: 18px; font-weight: 800; }
+            QWidget#filtroMensal { background-color: #111c2d; border: 1px solid #2b405d; border-radius: 9px; }
+            QLabel#tituloFiltroMensal { color: #e2e8f0; font-size: 13px; font-weight: 700; background: transparent; border: none; }
+            QLabel#periodoFiltroMensal { color: #ffffff; background-color: #1a2940; border: 1px solid #344a68; border-radius: 8px; font-family: "Segoe UI"; font-size: 13px; font-weight: 700; padding: 0 14px; }
+            QPushButton#btnNavegarMes { color: #ffffff; background-color: #1e293b; border: 1px solid #475569; border-radius: 8px; font-size: 18px; font-weight: 700; }
             QPushButton#btnNavegarMes:hover { background-color: #334155; border-color: #60a5fa; }
-            QPushButton#btnMesAtual { color: #dbeafe; background-color: #10243a; border: 1px solid #38bdf8; border-radius: 8px; font-size: 12px; font-weight: 800; padding: 0 14px; }
+            QPushButton#btnMesAtual { color: #dbeafe; background-color: #10243a; border: 1px solid #3b82f6; border-radius: 8px; font-size: 12px; font-weight: 700; padding: 0 14px; }
             QPushButton#btnMesAtual:hover { background-color: #16415d; }
         """)
 

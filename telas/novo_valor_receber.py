@@ -11,10 +11,15 @@ from PySide6.QtWidgets import (
     QLineEdit,
     QMessageBox,
     QPushButton,
+    QSpinBox,
     QVBoxLayout,
 )
 
-from banco.valores_receber import inserir_valor_receber, atualizar_valor_receber
+from banco.valores_receber import (
+    inserir_valor_receber,
+    atualizar_valor_receber,
+    buscar_dias_quinzena,
+)
 
 
 class NovoValorReceber(QDialog):
@@ -50,9 +55,9 @@ class NovoValorReceber(QDialog):
             QFrame#painelFormulario {
                 background: #131d2e;
                 border: 1px solid #2a3a52;
-                border-radius: 12px;
+                border-radius: 10px;
             }
-            QLineEdit, QComboBox, QDateEdit, QDoubleSpinBox {
+            QLineEdit, QComboBox, QDateEdit, QDoubleSpinBox, QSpinBox {
                 background: #151c2b;
                 color: #ffffff;
                 border: 1px solid #334155;
@@ -61,7 +66,7 @@ class NovoValorReceber(QDialog):
                 font-size: 13px;
                 min-height: 28px;
             }
-            QLineEdit:focus, QComboBox:focus, QDateEdit:focus, QDoubleSpinBox:focus {
+            QLineEdit:focus, QComboBox:focus, QDateEdit:focus, QDoubleSpinBox:focus, QSpinBox:focus {
                 border: 1px solid #38bdf8;
             }
             QComboBox::drop-down, QDateEdit::drop-down {
@@ -143,11 +148,21 @@ class NovoValorReceber(QDialog):
 
         self.recorrencia = QComboBox()
         self.recorrencia.addItem("Recebimento único", "unico")
-        self.recorrencia.addItem("Repetir quinzenalmente", "quinzenal")
+        self.recorrencia.addItem("Duas vezes por mês", "quinzenal")
         self.recorrencia.addItem("Repetir mensalmente", "mensal")
         self.recorrencia.setAccessibleName("Frequência")
+
+        self.dia_quinzena_1 = QSpinBox()
+        self.dia_quinzena_1.setRange(1, 31)
+        self.dia_quinzena_1.setValue(1)
+        self.dia_quinzena_1.setButtonSymbols(QAbstractSpinBox.NoButtons)
+
+        self.dia_quinzena_2 = QSpinBox()
+        self.dia_quinzena_2.setRange(1, 31)
+        self.dia_quinzena_2.setValue(15)
+        self.dia_quinzena_2.setButtonSymbols(QAbstractSpinBox.NoButtons)
         self.recorrencia.setToolTip(
-            "Quinzenal cria a próxima previsão em 15 dias. Mensal cria no próximo mês."
+            "Duas vezes por mês usa dois dias fixos do calendário. Mensal cria no próximo mês."
         )
 
         self.observacao = QLineEdit()
@@ -174,6 +189,22 @@ class NovoValorReceber(QDialog):
             self.criar_campo("Frequência", self.recorrencia)
         )
         formulario.addLayout(linha_categoria_recorrencia)
+
+        self.bloco_quinzena = QFrame()
+        linha_quinzena = QHBoxLayout(self.bloco_quinzena)
+        linha_quinzena.setContentsMargins(0, 0, 0, 0)
+        linha_quinzena.setSpacing(12)
+        linha_quinzena.addLayout(
+            self.criar_campo("1º dia do mês", self.dia_quinzena_1)
+        )
+        linha_quinzena.addLayout(
+            self.criar_campo("2º dia do mês", self.dia_quinzena_2)
+        )
+        formulario.addWidget(self.bloco_quinzena)
+
+        self.recorrencia.currentIndexChanged.connect(self.atualizar_campos_quinzena)
+        self.atualizar_campos_quinzena()
+
         formulario.addLayout(self.criar_campo("Observação", self.observacao))
         layout.addWidget(painel_formulario)
 
@@ -195,6 +226,11 @@ class NovoValorReceber(QDialog):
         layout.addLayout(botoes)
         self.pagador.setFocus()
 
+    def atualizar_campos_quinzena(self):
+        quinzenal = self.recorrencia.currentData() == "quinzenal"
+        self.bloco_quinzena.setVisible(quinzenal)
+        self.setFixedHeight(650 if quinzenal else 590)
+
     def preencher(self):
         atual = self.valor_receber
         self.pagador.setText(atual[1] or "")
@@ -210,6 +246,15 @@ class NovoValorReceber(QDialog):
         indice_recorrencia = self.recorrencia.findData(frequencia)
         if indice_recorrencia >= 0:
             self.recorrencia.setCurrentIndex(indice_recorrencia)
+
+        if frequencia == "quinzenal":
+            dia_1, dia_2 = buscar_dias_quinzena(atual[0])
+            if dia_1 is not None:
+                self.dia_quinzena_1.setValue(int(dia_1))
+            if dia_2 is not None:
+                self.dia_quinzena_2.setValue(int(dia_2))
+
+        self.atualizar_campos_quinzena()
         self.observacao.setText(atual[8] or "")
 
     def salvar(self):
@@ -234,16 +279,36 @@ class NovoValorReceber(QDialog):
             self.observacao.text().strip(),
         )
         frequencia = self.recorrencia.currentData()
+        dia_quinzena_1 = self.dia_quinzena_1.value() if frequencia == "quinzenal" else None
+        dia_quinzena_2 = self.dia_quinzena_2.value() if frequencia == "quinzenal" else None
+
+        if frequencia == "quinzenal" and dia_quinzena_1 == dia_quinzena_2:
+            QMessageBox.warning(
+                self,
+                "Atenção",
+                "Escolha dois dias diferentes para os recebimentos do mês.",
+            )
+            return
+
         try:
             if self.modo_edicao:
                 sucesso, mensagem = atualizar_valor_receber(
-                    self.valor_receber[0], *argumentos, frequencia=frequencia
+                    self.valor_receber[0],
+                    *argumentos,
+                    frequencia=frequencia,
+                    dia_quinzena_1=dia_quinzena_1,
+                    dia_quinzena_2=dia_quinzena_2,
                 )
                 if not sucesso:
                     QMessageBox.warning(self, "Alteração não realizada", mensagem)
                     return
             else:
-                inserir_valor_receber(*argumentos, frequencia=frequencia)
+                inserir_valor_receber(
+                    *argumentos,
+                    frequencia=frequencia,
+                    dia_quinzena_1=dia_quinzena_1,
+                    dia_quinzena_2=dia_quinzena_2,
+                )
         except (TypeError, ValueError) as erro:
             QMessageBox.warning(self, "Atenção", str(erro))
             return

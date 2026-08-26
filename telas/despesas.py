@@ -56,13 +56,13 @@ class ConfirmacaoExclusaoDespesa(QDialog):
                 color: #ffffff;
                 background-color: #151c2b;
                 border: 1px solid #26364e;
-                border-radius: 12px;
+                border-radius: 10px;
                 padding: 12px;
             }
 
             QPushButton {
                 min-height: 42px;
-                border-radius: 11px;
+                border-radius: 9px;
                 font-size: 12px;
                 font-weight: bold;
                 color: #ffffff;
@@ -134,13 +134,42 @@ class TelaDespesas(QWidget):
 
         self.layout_principal = QVBoxLayout(self)
         self.layout_principal.setContentsMargins(36, 30, 36, 24)
-        self.layout_principal.setSpacing(16)
+        self.layout_principal.setSpacing(14)
 
         self.aplicar_estilo_local()
         self.montar_tela()
 
     def aplicar_estilo_local(self):
         self.setStyleSheet("""
+            /* Polimento das telas de lançamentos */
+            QLabel#titulo {
+                color: #ffffff;
+                font-family: "Segoe UI";
+                font-size: 30px;
+                font-weight: 700;
+            }
+
+            QLabel#subtitulo {
+                color: #b8c4d6;
+                font-family: "Segoe UI";
+                font-size: 14px;
+                font-weight: 400;
+            }
+
+            QLabel#resumoListagem {
+                color: #c6d0df;
+                font-family: "Segoe UI";
+                font-size: 13px;
+                font-weight: 500;
+                padding: 3px 2px 5px 2px;
+            }
+
+            QFrame#card {
+                background-color: rgba(17, 24, 39, 0.82);
+                border: 1px solid #26364e;
+                border-radius: 14px;
+            }
+
             QFrame#cardDespesaLista {
                 background-color: qlineargradient(
                     x1:0, y1:0, x2:1, y2:1,
@@ -166,7 +195,7 @@ class TelaDespesas(QWidget):
             QLabel#valorDespesaLista {
                 color: #ffffff;
                 font-size: 16px;
-                font-weight: 900;
+                font-weight: 800;
             }
 
             QLabel#infoDespesaLista {
@@ -485,8 +514,8 @@ class TelaDespesas(QWidget):
         painel = QFrame()
         painel.setObjectName("card")
         painel_layout = QVBoxLayout(painel)
-        painel_layout.setContentsMargins(18, 16, 18, 16)
-        painel_layout.setSpacing(12)
+        painel_layout.setContentsMargins(20, 15, 20, 16)
+        painel_layout.setSpacing(10)
 
         painel_layout.addWidget(
             FiltroMensal(
@@ -507,13 +536,17 @@ class TelaDespesas(QWidget):
             if pertence_ao_mes(p[4], self.mes_referencia)
         )
 
+        quantidade = "1 conta" if len(despesas) == 1 else f"{len(despesas)} contas"
         resumo = QLabel(
-            f"{len(despesas)} conta(s) com vencimento em {nome_mes(self.mes_referencia)}  •  "
-            f"{abertas} em aberto  •  {pagas} pagas  •  "
-            f"Em aberto: {self.formatar_moeda(total_aberto)}  •  "
-            f"Pago no mês: {self.formatar_moeda(total_pago)}"
+            f"{quantidade}  <span style='color:#64748b'>•</span>  "
+            f"{abertas} em aberto  <span style='color:#64748b'>•</span>  "
+            f"{pagas} pagas  <span style='color:#64748b'>•</span>  "
+            f"<b style='color:#f8fafc'>{self.formatar_moeda(total_aberto)}</b> em aberto  "
+            f"<span style='color:#64748b'>•</span>  "
+            f"<b style='color:#f8fafc'>{self.formatar_moeda(total_pago)}</b> pagos no mês"
         )
-        resumo.setObjectName("cardInfo")
+        resumo.setTextFormat(Qt.RichText)
+        resumo.setObjectName("resumoListagem")
         resumo.setWordWrap(False)
         painel_layout.addWidget(resumo)
 
@@ -554,7 +587,8 @@ class TelaDespesas(QWidget):
                         "",
                     ],
                     dados=despesa,
-                    colunas_esquerda=(),
+                    colunas_esquerda=(1, 2, 3),
+                    colunas_direita=(5,),
                     cores={4: cor_status(status_texto)},
                     tooltips={
                         3: (

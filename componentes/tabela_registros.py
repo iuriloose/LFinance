@@ -15,25 +15,28 @@ from PySide6.QtWidgets import (
 ESTILO_TABELA_REGISTROS = """
     QTableWidget#tabelaRegistros {
         background-color: #111827;
-        color: #f8fafc;
+        color: #edf3fb;
         border: 1px solid #263244;
-        alternate-background-color: #162033;
-        selection-background-color: #1e3a5f;
+        alternate-background-color: #152033;
+        selection-background-color: #244566;
         selection-color: #ffffff;
+        font-family: "Segoe UI";
         font-size: 13px;
+        font-weight: 500;
     }
     QTableWidget#tabelaRegistros::item {
-        padding: 0 8px;
+        padding: 0 10px;
         border-bottom: 1px solid #263244;
     }
     QHeaderView::section {
-        background-color: #1f2937;
-        color: #f8fafc;
+        background-color: #202b3c;
+        color: #f5f8fc;
         border: none;
-        border-right: 1px solid #253044;
-        border-bottom: 1px solid #334155;
-        padding: 0 8px;
-        font-weight: bold;
+        border-right: 1px solid #2b3749;
+        border-bottom: 1px solid #3b4759;
+        padding: 0 10px;
+        font-family: "Segoe UI";
+        font-weight: 700;
         font-size: 13px;
     }
     QScrollBar:vertical {
@@ -60,7 +63,7 @@ class TabelaRegistros(QTableWidget):
         larguras=None,
         coluna_flexivel=1,
         selecao_multipla=False,
-        altura_linha=38,
+        altura_linha=40,
         colunas_ocultar_compacto=(),
         limite_compacto=850,
     ):
@@ -83,7 +86,7 @@ class TabelaRegistros(QTableWidget):
         )
         self.setFocusPolicy(Qt.NoFocus)
         self.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
-        self.horizontalHeader().setFixedHeight(34)
+        self.horizontalHeader().setFixedHeight(36)
         self.horizontalHeader().setStretchLastSection(False)
         self.setStyleSheet(ESTILO_TABELA_REGISTROS)
 
@@ -112,6 +115,7 @@ class TabelaRegistros(QTableWidget):
         valores,
         dados=None,
         colunas_esquerda=(),
+        colunas_direita=(),
         cores=None,
         tooltips=None,
     ):
@@ -123,7 +127,9 @@ class TabelaRegistros(QTableWidget):
         tooltips = tooltips or {}
         for coluna, valor in enumerate(valores):
             item = QTableWidgetItem(str(valor if valor is not None else ""))
-            if coluna in colunas_esquerda:
+            if coluna in colunas_direita:
+                item.setTextAlignment(Qt.AlignVCenter | Qt.AlignRight)
+            elif coluna in colunas_esquerda:
                 item.setTextAlignment(Qt.AlignVCenter | Qt.AlignLeft)
             else:
                 item.setTextAlignment(Qt.AlignCenter)
@@ -152,15 +158,15 @@ class TabelaRegistros(QTableWidget):
         self.setSpan(0, 0, 1, self.columnCount())
         item = QTableWidgetItem(texto)
         item.setTextAlignment(Qt.AlignCenter)
-        item.setForeground(QColor("#94a3b8"))
+        item.setForeground(QColor("#8fa0b8"))
         item.setFlags(Qt.NoItemFlags)
         self.setItem(0, 0, item)
-        self.setRowHeight(0, 44)
+        self.setRowHeight(0, 62)
 
 
 def criar_botao_acao(texto, callback, cor="#3b82f6", largura=80, tooltip=""):
     botao = QPushButton(texto)
-    botao.setFixedHeight(27)
+    botao.setFixedHeight(29)
     botao.setMinimumWidth(largura)
     botao.setCursor(Qt.PointingHandCursor)
     if tooltip:
@@ -172,7 +178,7 @@ def criar_botao_acao(texto, callback, cor="#3b82f6", largura=80, tooltip=""):
             border: 1px solid {cor};
             border-radius: 6px;
             padding: 0 9px;
-            font-size: 10px;
+            font-size: 11px;
             font-weight: bold;
         }}
         QPushButton:hover {{ background-color: {cor}; color: #ffffff; }}
