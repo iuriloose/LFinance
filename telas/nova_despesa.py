@@ -2,7 +2,7 @@ from PySide6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit,
     QPushButton, QComboBox, QMessageBox
 )
-from PySide6.QtCore import QDate
+from PySide6.QtCore import QDate, Qt
 
 from banco.banco import inserir_despesa, atualizar_despesa, pagar_despesa, excluir_despesa_com_historico, excluir_despesa
 from componentes.categorias import adicionar_acoes_categoria, configurar_combo_categoria, salvar_categoria_do_combo
@@ -238,8 +238,12 @@ class NovaDespesa(QDialog):
         campo_categoria, _ = self.campo("Categoria", self.categoria)
         adicionar_acoes_categoria(campo_categoria, self.categoria, self)
         campo_tipo, _ = self.campo("Tipo", self.tipo)
-        linha_categoria_tipo.addLayout(campo_categoria)
-        linha_categoria_tipo.addLayout(campo_tipo)
+        # A categoria possui botões auxiliares abaixo do seletor. Mantemos o
+        # campo Tipo alinhado pelo topo, em vez de centralizá-lo nessa altura.
+        linha_categoria_tipo.addLayout(campo_categoria, 1)
+        linha_categoria_tipo.addLayout(campo_tipo, 1)
+        linha_categoria_tipo.setAlignment(campo_categoria, Qt.AlignmentFlag.AlignTop)
+        linha_categoria_tipo.setAlignment(campo_tipo, Qt.AlignmentFlag.AlignTop)
 
         linha_parcelas = QHBoxLayout()
         linha_parcelas.setSpacing(12)

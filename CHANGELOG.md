@@ -1,3 +1,10 @@
+# LFinance 2.1.10
+
+## 2.1.10
+
+- Corrige o alinhamento dos campos Tipo e Observação ao lado da Categoria nos formulários de contas e gastos.
+- Evita que os controles extras da Categoria desloquem ou se sobreponham aos demais campos.
+
 # LFinance 2.1.9
 
 ## 2.1.9

@@ -134,6 +134,20 @@ class TesteInterfaceValoresReceberIsolada(unittest.TestCase):
                     "btnGerenciarCategorias",
                 ):
                     self.assertIsNotNone(formulario.findChild(QPushButton, nome))
+
+            formulario_despesa.show()
+            formulario_gasto.show()
+            app.processEvents()
+            self.assertEqual(formulario_despesa.categoria.geometry().top(), formulario_despesa.tipo.geometry().top())
+            self.assertEqual(formulario_gasto.categoria.geometry().top(), formulario_gasto.observacao.geometry().top())
+            self.assertGreater(
+                formulario_despesa.findChild(QPushButton, "btnListaCategorias").geometry().top(),
+                formulario_despesa.categoria.geometry().bottom(),
+            )
+            self.assertGreater(
+                formulario_gasto.findChild(QPushButton, "btnListaCategorias").geometry().top(),
+                formulario_gasto.categoria.geometry().bottom(),
+            )
         finally:
             formulario_gasto.close()
             formulario_despesa.close()
