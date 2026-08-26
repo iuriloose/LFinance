@@ -1,30 +1,27 @@
-LFinance 2.0.1 - Instalador Windows
+LFinance - Geração do instalador Windows
 
-Como gerar o instalador final:
+Antes de gerar o instalador:
 
-1. Confirme que o EXE já existe em:
-   dist\LFinance.exe
+1. Teste o código:
+   python main.py
 
-2. Abra o arquivo:
-   LFinance.iss
+2. Gere um EXE novo:
+   python -m PyInstaller --clean --noconfirm LFinance.spec
 
-3. No Inno Setup, clique em:
-   Build > Compile
+3. Teste:
+   dist\LFinance\LFinance.exe
 
-4. O instalador será gerado em:
-   instalador\LFinance_Setup_v2.0.1.exe
+4. Gere o instalador:
+   & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" ".\LFinance.iss"
 
-O instalador final:
-- Instala o LFinance em C:\Program Files\LFinance.
-- Cria atalho no Menu Iniciar.
-- Cria atalho na Área de Trabalho automaticamente.
-- Registra o desinstalador no Windows.
-- Mantém os dados do usuário em %LOCALAPPDATA%\LFinance.
-- A desinstalação remove o programa, mas não apaga os dados financeiros do usuário.
+O instalador será criado na pasta:
+   instalador\
 
-Observação importante:
-Se já existir um instalador antigo na pasta instalador, ele será substituído quando você compilar novamente.
-
+Importante:
+- Sempre faça um novo build antes de publicar uma versão.
+- Nunca presuma que dist\ contém o código atual.
+- Teste o instalador localmente antes de enviar para o GitHub.
+- Os dados do usuário em %LOCALAPPDATA%\LFinance não devem ser removidos durante atualizações.
 
 Desenvolvido por Iuri Loose.
-© 2026 Iuri Loose. Todos os direitos reservados.
+© 2026 Iuri Loose.

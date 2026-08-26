@@ -1,3 +1,17 @@
+# LFinance 2.1.11
+
+## 2.1.11
+
+- Adiciona filtros mensais nas principais telas financeiras.
+- Permite navegar entre mês anterior, mês atual e próximo mês.
+- Melhora Receitas, Contas a pagar, Contas fixas e Parcelamentos.
+- Reorganiza o gerenciamento de categorias.
+- Melhora o detalhamento dos Relatórios.
+- Ajusta alinhamentos e outros detalhes visuais.
+- Reorganiza o menu lateral.
+- Inclui correções gerais de estabilidade.
+
+
 # LFinance 2.1.10
 
 ## 2.1.10

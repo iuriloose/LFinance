@@ -1,25 +1,21 @@
-LFinance 2.0.1 - Geração do EXE de teste
+LFinance - Geração do executável
 
-1. Extraia o ZIP do projeto.
-2. Abra a pasta LFinance.
-3. Dê dois cliques em:
-   gerar_exe.bat
+Para gerar uma nova versão do executável:
 
-O executável será criado em:
-   dist\LFinance.exe
+1. Confirme que o código-fonte foi testado com:
+   python main.py
 
-Banco de dados:
-- O banco do usuário fica fora da pasta do programa.
-- Caminho usado no Windows:
-  %LOCALAPPDATA%\LFinance\lfinance.db
-- Isso evita perder dados ao trocar/atualizar o EXE.
+2. Gere o executável com:
+   python -m PyInstaller --clean --noconfirm LFinance.spec
 
-Observações:
-- A pasta assets já está configurada no PyInstaller.
-- O ícone do EXE já está configurado.
-- Este pacote ainda é para gerar e testar o EXE.
-- O instalador profissional entra na próxima etapa, depois do EXE testado.
+3. O executável será criado em:
+   dist\LFinance\LFinance.exe
 
+Importante:
+- Não atualize dependências durante o processo de build.
+- Teste o EXE antes de gerar o instalador.
+- Os dados do usuário ficam em:
+  %LOCALAPPDATA%\LFinance
 
 Desenvolvido por Iuri Loose.
-© 2026 Iuri Loose. Todos os direitos reservados.
+© 2026 Iuri Loose.
