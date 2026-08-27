@@ -1,0 +1,19 @@
+{
+  "contract": "lfinance-sync",
+  "version": 1,
+  "money": "integer_cents",
+  "date": "YYYY-MM-DD",
+  "datetime": "ISO-8601 UTC",
+  "record": {
+    "required": ["id", "type", "updated_at", "deleted_at", "data"],
+    "types": ["payable", "payment", "receivable", "receipt", "income", "expense"]
+  },
+  "entities": {
+    "payable": ["description", "planned_amount_cents", "due_date", "category", "recurrence_type", "installment_number", "installment_count", "total_amount_cents", "status"],
+    "payment": ["payable_id", "description", "actual_amount_cents", "planned_amount_cents", "paid_date", "category", "payment_method", "interest_cents", "discount_cents", "note"],
+    "receivable": ["payer", "description", "planned_amount_cents", "due_date", "category", "frequency", "status", "note"],
+    "receipt": ["receivable_id", "income_id", "actual_amount_cents", "received_date", "note"],
+    "income": ["description", "amount_cents", "received_date", "category", "note"],
+    "expense": ["description", "amount_cents", "expense_date", "category", "note"]
+  }
+}
